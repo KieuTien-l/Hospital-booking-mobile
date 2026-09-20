@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Function kiểm tra xem user hiện tại có phải là admin không
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      // Cho phép đọc nếu là chính chủ HOẶC là admin
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      
+      // Cho phép tạo mới tài khoản (chỉ được tạo với role patient và isActive true)
+      allow create: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.data.role == 'patient'
+                    && request.resource.data.isActive == true;
+
+      // Cho phép cập nhật thông tin cá nhân, nhưng KHÔNG được sửa role và isActive (trừ admin)
+      allow update: if request.auth != null 
+                    && (
+                      isAdmin() || 
+                      (
+                        request.auth.uid == userId 
+                        && request.resource.data.role == resource.data.role 
+                        && request.resource.data.isActive == resource.data.isActive
+                      )
+                    );
+                    
+      // Chỉ admin mới được quyền xóa tài khoản
+      allow delete: if isAdmin();
+    }
+  }
+}

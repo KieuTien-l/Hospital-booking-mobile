@@ -1,0 +1,26 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "bookinghospitalapp",
+          "appId": "1:1059987097918:android:842b2dae492830a39e446f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "bookinghospitalapp",
+          "configurations": {
+            "android": "1:1059987097918:android:842b2dae492830a39e446f",
+            "ios": "1:1059987097918:ios:819c56d87fe779929e446f",
+            "web": "1:1059987097918:web:45fd11d71a6b7d6a9e446f"
+          }
+        }
+      }
+    }
+  }
+}

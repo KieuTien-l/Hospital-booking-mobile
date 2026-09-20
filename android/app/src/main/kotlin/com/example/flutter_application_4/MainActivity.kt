@@ -1,4 +1,4 @@
-package com.example.hospital_booking_app
+package com.example.flutter_application_4
 
 import io.flutter.embedding.android.FlutterActivity
 

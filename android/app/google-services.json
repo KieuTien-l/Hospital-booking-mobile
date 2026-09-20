@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1059987097918",
+    "project_id": "bookinghospitalapp",
+    "storage_bucket": "bookinghospitalapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1059987097918:android:842b2dae492830a39e446f",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_4"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0avkccX9H-6wI_bHYYmX2iYQ7XQQTaC8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
