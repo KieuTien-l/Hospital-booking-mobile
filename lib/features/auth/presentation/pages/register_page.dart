@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../validators/auth_validators.dart';
 
 import 'login_page.dart';
@@ -19,10 +21,15 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmation = true;
   bool _acceptedTerms = false;
+  
+  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -52,11 +59,26 @@ class _RegisterPageState extends State<RegisterPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _register() {
+  void _register() async {
     if (!_acceptedTerms) return;
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    _showMessage('Chức năng đăng ký tài khoản chưa được kết nối.');
+    
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.register(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      fullName: _fullNameController.text.trim(),
+      phone: '', // No phone field in UI yet
+    );
+    
+    if (!mounted) return;
+    if (success) {
+      _showMessage('Đăng ký thành công! Vui lòng đăng nhập.');
+      _backToLogin();
+    } else {
+      _showMessage(authProvider.errorMessage ?? 'Đăng ký thất bại');
+    }
   }
 
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) {
@@ -224,6 +246,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                       children: [
                                         _label('Họ và tên'),
                                         TextFormField(
+                                          controller: _fullNameController,
                                           textCapitalization:
                                               TextCapitalization.words,
                                           inputFormatters: [
@@ -251,6 +274,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                         const SizedBox(height: 20),
                                         _label('Email'),
                                         TextFormField(
+                                          controller: _emailController,
                                           keyboardType:
                                               TextInputType.emailAddress,
                                           autocorrect: false,
@@ -399,34 +423,45 @@ class _RegisterPageState extends State<RegisterPage> {
                                                   )
                                                 : null,
                                           ),
-                                          child: ElevatedButton(
-                                            onPressed: _acceptedTerms
-                                                ? _register
-                                                : null,
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              shadowColor: Colors.transparent,
-                                              foregroundColor: Colors.white,
-                                              disabledBackgroundColor:
-                                                  Colors.transparent,
-                                              disabledForegroundColor:
-                                                  const Color(0xFF8A98AA),
-                                              minimumSize:
-                                                  const Size.fromHeight(54),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
+                                          child: Consumer<AuthProvider>(
+                                            builder: (context, auth, _) => ElevatedButton(
+                                              onPressed: (_acceptedTerms && !auth.isLoading)
+                                                  ? _register
+                                                  : null,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    Colors.transparent,
+                                                shadowColor: Colors.transparent,
+                                                foregroundColor: Colors.white,
+                                                disabledBackgroundColor:
+                                                    Colors.transparent,
+                                                disabledForegroundColor:
+                                                    const Color(0xFF8A98AA),
+                                                minimumSize:
+                                                    const Size.fromHeight(54),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                elevation: 0,
                                               ),
-                                              elevation: 0,
-                                            ),
-                                            child: const Text(
-                                              'Đăng ký',
-                                              style: TextStyle(
-                                                fontFamily: 'BeVietnamPro',
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                              child: auth.isLoading
+                                                  ? const SizedBox(
+                                                      height: 24,
+                                                      width: 24,
+                                                      child: CircularProgressIndicator(
+                                                        color: Colors.white,
+                                                        strokeWidth: 2.5,
+                                                      ),
+                                                    )
+                                                  : const Text(
+                                                      'Đăng ký',
+                                                      style: TextStyle(
+                                                        fontFamily: 'BeVietnamPro',
+                                                        fontSize: 18,
+                                                        fontWeight: FontWeight.w700,
+                                                      ),
+                                                    ),
                                             ),
                                           ),
                                         ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../validators/auth_validators.dart';
 
 import 'register_page.dart';
@@ -17,18 +19,27 @@ class _LoginPageState extends State<LoginPage> {
   static const _blue = Color(0xFF0060EF);
   static const _navy = Color(0xFF143D70);
   final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
-  void _login() {
+
+
+  void _login() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    _showMessage('Chức năng đăng nhập chưa được kết nối.');
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
   }
 
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) {
@@ -74,6 +85,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
     final theme = Theme.of(context);
     return Theme(
       data: theme.copyWith(
@@ -194,8 +206,53 @@ class _LoginPageState extends State<LoginPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
+                                        if (authProvider.status ==
+                                                AuthStatus.error &&
+                                            authProvider.errorMessage != null)
+                                          Container(
+                                            margin: const EdgeInsets.only(
+                                              bottom: 16,
+                                            ),
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFEBEE),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: const Color(0xFFFFCDD2),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.error_outline_rounded,
+                                                  color: Colors.red,
+                                                  size: 20,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    authProvider.errorMessage!,
+                                                    style: const TextStyle(
+                                                      color: Colors.red,
+                                                      fontFamily:
+                                                          'BeVietnamPro',
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         _label('Email'),
                                         TextFormField(
+                                          controller: _emailController,
                                           keyboardType:
                                               TextInputType.emailAddress,
                                           autocorrect: false,
@@ -213,6 +270,7 @@ class _LoginPageState extends State<LoginPage> {
                                         const SizedBox(height: 20),
                                         _label('Mật khẩu'),
                                         TextFormField(
+                                          controller: _passwordController,
                                           obscureText: _obscurePassword,
                                           autocorrect: false,
                                           enableSuggestions: false,
@@ -287,30 +345,46 @@ class _LoginPageState extends State<LoginPage> {
                                               ],
                                             ),
                                           ),
-                                          child: ElevatedButton(
-                                            onPressed: _login,
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              shadowColor: Colors.transparent,
-                                              foregroundColor: Colors.white,
-                                              minimumSize:
-                                                  const Size.fromHeight(54),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              elevation: 0,
-                                            ),
-                                            child: const Text(
-                                              'Đăng nhập',
-                                              style: TextStyle(
-                                                fontFamily: 'BeVietnamPro',
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
+                                           child: ElevatedButton(
+                                             onPressed: authProvider.isLoading
+                                                 ? null
+                                                 : _login,
+                                             style: ElevatedButton.styleFrom(
+                                               backgroundColor:
+                                                   Colors.transparent,
+                                               shadowColor: Colors.transparent,
+                                               foregroundColor: Colors.white,
+                                               disabledForegroundColor:
+                                                   Colors.white70,
+                                               minimumSize:
+                                                   const Size.fromHeight(54),
+                                               shape: RoundedRectangleBorder(
+                                                 borderRadius:
+                                                     BorderRadius.circular(12),
+                                               ),
+                                               elevation: 0,
+                                             ),
+                                             child: authProvider.isLoading
+                                                 ? const SizedBox(
+                                                     width: 24,
+                                                     height: 24,
+                                                     child:
+                                                         CircularProgressIndicator(
+                                                       color: Colors.white,
+                                                       strokeWidth: 2.5,
+                                                     ),
+                                                   )
+                                                 : const Text(
+                                                     'Đăng nhập',
+                                                     style: TextStyle(
+                                                       fontFamily:
+                                                           'BeVietnamPro',
+                                                       fontSize: 18,
+                                                       fontWeight:
+                                                           FontWeight.w700,
+                                                     ),
+                                                   ),
+                                           ),
                                         ),
                                       ],
                                     ),

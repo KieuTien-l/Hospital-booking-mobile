@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../auth/presentation/pages/login_page.dart';
+import '../../../../app.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -15,12 +15,12 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 10), () {
+    Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
+        MaterialPageRoute(builder: (context) => const AuthGate()),
       );
     });
   }

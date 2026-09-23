@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/entities/user_entity.dart';
 import '../../home/screens/patient_home_screen.dart';
 import '../../home/screens/doctor_home_screen.dart';
+import '../../home/screens/admin_home_screen.dart';
 import 'register_screen.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../data/datasources/auth_firebase_datasource.dart';
@@ -49,10 +50,10 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
         );
       } else if (user.role == UserRole.admin) {
-        // Admin screen logic here
-        setState(() {
-          _errorMessage = 'Đăng nhập Admin thành công!';
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminDashboard()),
+        );
       }
     } catch (e) {
       setState(() {
