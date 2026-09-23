@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../validators/auth_validators.dart';
 import 'login_page.dart';
 
-enum PasswordRecoveryStep { phone, otp, newPassword }
-
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key, this.step = PasswordRecoveryStep.phone});
-
-  // Later, navigate to the next step only after Auth confirms success.
-  final PasswordRecoveryStep step;
+  const ForgotPasswordPage({super.key});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -19,16 +15,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   static const _blue = Color(0xFF0060EF);
   static const _navy = Color(0xFF143D70);
   final _formKey = GlobalKey<FormState>();
-  bool _obscurePassword = true;
-  bool _obscureConfirmation = true;
-  final _passwordController = TextEditingController();
-
-  @override
-  void dispose() {
-    _passwordController.dispose();
-    super.dispose();
-  }
-
   void _backToLogin() {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -39,154 +25,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     }
   }
 
-  String get _title => switch (widget.step) {
-    PasswordRecoveryStep.phone => 'Quên mật khẩu',
-    PasswordRecoveryStep.otp => 'Xác nhận mã OTP',
-    PasswordRecoveryStep.newPassword => 'Đặt mật khẩu mới',
-  };
-
-  String get _subtitle => switch (widget.step) {
-    PasswordRecoveryStep.phone =>
-      'Nhập số điện thoại đã đăng ký để khôi phục mật khẩu',
-    PasswordRecoveryStep.otp => 'Nhập mã OTP để xác minh số điện thoại',
-    PasswordRecoveryStep.newPassword =>
-      'Nhập mật khẩu mới cho tài khoản của bạn',
-  };
-
-  String get _buttonText => switch (widget.step) {
-    PasswordRecoveryStep.phone => 'Gửi mã OTP',
-    PasswordRecoveryStep.otp => 'Xác nhận OTP',
-    PasswordRecoveryStep.newPassword => 'Đổi mật khẩu',
-  };
-
   Widget _recoveryFields() {
-    if (widget.step == PasswordRecoveryStep.phone) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _label('Số điện thoại'),
-          TextFormField(
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.telephoneNumber],
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(10),
-            ],
-            decoration: _decoration(
-              'Nhập số điện thoại...',
-              Icons.phone_android_rounded,
-            ),
-            onFieldSubmitted: (_) => _submit(),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Vui lòng nhập số điện thoại';
-              }
-              if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
-                return 'Số điện thoại phải có đúng 10 số';
-              }
-              return null;
-            },
-          ),
-        ],
-      );
-    }
-    if (widget.step == PasswordRecoveryStep.otp) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _label('Mã OTP'),
-          TextFormField(
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.oneTimeCode],
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: _decoration(
-              'Nhập mã OTP...',
-              Icons.verified_user_outlined,
-            ),
-            onFieldSubmitted: (_) => _submit(),
-            validator: (value) =>
-                value == null || value.isEmpty ? 'Vui lòng nhập mã OTP' : null,
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () =>
-                  _showMessage('Chức năng gửi OTP chưa được kết nối.'),
-              child: const Text(
-                'Gửi lại mã OTP',
-                style: TextStyle(fontFamily: 'BeVietnamPro', color: _blue),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _label('Mật khẩu mới'),
+        _label('Email'),
         TextFormField(
-          controller: _passwordController,
-          obscureText: _obscurePassword,
+          keyboardType: TextInputType.emailAddress,
           autocorrect: false,
           enableSuggestions: false,
-          autofillHints: const [AutofillHints.newPassword],
-          inputFormatters: [LengthLimitingTextInputFormatter(10)],
-          textInputAction: TextInputAction.next,
-          decoration: _decoration(
-            'Nhập mật khẩu mới...',
-            Icons.lock_outline_rounded,
-            suffix: IconButton(
-              tooltip: _obscurePassword ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
-              icon: Icon(
-                _obscurePassword
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-              ),
-            ),
-          ).copyWith(helperText: 'Mật khẩu tối đa 10 ký tự'),
-          validator: (value) => value == null || value.trim().isEmpty
-              ? 'Vui lòng nhập mật khẩu mới'
-              : null,
-        ),
-        const SizedBox(height: 20),
-        _label('Xác nhận mật khẩu mới'),
-        TextFormField(
-          obscureText: _obscureConfirmation,
-          autocorrect: false,
-          enableSuggestions: false,
-          inputFormatters: [LengthLimitingTextInputFormatter(10)],
           textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _submit(),
+          autofillHints: const [AutofillHints.email],
           decoration: _decoration(
-            'Nhập lại mật khẩu mới...',
-            Icons.lock_outline_rounded,
-            suffix: IconButton(
-              tooltip: _obscureConfirmation
-                  ? 'Hiện xác nhận mật khẩu'
-                  : 'Ẩn xác nhận mật khẩu',
-              onPressed: () =>
-                  setState(() => _obscureConfirmation = !_obscureConfirmation),
-              icon: Icon(
-                _obscureConfirmation
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-              ),
-            ),
+            'Nhập email đã đăng ký...',
+            Icons.email_outlined,
           ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Vui lòng xác nhận mật khẩu mới';
-            }
-            if (value != _passwordController.text) {
-              return 'Mật khẩu xác nhận không khớp';
-            }
-            return null;
-          },
+          onFieldSubmitted: (_) => _submit(),
+          validator: AuthValidators.email,
         ),
       ],
     );
@@ -201,12 +56,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    _showMessage(switch (widget.step) {
-      PasswordRecoveryStep.phone => 'Chức năng gửi OTP chưa được kết nối.',
-      PasswordRecoveryStep.otp => 'Chức năng xác nhận OTP chưa được kết nối.',
-      PasswordRecoveryStep.newPassword =>
-        'Chức năng đổi mật khẩu chưa được kết nối.',
-    });
+    _showMessage(
+      'Chức năng gửi liên kết đặt lại mật khẩu chưa được kết nối Firebase.',
+    );
   }
 
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) {
@@ -332,7 +184,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               ),
                               const SizedBox(height: 30),
                               Text(
-                                _title,
+                                'Quên mật khẩu',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontFamily: 'BeVietnamPro',
@@ -343,7 +195,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _subtitle,
+                                'Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontFamily: 'BeVietnamPro',
@@ -402,7 +254,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                               elevation: 0,
                                             ),
                                             child: Text(
-                                              _buttonText,
+                                              'Gửi liên kết đặt lại',
                                               style: TextStyle(
                                                 fontFamily: 'BeVietnamPro',
                                                 fontSize: 18,
