@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../validators/auth_validators.dart';
+
 import 'login_page.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -36,7 +38,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   static const _passwordHint = Text(
-    'Mật khẩu tối đa 10 ký tự',
+    'Mật khẩu tối thiểu 8 ký tự',
     style: TextStyle(
       fontFamily: 'BeVietnamPro',
       fontSize: 12,
@@ -247,46 +249,27 @@ class _RegisterPageState extends State<RegisterPage> {
                                               : null,
                                         ),
                                         const SizedBox(height: 20),
-                                        _label('Số điện thoại'),
+                                        _label('Email'),
                                         TextFormField(
-                                          keyboardType: TextInputType.phone,
-                                          inputFormatters: [
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                            LengthLimitingTextInputFormatter(
-                                              10,
-                                            ),
-                                          ],
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          autocorrect: false,
+                                          enableSuggestions: false,
                                           textInputAction: TextInputAction.next,
                                           autofillHints: const [
-                                            AutofillHints.telephoneNumber,
+                                            AutofillHints.email,
                                           ],
                                           decoration: _decoration(
-                                            'Nhập số điện thoại...',
-                                            Icons.phone_android_rounded,
+                                            'Nhập email...',
+                                            Icons.email_outlined,
                                           ),
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.trim().isEmpty) {
-                                              return 'Vui lòng nhập số điện thoại';
-                                            }
-                                            if (!RegExp(r'^[0-9]{10}$')
-                                                .hasMatch(value)) {
-                                              return 'Số điện thoại phải có đúng 10 số';
-                                            }
-                                            return null;
-                                          },
+                                          validator: AuthValidators.email,
                                         ),
                                         const SizedBox(height: 20),
                                         _label('Mật khẩu'),
                                         TextFormField(
                                           controller: _passwordController,
                                           obscureText: _obscurePassword,
-                                          inputFormatters: [
-                                            LengthLimitingTextInputFormatter(
-                                              10,
-                                            ),
-                                          ],
                                           autocorrect: false,
                                           enableSuggestions: false,
                                           textInputAction: TextInputAction.next,
@@ -334,11 +317,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                                   ),
                                                 ],
                                               ),
-                                          validator: (value) =>
-                                              value == null ||
-                                                  value.trim().isEmpty
-                                              ? 'Vui lòng nhập mật khẩu'
-                                              : null,
+                                          validator: AuthValidators.newPassword,
                                         ),
                                         const SizedBox(height: 20),
                                         _label('Xác nhận mật khẩu'),
@@ -346,11 +325,6 @@ class _RegisterPageState extends State<RegisterPage> {
                                           obscureText: _obscureConfirmation,
                                           autocorrect: false,
                                           enableSuggestions: false,
-                                          inputFormatters: [
-                                            LengthLimitingTextInputFormatter(
-                                              10,
-                                            ),
-                                          ],
                                           textInputAction: TextInputAction.done,
                                           onFieldSubmitted: (_) => _register(),
                                           decoration: _decoration(

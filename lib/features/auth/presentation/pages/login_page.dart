@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../validators/auth_validators.dart';
+
 import 'register_page.dart';
 import 'forgot_password_page.dart';
 
@@ -192,45 +194,26 @@ class _LoginPageState extends State<LoginPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
-                                        _label('Số điện thoại'),
+                                        _label('Email'),
                                         TextFormField(
-                                          keyboardType: TextInputType.phone,
-                                          inputFormatters: [
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                            LengthLimitingTextInputFormatter(
-                                              10,
-                                            ),
-                                          ],
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          autocorrect: false,
+                                          enableSuggestions: false,
                                           textInputAction: TextInputAction.next,
                                           autofillHints: const [
-                                            AutofillHints.telephoneNumber,
+                                            AutofillHints.email,
                                           ],
                                           decoration: _decoration(
-                                            'Nhập số điện thoại...',
-                                            Icons.phone_android_rounded,
+                                            'Nhập email...',
+                                            Icons.email_outlined,
                                           ),
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.trim().isEmpty) {
-                                              return 'Vui lòng nhập số điện thoại';
-                                            }
-                                            if (!RegExp(r'^[0-9]{10}$')
-                                                .hasMatch(value)) {
-                                              return 'Số điện thoại phải có đúng 10 số';
-                                            }
-                                            return null;
-                                          },
+                                          validator: AuthValidators.email,
                                         ),
                                         const SizedBox(height: 20),
                                         _label('Mật khẩu'),
                                         TextFormField(
                                           obscureText: _obscurePassword,
-                                          inputFormatters: [
-                                            LengthLimitingTextInputFormatter(
-                                              10,
-                                            ),
-                                          ],
                                           autocorrect: false,
                                           enableSuggestions: false,
                                           textInputAction: TextInputAction.done,
@@ -259,8 +242,7 @@ class _LoginPageState extends State<LoginPage> {
                                             ),
                                           ),
                                           validator: (value) =>
-                                              value == null ||
-                                                  value.trim().isEmpty
+                                              value == null || value.isEmpty
                                               ? 'Vui lòng nhập mật khẩu'
                                               : null,
                                         ),
