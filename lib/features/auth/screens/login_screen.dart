@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/entities/user_entity.dart';
 import '../../home/screens/patient_home_screen.dart';
 import '../../home/screens/doctor_home_screen.dart';
 import '../../home/screens/admin_home_screen.dart';
 import 'register_screen.dart';
-import '../domain/repositories/auth_repository.dart';
-import '../data/datasources/auth_firebase_datasource.dart';
-import '../data/repositories/auth_repository_impl.dart';
+import '../presentation/providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,10 +18,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
-  // Khởi tạo Repository (trong thực tế nên dùng Dependency Injection)
-  final AuthRepository _authRepo = AuthRepositoryImpl(AuthFirebaseDatasource());
-  
+
   bool _isLoading = false;
   String _errorMessage = '';
 
@@ -32,10 +29,20 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final user = await _authRepo.login(
+      final auth = context.read<AuthProvider>();
+      await auth.login(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      final user = auth.currentUser;
+      if (user == null) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = auth.errorMessage ?? 'Unable to sign in.';
+          });
+        }
+        return;
+      }
 
       if (!mounted) return;
 
@@ -102,11 +109,13 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const RegisterScreen(),
+                  ),
                 );
               },
               child: const Text('Chưa có tài khoản? Đăng ký ngay'),
-            )
+            ),
           ],
         ),
       ),

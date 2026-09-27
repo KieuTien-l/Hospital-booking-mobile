@@ -1,75 +1,76 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
 import '../../../../core/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../../data/datasources/auth_firebase_datasource.dart';
-import '../../data/repositories/auth_repository_impl.dart';
 
-enum AuthStatus {
-  initial,
-  loading,
-  authenticated,
-  unauthenticated,
-  error,
-}
+enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
 class AuthProvider extends ChangeNotifier {
+  // The public constructor keeps the dependency name descriptive at call sites.
+  // ignore: prefer_initializing_formals
+  AuthProvider({required AuthRepository authRepo}) : _authRepo = authRepo {
+    _authSubscription = _authRepo.authStateChanges.listen(_onAuthStateChanged);
+    _restoreSession();
+  }
+
   final AuthRepository _authRepo;
+  late final StreamSubscription<String?> _authSubscription;
 
   AuthStatus _status = AuthStatus.initial;
   UserEntity? _currentUser;
   String? _errorMessage;
 
-  AuthProvider({AuthRepository? authRepo})
-      : _authRepo = authRepo ?? AuthRepositoryImpl(AuthFirebaseDatasource()) {
-    _init();
-  }
-
   AuthStatus get status => _status;
   UserEntity? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
-
   bool get isLoading => _status == AuthStatus.loading;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
-  void _init() {
-    _status = AuthStatus.unauthenticated;
-  }
-
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> _restoreSession() async {
     _status = AuthStatus.loading;
-    _errorMessage = null;
     notifyListeners();
 
     try {
-      final user = await _authRepo.login(
-        email: email,
-        password: password,
-      );
-      _currentUser = user;
-      _status = AuthStatus.authenticated;
-      notifyListeners();
-    } catch (e) {
+      _currentUser = await _authRepo.getCurrentUser();
+      _status = _currentUser == null
+          ? AuthStatus.unauthenticated
+          : AuthStatus.authenticated;
+      _errorMessage = null;
+    } catch (error) {
       _currentUser = null;
       _status = AuthStatus.error;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+      _errorMessage = _messageFrom(error);
     }
+    notifyListeners();
   }
 
-  Future<void> logout() async {
+  void _onAuthStateChanged(String? userId) {
+    if (userId == null) {
+      if (_status == AuthStatus.loading) return;
+      _currentUser = null;
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = null;
+      notifyListeners();
+      return;
+    }
+    _restoreSession();
+  }
+
+  Future<void> login({required String email, required String password}) async {
     _status = AuthStatus.loading;
+    _errorMessage = null;
     notifyListeners();
 
     try {
-      await _authRepo.logout();
-    } catch (_) {}
-
-    _currentUser = null;
-    _status = AuthStatus.unauthenticated;
-    _errorMessage = null;
+      _currentUser = await _authRepo.login(email: email, password: password);
+      _status = AuthStatus.authenticated;
+    } catch (error) {
+      _currentUser = null;
+      _status = AuthStatus.error;
+      _errorMessage = _messageFrom(error);
+    }
     notifyListeners();
   }
 
@@ -93,18 +94,42 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return true;
-    } catch (e) {
+    } catch (error) {
       _status = AuthStatus.error;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = _messageFrom(error);
       notifyListeners();
       return false;
     }
   }
 
-  void clearError() {
-    if (_errorMessage != null) {
-      _errorMessage = null;
-      notifyListeners();
+  Future<void> logout() async {
+    _status = AuthStatus.loading;
+    notifyListeners();
+
+    try {
+      await _authRepo.logout();
+    } catch (_) {
+      // Local state must still be cleared if the remote sign-out call fails.
     }
+    _currentUser = null;
+    _status = AuthStatus.unauthenticated;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    if (_errorMessage == null) return;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
+  }
+
+  String _messageFrom(Object error) {
+    return error.toString().replaceFirst('Exception: ', '');
   }
 }

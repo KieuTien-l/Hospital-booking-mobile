@@ -1,53 +1,65 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/models/user_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../../../core/entities/user_entity.dart';
+import '../../../../core/models/user_model.dart';
+import '../../domain/exceptions/auth_exception.dart';
 
 class AuthFirebaseDatasource {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  AuthFirebaseDatasource({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
 
   Stream<String?> get authStateChanges {
     return _auth.authStateChanges().map((user) => user?.uid);
   }
 
+  Future<UserModel?> getCurrentUser() async {
+    final user = _auth.currentUser;
+    return user == null ? null : getUser(user.uid);
+  }
+
+  Future<UserRole?> getUserRole() async {
+    return (await getCurrentUser())?.role;
+  }
+
   Future<UserModel?> getUser(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
-    if (doc.exists) {
-      return UserModel.fromFirestore(doc);
-    }
-    return null;
+    return doc.exists ? UserModel.fromFirestore(doc) : null;
   }
 
   Future<UserModel> login(String email, String password) async {
     try {
-      final cred = await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
-      final userModel = await getUser(cred.user!.uid);
-      if (userModel == null) {
-        throw Exception("Không tìm thấy thông tin tài khoản trên hệ thống.");
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        throw const AuthException('Unable to authenticate this account.');
       }
-      
-      if (!userModel.isActive) {
+
+      final user = await getUser(firebaseUser.uid);
+      if (user == null) {
         await _auth.signOut();
-        throw Exception("Tài khoản của bạn đã bị khóa hoặc không hoạt động.");
+        throw const AuthException('Account profile was not found.');
       }
-      
-      return userModel;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
-        throw Exception("Tài khoản không tồn tại hoặc email không hợp lệ.");
-      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        throw Exception("Sai mật khẩu hoặc thông tin đăng nhập không hợp lệ.");
-      } else if (e.code == 'user-disabled') {
-        throw Exception("Tài khoản của bạn đã bị vô hiệu hóa.");
+      if (!user.isActive) {
+        await _auth.signOut();
+        throw const AuthException('This account is inactive.');
       }
-      throw Exception("Lỗi đăng nhập: ${e.message}");
-    } catch (e) {
-      throw Exception("Lỗi không xác định: ${e.toString()}");
+      return user;
+    } on AuthException {
+      rethrow;
+    } on FirebaseAuthException catch (error) {
+      throw AuthException(_loginMessage(error));
+    } on FirebaseException {
+      throw const AuthException('Unable to load the account profile.');
+    } catch (_) {
+      throw const AuthException('Unable to sign in. Please try again.');
     }
   }
 
@@ -58,40 +70,70 @@ class AuthFirebaseDatasource {
     String phone,
   ) async {
     try {
-      final cred = await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        throw const AuthException('Unable to create this account.');
+      }
 
-      final uid = cred.user!.uid;
-
-      final userModel = UserModel(
-        id: uid,
+      final user = UserModel(
+        id: firebaseUser.uid,
         email: email,
         fullName: fullName,
         phone: phone,
         role: UserRole.patient,
         isActive: true,
       );
+      await _firestore
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .set(user.toFirestoreCreate());
 
-      await _firestore.collection('users').doc(uid).set(userModel.toMap());
-
-      return userModel;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'weak-password') {
-        throw Exception("Mật khẩu quá yếu. Vui lòng chọn mật khẩu an toàn hơn.");
-      } else if (e.code == 'email-already-in-use') {
-        throw Exception("Email này đã được sử dụng. Vui lòng dùng email khác.");
-      } else if (e.code == 'invalid-email') {
-        throw Exception("Email sai định dạng.");
-      }
-      throw Exception("Lỗi đăng ký: ${e.message}");
-    } catch (e) {
-      throw Exception("Lỗi mạng hoặc hệ thống: ${e.toString()}");
+      await _auth.signOut();
+      return user;
+    } on AuthException {
+      rethrow;
+    } on FirebaseAuthException catch (error) {
+      throw AuthException(_registerMessage(error));
+    } on FirebaseException {
+      await _auth.signOut();
+      throw const AuthException('Unable to create the account profile.');
+    } catch (_) {
+      await _auth.signOut();
+      throw const AuthException('Unable to register. Please try again.');
     }
   }
 
-  Future<void> logout() async {
-    await _auth.signOut();
+  Future<void> logout() => _auth.signOut();
+
+  String _loginMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'user-not-found':
+      case 'invalid-email':
+        return 'The email address is invalid or is not registered.';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'The email address or password is incorrect.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      default:
+        return 'Unable to sign in. Please try again.';
+    }
+  }
+
+  String _registerMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'weak-password':
+        return 'The password is too weak.';
+      case 'email-already-in-use':
+        return 'This email address is already in use.';
+      case 'invalid-email':
+        return 'The email address is invalid.';
+      default:
+        return 'Unable to register. Please try again.';
+    }
   }
 }

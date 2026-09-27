@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import 'core/entities/user_entity.dart';
 import 'core/themes/app_theme.dart';
+import 'features/auth/data/datasources/auth_firebase_datasource.dart';
+import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/home/presentation/pages/admin_home_page.dart';
@@ -16,7 +18,8 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
+      create: (_) =>
+          AuthProvider(authRepo: AuthRepositoryImpl(AuthFirebaseDatasource())),
       child: MaterialApp(
         title: 'HealWay',
         debugShowCheckedModeBanner: false,

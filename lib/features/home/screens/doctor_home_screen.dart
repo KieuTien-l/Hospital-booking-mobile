@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../auth/data/datasources/auth_firebase_datasource.dart';
-import '../../auth/data/repositories/auth_repository_impl.dart';
-import '../../auth/domain/repositories/auth_repository.dart';
+import 'package:provider/provider.dart';
+
+import '../../auth/presentation/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 
 class DoctorHomeScreen extends StatelessWidget {
   const DoctorHomeScreen({super.key});
 
   void _logout(BuildContext context) async {
-    final AuthRepository authRepo = AuthRepositoryImpl(AuthFirebaseDatasource());
-    await authRepo.logout();
+    await context.read<AuthProvider>().logout();
     if (context.mounted) {
       Navigator.pushReplacement(
         context,
@@ -27,17 +26,14 @@ class DoctorHomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _logout(context),
-          )
+          ),
         ],
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Chào mừng Bác sĩ!',
-              style: TextStyle(fontSize: 20),
-            ),
+            const Text('Chào mừng Bác sĩ!', style: TextStyle(fontSize: 20)),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {},

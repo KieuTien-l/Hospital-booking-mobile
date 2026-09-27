@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../domain/repositories/auth_repository.dart';
-import '../data/datasources/auth_firebase_datasource.dart';
-import '../data/repositories/auth_repository_impl.dart';
+import 'package:provider/provider.dart';
+
+import '../presentation/providers/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,10 +16,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  
+
   final _formKey = GlobalKey<FormState>();
-  
-  final AuthRepository _authRepo = AuthRepositoryImpl(AuthFirebaseDatasource());
 
   bool _isLoading = false;
   String _errorMessage = '';
@@ -32,16 +30,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       try {
-        await _authRepo.register(
+        final auth = context.read<AuthProvider>();
+        final registered = await auth.register(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           fullName: _nameController.text.trim(),
           phone: _phoneController.text.trim(),
         );
+        if (!registered) {
+          if (mounted) {
+            setState(() {
+              _errorMessage = auth.errorMessage ?? 'Unable to register.';
+            });
+          }
+          return;
+        }
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.')),
+          const SnackBar(
+            content: Text('Đăng ký thành công! Vui lòng đăng nhập.'),
+          ),
         );
         Navigator.pop(context);
       } catch (e) {
@@ -70,19 +79,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               children: [
                 if (_errorMessage.isNotEmpty)
-                  Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+                  Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'Họ và tên'),
-                  validator: (value) => value!.isEmpty ? 'Vui lòng nhập họ tên' : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Vui lòng nhập họ tên' : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _phoneController,
                   decoration: const InputDecoration(labelText: 'Số điện thoại'),
                   keyboardType: TextInputType.phone,
-                  validator: (value) => value!.isEmpty ? 'Vui lòng nhập số điện thoại' : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Vui lòng nhập số điện thoại' : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -90,8 +104,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: const InputDecoration(labelText: 'Email'),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Vui lòng nhập email';
-                    if (!value.contains('@') || !value.contains('.')) return 'Email không hợp lệ';
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Email không hợp lệ';
+                    }
                     return null;
                   },
                 ),
@@ -100,15 +118,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   decoration: const InputDecoration(labelText: 'Mật khẩu'),
                   obscureText: true,
-                  validator: (value) => value!.length < 6 ? 'Mật khẩu phải từ 6 ký tự' : null,
+                  validator: (value) =>
+                      value!.length < 6 ? 'Mật khẩu phải từ 6 ký tự' : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _confirmPasswordController,
-                  decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu'),
+                  decoration: const InputDecoration(
+                    labelText: 'Xác nhận mật khẩu',
+                  ),
                   obscureText: true,
                   validator: (value) {
-                    if (value != _passwordController.text) return 'Mật khẩu xác nhận không khớp';
+                    if (value != _passwordController.text) {
+                      return 'Mật khẩu xác nhận không khớp';
+                    }
                     return null;
                   },
                 ),

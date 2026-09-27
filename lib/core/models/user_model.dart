@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../entities/user_entity.dart';
+import 'model_value_parser.dart';
 
 class UserModel extends UserEntity {
   const UserModel({
@@ -9,32 +11,50 @@ class UserModel extends UserEntity {
     required super.phone,
     required super.role,
     required super.isActive,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>?;
-    if (data == null) {
-      throw Exception("Document data is null");
-    }
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-    UserRole parsedRole = UserRole.patient;
-    if (data['role'] == 'doctor') {
-      parsedRole = UserRole.doctor;
-    } else if (data['role'] == 'admin') {
-      parsedRole = UserRole.admin;
-    }
+  factory UserModel.fromJson(Map<String, dynamic> json, {String? documentId}) {
+    final roleValue = readString(json['role']).toLowerCase();
+    final role = UserRole.values.firstWhere(
+      (item) => item.name == roleValue,
+      orElse: () => UserRole.patient,
+    );
 
     return UserModel(
-      id: doc.id,
-      email: data['email'] ?? '',
-      fullName: data['fullName'] ?? '',
-      phone: data['phone'] ?? '',
-      role: parsedRole,
-      isActive: data['isActive'] ?? true, // Mặc định true nếu chưa set
+      id: documentId ?? readString(json['id']),
+      email: readString(json['email']),
+      fullName: readString(json['fullName']),
+      phone: readString(json['phone']),
+      role: role,
+      isActive: readBool(json['isActive'], fallback: true),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 
-  Map<String, dynamic> toMap() {
+  factory UserModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    return UserModel.fromJson(doc.data() ?? const {}, documentId: doc.id);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'fullName': fullName,
+      'phone': phone,
+      'role': role.name,
+      'isActive': isActive,
+      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> toFirestoreCreate() {
     return {
       'email': email,
       'fullName': fullName,
@@ -45,4 +65,6 @@ class UserModel extends UserEntity {
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
+
+  Map<String, dynamic> toMap() => toFirestoreCreate();
 }
