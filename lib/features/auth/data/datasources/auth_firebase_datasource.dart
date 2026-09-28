@@ -3,15 +3,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/entities/user_entity.dart';
 import '../../../../core/models/user_model.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../domain/exceptions/auth_exception.dart';
+import 'auth_firestore_rest_datasource.dart';
 
 class AuthFirebaseDatasource {
-  AuthFirebaseDatasource({FirebaseAuth? auth, FirebaseFirestore? firestore})
-    : _auth = auth ?? FirebaseAuth.instance,
-      _firestore = firestore ?? FirebaseFirestore.instance;
+  AuthFirebaseDatasource({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+    AuthFirestoreRestDatasource? restDatasource,
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _restDatasource = restDatasource ?? AuthFirestoreRestDatasource();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final AuthFirestoreRestDatasource _restDatasource;
 
   Stream<String?> get authStateChanges {
     return _auth.authStateChanges().map((user) => user?.uid);
@@ -19,16 +26,11 @@ class AuthFirebaseDatasource {
 
   Future<UserModel?> getCurrentUser() async {
     final user = _auth.currentUser;
-    return user == null ? null : getUser(user.uid);
+    return user == null ? null : _getUserProfile(user);
   }
 
   Future<UserRole?> getUserRole() async {
     return (await getCurrentUser())?.role;
-  }
-
-  Future<UserModel?> getUser(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    return doc.exists ? UserModel.fromFirestore(doc) : null;
   }
 
   Future<UserModel> login(String email, String password) async {
@@ -42,17 +44,14 @@ class AuthFirebaseDatasource {
         throw const AuthException('Unable to authenticate this account.');
       }
 
-      final user = await getUser(firebaseUser.uid);
-      if (user == null) {
-        await _auth.signOut();
-        throw const AuthException('Account profile was not found.');
-      }
+      final user = await _getUserProfile(firebaseUser);
       if (!user.isActive) {
         await _auth.signOut();
         throw const AuthException('This account is inactive.');
       }
       return user;
     } on AuthException {
+      await _auth.signOut();
       rethrow;
     } on FirebaseAuthException catch (error) {
       throw AuthException(_loginMessage(error));
@@ -108,6 +107,23 @@ class AuthFirebaseDatasource {
   }
 
   Future<void> logout() => _auth.signOut();
+
+  Future<UserModel> _getUserProfile(User firebaseUser) async {
+    try {
+      final idToken = await firebaseUser.getIdToken();
+      if (idToken == null || idToken.isEmpty) {
+        throw const AuthException('Unable to authenticate this account.');
+      }
+      return await _restDatasource.getUser(
+        userId: firebaseUser.uid,
+        idToken: idToken,
+      );
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    }
+  }
 
   String _loginMessage(FirebaseAuthException error) {
     switch (error.code) {
