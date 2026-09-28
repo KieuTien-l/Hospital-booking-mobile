@@ -2,27 +2,52 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../../app.dart';
+import '../../../../core/storage/app_preferences.dart';
+import 'onboarding_page.dart';
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
+  const SplashPage({super.key, this.preferences});
+
+  final AppPreferences? preferences;
 
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
 
 class _SplashPageState extends State<SplashPage> {
+  late final AppPreferences _preferences;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
+    _preferences = widget.preferences ?? AppPreferences();
+    _openNextPage();
+  }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AuthGate()),
-      );
-    });
+  Future<void> _openNextPage() async {
+    final completed = _readOnboardingCompleted();
+    await Future<void>.delayed(const Duration(seconds: 3));
+    final onboardingCompleted = await completed;
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => onboardingCompleted
+            ? const AuthGate()
+            : OnboardingPage(preferences: _preferences),
+      ),
+    );
+  }
+
+  Future<bool> _readOnboardingCompleted() async {
+    try {
+      return await _preferences.isOnboardingCompleted();
+    } catch (_) {
+      // If storage cannot be read, let the user complete onboarding again.
+      return false;
+    }
   }
 
   @override
