@@ -1,34 +1,253 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Function kiểm tra xem user hiện tại có phải là admin không
-    function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    function signedIn() {
+      return request.auth != null;
     }
 
-    match /users/{userId} {
-      // Cho phép đọc nếu là chính chủ HOẶC là admin
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      
-      // Cho phép tạo mới tài khoản (chỉ được tạo với role patient và isActive true)
-      allow create: if request.auth != null 
-                    && request.auth.uid == userId
-                    && request.resource.data.role == 'patient'
-                    && request.resource.data.isActive == true;
+    function hasActiveAccount() {
+      return signedIn() &&
+          get(/databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid))
+              .data.isActive == true;
+    }
 
-      // Cho phép cập nhật thông tin cá nhân, nhưng KHÔNG được sửa role và isActive (trừ admin)
-      allow update: if request.auth != null 
-                    && (
-                      isAdmin() || 
-                      (
-                        request.auth.uid == userId 
-                        && request.resource.data.role == resource.data.role 
-                        && request.resource.data.isActive == resource.data.isActive
-                      )
-                    );
-                    
-      // Chỉ admin mới được quyền xóa tài khoản
+    function hasActiveRole(role) {
+      return hasActiveAccount() &&
+          get(/databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid))
+              .data.role == role;
+    }
+
+    function isAdmin() {
+      return hasActiveRole('admin');
+    }
+
+    function ownsPatient(patientId) {
+      return hasActiveAccount() &&
+          get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
+              .data.authUserId == request.auth.uid;
+    }
+
+    function isDoctor(doctorId) {
+      return hasActiveRole('doctor') &&
+          get(/databases/$(database)/documents/BAC_SI/$(doctorId))
+              .data.userId == request.auth.uid &&
+          get(/databases/$(database)/documents/BAC_SI/$(doctorId))
+              .data.status == 'ACTIVE';
+    }
+
+    function validAppointmentCreateShape() {
+      return request.resource.data.keys().hasAll([
+            'patientId',
+            'doctorId',
+            'workScheduleId',
+            'timeSlotId',
+            'specialtyId',
+            'appointmentDate',
+            'startTime',
+            'endTime',
+            'bookedAt',
+            'status',
+            'peopleCount',
+            'createdAt',
+            'updatedAt'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'patientId',
+            'doctorId',
+            'workScheduleId',
+            'timeSlotId',
+            'specialtyId',
+            'appointmentDate',
+            'startTime',
+            'endTime',
+            'bookedAt',
+            'status',
+            'reason',
+            'note',
+            'symptoms',
+            'peopleCount',
+            'createdAt',
+            'updatedAt'
+          ]) &&
+          request.resource.data.patientId is string &&
+          request.resource.data.doctorId is string &&
+          request.resource.data.workScheduleId is string &&
+          request.resource.data.timeSlotId is string &&
+          request.resource.data.specialtyId is string &&
+          request.resource.data.appointmentDate is timestamp &&
+          request.resource.data.startTime is string &&
+          request.resource.data.endTime is string &&
+          request.resource.data.bookedAt is timestamp &&
+          request.resource.data.peopleCount is int &&
+          request.resource.data.peopleCount > 0 &&
+          request.resource.data.status == 'PENDING';
+    }
+
+    function canCreateAppointment() {
+      let slot = get(/databases/$(database)/documents/CA_KHAM/$(request.resource.data.timeSlotId));
+      let schedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId));
+      return validAppointmentCreateShape() &&
+          ownsPatient(request.resource.data.patientId) &&
+          slot.data.status == 'AVAILABLE' &&
+          slot.data.capacity is int &&
+          slot.data.capacity > 0 &&
+          slot.data.bookedCount is int &&
+          slot.data.bookedCount >= 0 &&
+          slot.data.workScheduleId == request.resource.data.workScheduleId &&
+          slot.data.doctorId == request.resource.data.doctorId &&
+          schedule.data.status == 'ACTIVE' &&
+          schedule.data.doctorId == request.resource.data.doctorId;
+    }
+
+    function canBookSlot(slotId) {
+      let appointment = getAfter(/databases/$(database)/documents/LICH_HEN/$(request.resource.data.appointmentId));
+      let newCount = request.resource.data.bookedCount;
+      let capacity = resource.data.capacity;
+      return hasActiveAccount() &&
+          resource.data.status == 'AVAILABLE' &&
+          resource.data.capacity is int &&
+          resource.data.capacity > 0 &&
+          resource.data.bookedCount is int &&
+          resource.data.bookedCount >= 0 &&
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['bookedCount', 'status', 'appointmentId', 'updatedAt']) &&
+          request.resource.data.workScheduleId == resource.data.workScheduleId &&
+          request.resource.data.doctorId == resource.data.doctorId &&
+          appointment.data.status == 'PENDING' &&
+          appointment.data.timeSlotId == slotId &&
+          appointment.data.workScheduleId == resource.data.workScheduleId &&
+          appointment.data.doctorId == resource.data.doctorId &&
+          appointment.data.peopleCount is int &&
+          appointment.data.peopleCount > 0 &&
+          newCount == resource.data.bookedCount + appointment.data.peopleCount &&
+          newCount > resource.data.bookedCount &&
+          newCount <= capacity &&
+          ((newCount < capacity && request.resource.data.status == 'AVAILABLE') ||
+              (newCount == capacity && request.resource.data.status == 'BOOKED')) &&
+          ownsPatient(appointment.data.patientId);
+    }
+
+    function canUpdateOwnAppointment() {
+      return ownsPatient(resource.data.patientId) &&
+          request.resource.data.patientId == resource.data.patientId &&
+          request.resource.data.doctorId == resource.data.doctorId &&
+          request.resource.data.workScheduleId == resource.data.workScheduleId &&
+          request.resource.data.timeSlotId == resource.data.timeSlotId &&
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['note', 'updatedAt']);
+    }
+
+    function canDoctorUpdateAppointment() {
+      return isDoctor(resource.data.doctorId) &&
+          request.resource.data.patientId == resource.data.patientId &&
+          request.resource.data.doctorId == resource.data.doctorId &&
+          request.resource.data.workScheduleId == resource.data.workScheduleId &&
+          request.resource.data.timeSlotId == resource.data.timeSlotId &&
+          request.resource.data.status in ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'note',
+            'queueNumber',
+            'checkInTime',
+            'cancellationReason',
+            'updatedAt'
+          ]);
+    }
+
+    function canManageOwnSchedule() {
+      return isDoctor(resource.data.doctorId) &&
+          request.resource.data.doctorId == resource.data.doctorId;
+    }
+
+    function canManageOwnSlot() {
+      let schedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(resource.data.workScheduleId));
+      return isDoctor(schedule.data.doctorId) &&
+          request.resource.data.workScheduleId == resource.data.workScheduleId &&
+          request.resource.data.doctorId == resource.data.doctorId &&
+          request.resource.data.bookedCount == resource.data.bookedCount &&
+          request.resource.data.appointmentId == resource.data.appointmentId;
+    }
+
+    match /TAI_KHOAN/{accountId} {
+      allow read: if signedIn() && (request.auth.uid == accountId || isAdmin());
+      allow create: if signedIn() &&
+          request.auth.uid == accountId &&
+          request.resource.data.keys().hasOnly([
+            'email', 'fullName', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt'
+          ]) &&
+          request.resource.data.role == 'patient' &&
+          request.resource.data.isActive == true;
+      allow update: if isAdmin() ||
+          (signedIn() &&
+              request.auth.uid == accountId &&
+              request.resource.data.role == resource.data.role &&
+              request.resource.data.isActive == resource.data.isActive &&
+              request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['email', 'fullName', 'phone', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /CHUYEN_KHOA/{specialtyId} {
+      allow read: if hasActiveAccount();
+      allow write: if isAdmin();
+    }
+
+    match /BAC_SI/{doctorId} {
+      allow read: if hasActiveAccount();
+      allow write: if isAdmin();
+    }
+
+    match /BENH_NHAN/{patientId} {
+      allow read: if isAdmin() || ownsPatient(patientId);
+      allow create: if isAdmin() ||
+          (signedIn() && request.resource.data.authUserId == request.auth.uid);
+      allow update: if isAdmin() ||
+          (ownsPatient(patientId) &&
+              request.resource.data.authUserId == resource.data.authUserId &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'fullName',
+                'phone',
+                'email',
+                'dateOfBirth',
+                'gender',
+                'address',
+                'avatarUrl',
+                'insuranceNumber',
+                'ethnicity',
+                'occupation',
+                'ward',
+                'district',
+                'province',
+                'country',
+                'nationalId',
+                'relationshipToAccountHolder',
+                'updatedAt'
+              ]));
+      allow delete: if isAdmin();
+    }
+
+    match /LICH_LAM_VIEC/{scheduleId} {
+      allow read: if hasActiveAccount();
+      allow create: if isAdmin() || isDoctor(request.resource.data.doctorId);
+      allow update, delete: if isAdmin() || canManageOwnSchedule();
+    }
+
+    match /CA_KHAM/{slotId} {
+      allow read: if hasActiveAccount();
+      allow create: if isAdmin() ||
+          isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId)).data.doctorId);
+      allow update: if isAdmin() || canManageOwnSlot() || canBookSlot(slotId);
+      allow delete: if isAdmin() ||
+          isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(resource.data.workScheduleId)).data.doctorId);
+    }
+
+    match /LICH_HEN/{appointmentId} {
+      allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
+          isDoctor(resource.data.doctorId);
+      allow create: if canCreateAppointment();
+      allow update: if isAdmin() || canDoctorUpdateAppointment() ||
+          canUpdateOwnAppointment();
       allow delete: if isAdmin();
     }
   }

@@ -2,12 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'model_value_parser.dart';
 
-class SpecialtyModel {
-  const SpecialtyModel({
+class Specialty {
+  static const String collectionName = 'CHUYEN_KHOA';
+
+  const Specialty({
     required this.id,
     required this.name,
     required this.description,
     required this.isActive,
+    this.status = 'ACTIVE',
     this.imageUrl,
     this.createdAt,
     this.updatedAt,
@@ -17,30 +20,71 @@ class SpecialtyModel {
   final String name;
   final String description;
   final bool isActive;
+  final String status;
   final String? imageUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  factory SpecialtyModel.fromJson(
-    Map<String, dynamic> json, {
-    String? documentId,
-  }) {
-    final imageUrl = readString(json['imageUrl']);
-    return SpecialtyModel(
-      id: documentId ?? readString(json['id']),
-      name: readString(json['name']),
-      description: readString(json['description']),
-      isActive: readBool(json['isActive'], fallback: true),
-      imageUrl: imageUrl.isEmpty ? null : imageUrl,
-      createdAt: readDateTime(json['createdAt']),
-      updatedAt: readDateTime(json['updatedAt']),
+  String get tenChuyenKhoa => name;
+  String get moTa => description;
+  String? get hinhAnh => imageUrl;
+  String get trangThai => status;
+
+  factory Specialty.fromJson(Map<String, dynamic> json, {String? documentId}) {
+    final status = readStringForKeys(json, const [
+      'TrangThai',
+      'trangThai',
+      'status',
+    ]);
+    final isActive = status.isNotEmpty
+        ? !const {
+            'INACTIVE',
+            'DISABLED',
+            'FALSE',
+            '0',
+          }.contains(status.toUpperCase())
+        : readBool(
+            readFirstValue(json, const ['isActive', 'active']),
+            fallback: true,
+          );
+
+    return Specialty(
+      id: documentId ?? readStringForKeys(json, const ['id', 'Id', 'ID']),
+      name: readStringForKeys(json, const [
+        'TenChuyenKhoa',
+        'tenChuyenKhoa',
+        'name',
+        'Name',
+      ]),
+      description: readStringForKeys(json, const [
+        'MoTa',
+        'moTa',
+        'description',
+        'Description',
+      ]),
+      isActive: isActive,
+      status: status.isEmpty ? (isActive ? 'ACTIVE' : 'INACTIVE') : status,
+      imageUrl: readOptionalStringForKeys(json, const [
+        'HinhAnh',
+        'hinhAnh',
+        'imageUrl',
+        'ImageUrl',
+      ]),
+      createdAt: readDateTime(
+        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
+      ),
+      updatedAt: readDateTime(
+        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
+      ),
     );
   }
 
-  factory SpecialtyModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    return SpecialtyModel.fromJson(doc.data() ?? const {}, documentId: doc.id);
+  factory Specialty.fromMap(Map<String, dynamic> map, {String? documentId}) {
+    return Specialty.fromJson(map, documentId: documentId);
+  }
+
+  factory Specialty.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    return Specialty.fromJson(doc.data() ?? const {}, documentId: doc.id);
   }
 
   Map<String, dynamic> toJson() {
@@ -49,6 +93,7 @@ class SpecialtyModel {
       'name': name,
       'description': description,
       'isActive': isActive,
+      'status': status,
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
@@ -60,8 +105,11 @@ class SpecialtyModel {
       'name': name,
       'description': description,
       'isActive': isActive,
+      'status': status,
       if (imageUrl != null) 'imageUrl': imageUrl,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 }
+
+typedef SpecialtyModel = Specialty;

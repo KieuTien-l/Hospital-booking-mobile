@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'model_value_parser.dart';
 
-class DoctorModel {
-  const DoctorModel({
+class Doctor {
+  static const String collectionName = 'BAC_SI';
+
+  const Doctor({
     required this.id,
     required this.userId,
     required this.fullName,
@@ -13,6 +15,7 @@ class DoctorModel {
     required this.yearsOfExperience,
     required this.consultationFee,
     required this.isActive,
+    this.status = 'ACTIVE',
     this.specialtyName,
     this.qualification,
     this.biography,
@@ -30,6 +33,7 @@ class DoctorModel {
   final int yearsOfExperience;
   final double consultationFee;
   final bool isActive;
+  final String status;
   final String? specialtyName;
   final String? qualification;
   final String? biography;
@@ -37,38 +41,119 @@ class DoctorModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  factory DoctorModel.fromJson(
-    Map<String, dynamic> json, {
-    String? documentId,
-  }) {
-    String? optionalString(String key) {
-      final value = readString(json[key]);
-      return value.isEmpty ? null : value;
-    }
+  String get maChuyenKhoa => specialtyId;
+  String get tenBacSi => fullName;
+  String get trangThai => status;
 
-    return DoctorModel(
-      id: documentId ?? readString(json['id']),
-      userId: readString(json['userId']),
-      fullName: readString(json['fullName']),
-      email: readString(json['email']),
-      phone: readString(json['phone']),
-      specialtyId: readString(json['specialtyId']),
-      yearsOfExperience: readInt(json['yearsOfExperience']),
-      consultationFee: readDouble(json['consultationFee']),
-      isActive: readBool(json['isActive'], fallback: true),
-      specialtyName: optionalString('specialtyName'),
-      qualification: optionalString('qualification'),
-      biography: optionalString('biography'),
-      avatarUrl: optionalString('avatarUrl'),
-      createdAt: readDateTime(json['createdAt']),
-      updatedAt: readDateTime(json['updatedAt']),
+  factory Doctor.fromJson(Map<String, dynamic> json, {String? documentId}) {
+    final status = readStringForKeys(json, const [
+      'TrangThai',
+      'trangThai',
+      'status',
+    ]);
+    final isActive = status.isNotEmpty
+        ? !const {
+            'INACTIVE',
+            'DISABLED',
+            'FALSE',
+            '0',
+          }.contains(status.toUpperCase())
+        : readBool(
+            readFirstValue(json, const ['isActive', 'active']),
+            fallback: true,
+          );
+
+    return Doctor(
+      id: documentId ?? readStringForKeys(json, const ['id', 'Id', 'ID']),
+      userId: readReferenceIdForKeys(json, const [
+        'MaTK',
+        'maTK',
+        'MaNguoiDung',
+        'maNguoiDung',
+        'userId',
+        'UserId',
+      ]),
+      fullName: readStringForKeys(json, const [
+        'HoTen',
+        'hoTen',
+        'TenBacSi',
+        'tenBacSi',
+        'fullName',
+        'name',
+        'Name',
+      ]),
+      email: readStringForKeys(json, const ['Email', 'email']),
+      phone: readStringForKeys(json, const [
+        'SoDienThoai',
+        'soDienThoai',
+        'phone',
+        'Phone',
+      ]),
+      specialtyId: readReferenceIdForKeys(json, const [
+        'MaCK',
+        'maCK',
+        'MaChuyenKhoa',
+        'maChuyenKhoa',
+        'ChuyenKhoaId',
+        'chuyenKhoaId',
+        'specialtyId',
+      ]),
+      yearsOfExperience: readInt(
+        readFirstValue(json, const [
+          'KinhNghiem',
+          'kinhNghiem',
+          'SoNamKinhNghiem',
+          'yearsOfExperience',
+        ]),
+      ),
+      consultationFee: readDouble(
+        readFirstValue(json, const [
+          'GiaKham',
+          'giaKham',
+          'PhiKham',
+          'consultationFee',
+        ]),
+      ),
+      isActive: isActive,
+      status: status.isEmpty ? (isActive ? 'ACTIVE' : 'INACTIVE') : status,
+      specialtyName: readOptionalStringForKeys(json, const [
+        'TenChuyenKhoa',
+        'specialtyName',
+      ]),
+      qualification: readOptionalStringForKeys(json, const [
+        'HocHamHocVi',
+        'hocHamHocVi',
+        'BangCap',
+        'qualification',
+      ]),
+      biography: readOptionalStringForKeys(json, const [
+        'MoTaChiTiet',
+        'moTaChiTiet',
+        'MoTa',
+        'biography',
+      ]),
+      avatarUrl: readOptionalStringForKeys(json, const [
+        'AnhDaiDien',
+        'anhDaiDien',
+        'HinhAnh',
+        'hinhAnh',
+        'avatarUrl',
+      ]),
+      createdAt: readDateTime(
+        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
+      ),
+      updatedAt: readDateTime(
+        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
+      ),
     );
   }
 
-  factory DoctorModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    return DoctorModel.fromJson(doc.data() ?? const {}, documentId: doc.id);
+  factory Doctor.fromMap(Map<String, dynamic> map, {String? documentId}) {
+    return Doctor.fromJson(map, documentId: documentId);
+  }
+
+  factory Doctor.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    return Doctor.fromJson(doc.data() ?? const {}, documentId: doc.id);
   }
 
   Map<String, dynamic> toJson() {
@@ -82,6 +167,7 @@ class DoctorModel {
       'yearsOfExperience': yearsOfExperience,
       'consultationFee': consultationFee,
       'isActive': isActive,
+      'status': status,
       if (specialtyName != null) 'specialtyName': specialtyName,
       if (qualification != null) 'qualification': qualification,
       if (biography != null) 'biography': biography,
@@ -92,11 +178,23 @@ class DoctorModel {
   }
 
   Map<String, dynamic> toFirestore() {
-    final data = toJson()
-      ..remove('id')
-      ..remove('createdAt')
-      ..remove('updatedAt');
-    data['updatedAt'] = FieldValue.serverTimestamp();
-    return data;
+    return {
+      'userId': userId,
+      'fullName': fullName,
+      'email': email,
+      'phone': phone,
+      'specialtyId': specialtyId,
+      'yearsOfExperience': yearsOfExperience,
+      'consultationFee': consultationFee,
+      'isActive': isActive,
+      'status': status,
+      if (specialtyName != null) 'specialtyName': specialtyName,
+      if (qualification != null) 'qualification': qualification,
+      if (biography != null) 'biography': biography,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
   }
 }
+
+typedef DoctorModel = Doctor;

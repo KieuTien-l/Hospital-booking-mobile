@@ -55,6 +55,10 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    // Login and registration already load their profile explicitly. Ignoring
+    // this duplicate event while loading prevents an old restore from
+    // overwriting the final signed-out state after registration.
+    if (_status == AuthStatus.loading) return;
     _restoreSession();
   }
 

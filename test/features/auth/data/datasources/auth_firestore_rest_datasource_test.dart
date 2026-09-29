@@ -17,7 +17,7 @@ void main() {
             expect(request.method, 'GET');
             expect(
               request.url.path,
-              '/v1/projects/bookinghospitalapp/databases/(default)/documents/users/user-1',
+              '/v1/projects/bookinghospitalapp/databases/(default)/documents/TAI_KHOAN/user-1',
             );
             expect(request.headers['authorization'], 'Bearer id-token');
             return http.Response(_validProfileDocument, 200);
@@ -111,7 +111,7 @@ void main() {
 
 const _validProfileDocument = '''
 {
-  "name": "projects/bookinghospitalapp/databases/(default)/documents/users/user-1",
+  "name": "projects/bookinghospitalapp/databases/(default)/documents/TAI_KHOAN/user-1",
   "fields": {
     "email": {"stringValue": "patient@example.com"},
     "fullName": {"stringValue": "Patient One"},

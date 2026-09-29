@@ -6,7 +6,7 @@ The application reads the signed-in user's profile with this Firestore REST
 endpoint:
 
 ```text
-GET https://firestore.googleapis.com/v1/projects/bookinghospitalapp/databases/(default)/documents/users/{uid}
+GET https://firestore.googleapis.com/v1/projects/bookinghospitalapp/databases/(default)/documents/TAI_KHOAN/{uid}
 Authorization: Bearer <Firebase ID token>
 Accept: application/json
 ```
@@ -52,8 +52,8 @@ dart analyze
 ## Manual test with the app
 
 1. Start an Android emulator or connect a phone, then run `flutter run`.
-2. Register a new account in the app. Registration creates its `users/{uid}`
-   Firestore profile.
+2. Register a new account in the app. Registration creates both its
+   `TAI_KHOAN/{uid}` account and `BENH_NHAN/{uid}` patient profile.
 3. Sign in using that account.
 4. A successful `200` REST response is deserialized into `UserModel`; the app
    navigates to the home screen for the stored role.

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/entities/user_entity.dart';
+import '../../../../core/models/patient_model.dart';
 import '../../../../core/models/user_model.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../domain/exceptions/auth_exception.dart';
@@ -85,11 +86,28 @@ class AuthFirebaseDatasource {
         phone: phone,
         role: UserRole.patient,
         isActive: true,
+        accountKey: firebaseUser.uid,
+        permission: 'PATIENT',
+        status: 'ACTIVE',
       );
-      await _firestore
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .set(user.toFirestoreCreate());
+      final patient = Patient(
+        id: firebaseUser.uid,
+        authUserId: firebaseUser.uid,
+        fullName: fullName,
+        phone: phone,
+        email: email,
+        isActive: true,
+      );
+      final batch = _firestore.batch();
+      batch.set(
+        _firestore.collection('TAI_KHOAN').doc(firebaseUser.uid),
+        user.toFirestoreCreate(),
+      );
+      batch.set(
+        _firestore.collection(Patient.collectionName).doc(patient.id),
+        patient.toFirestoreCreate(),
+      );
+      await batch.commit();
 
       await _auth.signOut();
       return user;

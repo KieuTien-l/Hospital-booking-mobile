@@ -24,7 +24,7 @@ class AuthFirestoreRestDatasource {
   }) async {
     final uri = Uri.https(
       'firestore.googleapis.com',
-      '/v1/projects/$projectId/databases/(default)/documents/users/$userId',
+      '/v1/projects/$projectId/databases/(default)/documents/TAI_KHOAN/$userId',
     );
 
     try {
@@ -131,6 +131,10 @@ class AuthFirestoreRestDatasource {
 }
 
 const _profileFieldNames = <String>{
+  'Khoa',
+  'MaTK',
+  'Quyen',
+  'TrangThai',
   'email',
   'fullName',
   'phone',

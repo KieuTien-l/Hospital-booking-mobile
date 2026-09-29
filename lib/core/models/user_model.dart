@@ -11,29 +11,59 @@ class UserModel extends UserEntity {
     required super.phone,
     required super.role,
     required super.isActive,
+    this.department,
+    this.accountKey,
+    this.permission,
+    this.status,
     this.createdAt,
     this.updatedAt,
   });
 
+  final String? department;
+  final String? accountKey;
+  final String? permission;
+  final String? status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   factory UserModel.fromJson(Map<String, dynamic> json, {String? documentId}) {
-    final roleValue = readString(json['role']).toLowerCase();
-    final role = UserRole.values.firstWhere(
-      (item) => item.name == roleValue,
-      orElse: () => UserRole.patient,
-    );
+    final status = readOptionalStringForKeys(json, const [
+      'TrangThai',
+      'status',
+    ]);
+    final roleValue = readStringForKeys(json, const [
+      'role',
+      'Quyen',
+    ]).toLowerCase();
+    final role = _roleFromValue(roleValue);
+    final activeFromStatus = status == null
+        ? true
+        : !const {
+            'INACTIVE',
+            'DISABLED',
+            'FALSE',
+            '0',
+          }.contains(status.toUpperCase());
 
     return UserModel(
       id: documentId ?? readString(json['id']),
-      email: readString(json['email']),
-      fullName: readString(json['fullName']),
-      phone: readString(json['phone']),
+      email: readStringForKeys(json, const ['email', 'Email']),
+      fullName: readStringForKeys(json, const ['fullName', 'HoTen']),
+      phone: readStringForKeys(json, const ['phone', 'SoDienThoai']),
       role: role,
-      isActive: readBool(json['isActive'], fallback: true),
-      createdAt: readDateTime(json['createdAt']),
-      updatedAt: readDateTime(json['updatedAt']),
+      isActive: json.containsKey('isActive')
+          ? readBool(json['isActive'], fallback: true)
+          : activeFromStatus,
+      department: readOptionalStringForKeys(json, const ['Khoa']),
+      accountKey: readOptionalStringForKeys(json, const ['MaTK']),
+      permission: readOptionalStringForKeys(json, const ['Quyen']),
+      status: status,
+      createdAt: readDateTime(
+        readFirstValue(json, const ['createdAt', 'NgayTao']),
+      ),
+      updatedAt: readDateTime(
+        readFirstValue(json, const ['updatedAt', 'NgayCapNhat']),
+      ),
     );
   }
 
@@ -56,15 +86,34 @@ class UserModel extends UserEntity {
 
   Map<String, dynamic> toFirestoreCreate() {
     return {
+      'createdAt': FieldValue.serverTimestamp(),
       'email': email,
       'fullName': fullName,
-      'phone': phone,
       'role': role.name,
       'isActive': isActive,
-      'createdAt': FieldValue.serverTimestamp(),
+      'phone': phone,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 
   Map<String, dynamic> toMap() => toFirestoreCreate();
+
+  static UserRole _roleFromValue(String roleValue) {
+    switch (roleValue) {
+      case 'doctor':
+      case 'bac_si':
+      case 'bác sĩ':
+        return UserRole.doctor;
+      case 'admin':
+      case 'administrator':
+      case 'quan_tri_vien':
+      case 'quản trị viên':
+        return UserRole.admin;
+      case 'patient':
+      case 'benh_nhan':
+      case 'bệnh nhân':
+      default:
+        return UserRole.patient;
+    }
+  }
 }
