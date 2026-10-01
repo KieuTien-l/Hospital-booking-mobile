@@ -21,7 +21,7 @@ class App extends StatelessWidget {
         title: 'HealWay',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const SplashPage(),
+        home: const PatientHomePage(),
       ),
     );
   }
