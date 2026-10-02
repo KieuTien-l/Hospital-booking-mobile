@@ -27,14 +27,8 @@ class UserModel extends UserEntity {
   final DateTime? updatedAt;
 
   factory UserModel.fromJson(Map<String, dynamic> json, {String? documentId}) {
-    final status = readOptionalStringForKeys(json, const [
-      'TrangThai',
-      'status',
-    ]);
-    final roleValue = readStringForKeys(json, const [
-      'role',
-      'Quyen',
-    ]).toLowerCase();
+    final status = readOptionalString(json['status']);
+    final roleValue = readString(json['role']).toLowerCase();
     final role = _roleFromValue(roleValue);
     final activeFromStatus = status == null
         ? true
@@ -47,23 +41,19 @@ class UserModel extends UserEntity {
 
     return UserModel(
       id: documentId ?? readString(json['id']),
-      email: readStringForKeys(json, const ['email', 'Email']),
-      fullName: readStringForKeys(json, const ['fullName', 'HoTen']),
-      phone: readStringForKeys(json, const ['phone', 'SoDienThoai']),
+      email: readString(json['email']),
+      fullName: readString(json['fullName']),
+      phone: readString(json['phone']),
       role: role,
       isActive: json.containsKey('isActive')
           ? readBool(json['isActive'], fallback: true)
           : activeFromStatus,
-      department: readOptionalStringForKeys(json, const ['Khoa']),
-      accountKey: readOptionalStringForKeys(json, const ['MaTK']),
-      permission: readOptionalStringForKeys(json, const ['Quyen']),
+      department: readOptionalString(json['department']),
+      accountKey: readOptionalString(json['accountKey']),
+      permission: readOptionalString(json['permission']),
       status: status,
-      createdAt: readDateTime(
-        readFirstValue(json, const ['createdAt', 'NgayTao']),
-      ),
-      updatedAt: readDateTime(
-        readFirstValue(json, const ['updatedAt', 'NgayCapNhat']),
-      ),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 
@@ -101,17 +91,11 @@ class UserModel extends UserEntity {
   static UserRole _roleFromValue(String roleValue) {
     switch (roleValue) {
       case 'doctor':
-      case 'bac_si':
-      case 'bác sĩ':
         return UserRole.doctor;
       case 'admin':
       case 'administrator':
-      case 'quan_tri_vien':
-      case 'quản trị viên':
         return UserRole.admin;
       case 'patient':
-      case 'benh_nhan':
-      case 'bệnh nhân':
       default:
         return UserRole.patient;
     }

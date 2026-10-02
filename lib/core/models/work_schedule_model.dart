@@ -33,55 +33,14 @@ class WorkSchedule {
     String? documentId,
   }) {
     return WorkSchedule(
-      id:
-          documentId ??
-          readStringForKeys(json, const [
-            'id',
-            'Id',
-            'ID',
-            'MaLichLamViec',
-            'maLichLamViec',
-          ]),
-      doctorId: readReferenceIdForKeys(json, const [
-        'MaBS',
-        'maBS',
-        'MaBacSi',
-        'maBacSi',
-        'BacSiId',
-        'bacSiId',
-        'doctorId',
-      ]),
-      workDate: readDateTime(
-        readFirstValue(json, const [
-          'NgayLamViec',
-          'ngayLamViec',
-          'workDate',
-          'date',
-        ]),
-      ),
-      startTime: readTimeStringForKeys(json, const [
-        'GioBatDau',
-        'gioBatDau',
-        'ThoiGianBatDau',
-        'startTime',
-      ]),
-      endTime: readTimeStringForKeys(json, const [
-        'GioKetThuc',
-        'gioKetThuc',
-        'ThoiGianKetThuc',
-        'endTime',
-      ]),
-      status: readStringForKeys(json, const [
-        'TrangThai',
-        'trangThai',
-        'status',
-      ], fallback: 'ACTIVE'),
-      createdAt: readDateTime(
-        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
-      ),
-      updatedAt: readDateTime(
-        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
-      ),
+      id: documentId ?? readString(json['id']),
+      doctorId: readReferenceId(json['doctorId']),
+      workDate: readDateTime(json['workDate']),
+      startTime: readTimeString(json['startTime']),
+      endTime: readTimeString(json['endTime']),
+      status: readString(json['status'], fallback: 'ACTIVE'),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 

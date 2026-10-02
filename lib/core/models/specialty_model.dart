@@ -31,11 +31,7 @@ class Specialty {
   String get trangThai => status;
 
   factory Specialty.fromJson(Map<String, dynamic> json, {String? documentId}) {
-    final status = readStringForKeys(json, const [
-      'TrangThai',
-      'trangThai',
-      'status',
-    ]);
+    final status = readStringForKeys(json, const ['status']);
     final isActive = status.isNotEmpty
         ? !const {
             'INACTIVE',
@@ -43,39 +39,17 @@ class Specialty {
             'FALSE',
             '0',
           }.contains(status.toUpperCase())
-        : readBool(
-            readFirstValue(json, const ['isActive', 'active']),
-            fallback: true,
-          );
+        : readBool(json['isActive'], fallback: true);
 
     return Specialty(
-      id: documentId ?? readStringForKeys(json, const ['id', 'Id', 'ID']),
-      name: readStringForKeys(json, const [
-        'TenChuyenKhoa',
-        'tenChuyenKhoa',
-        'name',
-        'Name',
-      ]),
-      description: readStringForKeys(json, const [
-        'MoTa',
-        'moTa',
-        'description',
-        'Description',
-      ]),
+      id: documentId ?? readString(json['id']),
+      name: readString(json['name']),
+      description: readString(json['description']),
       isActive: isActive,
       status: status.isEmpty ? (isActive ? 'ACTIVE' : 'INACTIVE') : status,
-      imageUrl: readOptionalStringForKeys(json, const [
-        'HinhAnh',
-        'hinhAnh',
-        'imageUrl',
-        'ImageUrl',
-      ]),
-      createdAt: readDateTime(
-        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
-      ),
-      updatedAt: readDateTime(
-        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
-      ),
+      imageUrl: readOptionalString(json['imageUrl']),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 

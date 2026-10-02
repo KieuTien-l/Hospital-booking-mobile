@@ -36,6 +36,9 @@ const collectionMappers = new Map([
   ['LICH_LAM_VIEC', mapWorkSchedule],
   ['CA_KHAM', mapTimeSlot],
   ['LICH_HEN', mapAppointment],
+  ['LS_CHAT_AI', mapChatMessage],
+  ['THANH_TOAN', mapPayment],
+  ['THONG_BAO', mapNotification],
 ]);
 
 const legacyFieldMappings = new Map([
@@ -47,6 +50,8 @@ const legacyFieldMappings = new Map([
       legacy('SoDienThoai', 'phone'),
       legacy('Quyen', 'role'),
       legacy('TrangThai', 'isActive'),
+      legacy('Khoa', 'department'),
+      legacy('MaTK', 'accountKey'),
       legacy('NgayTao', 'createdAt'),
       legacy('NgayCapNhat', 'updatedAt'),
     ],
@@ -158,8 +163,46 @@ const legacyFieldMappings = new Map([
       legacy('SoThuTuKham', 'queueNumber'),
       legacy('ThoiGianCheckIn', 'checkInTime'),
       legacy('MaQR', 'qrCode'),
+      legacy('QR Code', 'qrCode'),
       legacy('NgayTao', 'createdAt'),
       legacy('NgayCapNhat', 'updatedAt'),
+    ],
+  ],
+  [
+    'LS_CHAT_AI',
+    [
+      legacy('PhanHoiAI', 'aiReply'),
+      legacy('MaPhien', 'sessionId'),
+      legacy('ThoiGian', 'timestamp'),
+      legacy('MaTK', 'userId'),
+      legacy('MaBN', 'userId'),
+      legacy('TinNhanNguoiDung', 'userMessage'),
+      legacy('NgayTao', 'createdAt'),
+      legacy('NgayCapNhat', 'updatedAt'),
+    ],
+  ],
+  [
+    'THANH_TOAN',
+    [
+      legacy('MaGiaoDich', 'transactionCode'),
+      legacy('MaLH', 'appointmentId'),
+      legacy('NgayTao', 'createdAt'),
+      legacy('PhuongThuc', 'paymentMethod'),
+      legacy('SoTien', 'amount'),
+      legacy('ThoiGianThanhToan', 'paidAt'),
+      legacy('TrangThai', 'status'),
+    ],
+  ],
+  [
+    'THONG_BAO',
+    [
+      legacy('DaDoc', 'isRead'),
+      legacy('LoaiThongBao', 'notificationType'),
+      legacy('MaLH', 'appointmentId'),
+      legacy('MaTK', 'accountId'),
+      legacy('NgayTao', 'createdAt'),
+      legacy('NoiDung', 'content'),
+      legacy('TieuDe', 'title'),
     ],
   ],
 ]);
@@ -234,8 +277,11 @@ async function cleanLegacyFields(collectionName, mappings) {
     const changes = {};
 
     for (const { source, targets } of mappings) {
-      if (!Object.hasOwn(data, source) || data[source] == null) continue;
-      if (targets.every((target) => hasCanonicalValue(data[target]))) {
+      if (!Object.hasOwn(data, source)) continue;
+      if (
+        data[source] == null ||
+        targets.every((target) => hasCanonicalValue(data[target]))
+      ) {
         changes[source] = FieldValue.delete();
       }
     }
@@ -320,6 +366,8 @@ async function createInBatches(documents) {
 
 function mapAccount(data) {
   const changes = {};
+  copy(data, changes, 'department', ['Khoa']);
+  copy(data, changes, 'accountKey', ['MaTK'], referenceId);
   copy(data, changes, 'email', ['Email']);
   copy(data, changes, 'fullName', ['HoTen']);
   copy(data, changes, 'phone', ['SoDienThoai']);
@@ -434,9 +482,45 @@ function mapAppointment(data) {
   copy(data, changes, 'peopleCount', ['SoNguoiKham']);
   copy(data, changes, 'queueNumber', ['SoThuTuKham']);
   copy(data, changes, 'checkInTime', ['ThoiGianCheckIn']);
-  copy(data, changes, 'qrCode', ['MaQR']);
+  copy(data, changes, 'qrCode', ['MaQR', 'QR Code']);
   copy(data, changes, 'createdAt', ['NgayTao']);
   copy(data, changes, 'updatedAt', ['NgayCapNhat']);
+  return changes;
+}
+
+function mapChatMessage(data) {
+  const changes = {};
+  copy(data, changes, 'aiReply', ['PhanHoiAI']);
+  copy(data, changes, 'sessionId', ['MaPhien']);
+  copy(data, changes, 'timestamp', ['ThoiGian']);
+  copy(data, changes, 'userId', ['MaTK', 'MaBN'], referenceId);
+  copy(data, changes, 'userMessage', ['TinNhanNguoiDung']);
+  copy(data, changes, 'createdAt', ['NgayTao']);
+  copy(data, changes, 'updatedAt', ['NgayCapNhat']);
+  return changes;
+}
+
+function mapPayment(data) {
+  const changes = {};
+  copy(data, changes, 'transactionCode', ['MaGiaoDich']);
+  copy(data, changes, 'appointmentId', ['MaLH'], referenceId);
+  copy(data, changes, 'createdAt', ['NgayTao']);
+  copy(data, changes, 'paymentMethod', ['PhuongThuc']);
+  copy(data, changes, 'amount', ['SoTien']);
+  copy(data, changes, 'paidAt', ['ThoiGianThanhToan']);
+  copy(data, changes, 'status', ['TrangThai']);
+  return changes;
+}
+
+function mapNotification(data) {
+  const changes = {};
+  copy(data, changes, 'isRead', ['DaDoc']);
+  copy(data, changes, 'notificationType', ['LoaiThongBao']);
+  copy(data, changes, 'appointmentId', ['MaLH'], referenceId);
+  copy(data, changes, 'accountId', ['MaTK'], referenceId);
+  copy(data, changes, 'createdAt', ['NgayTao']);
+  copy(data, changes, 'content', ['NoiDung']);
+  copy(data, changes, 'title', ['TieuDe']);
   return changes;
 }
 

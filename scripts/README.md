@@ -1,8 +1,9 @@
 # Firestore migration
 
-This tool adds the canonical English schema to manually entered Firestore
-documents. Its normal migration mode never deletes legacy fields, changes
-document IDs, or overwrites a canonical field that already exists.
+This tool replaces Vietnamese Firestore field names with the canonical English
+schema. It first adds the English fields without changing document IDs or
+overwriting an existing canonical field; cleanup then removes the Vietnamese
+fields only after their English replacement is populated.
 
 ## Before running
 
@@ -30,7 +31,7 @@ After reviewing the dry-run counts:
 npm run migrate:apply --prefix scripts
 ```
 
-Then verify the seven migrated collections in Firestore Console. Only after
+Then verify the ten migrated collections in Firestore Console. Only after
 that verification should the stricter Firestore Rules be deployed.
 
 ## Remove mapped legacy fields

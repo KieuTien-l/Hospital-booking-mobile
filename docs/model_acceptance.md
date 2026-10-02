@@ -38,9 +38,9 @@ collection trên. Bộ kiểm thử model kiểm tra mapping quan hệ chuyên k
 sĩ – lịch làm việc – ca khám – lịch hẹn – bệnh nhân, dữ liệu `Timestamp`, số
 đếm ca khám và payload thiếu field.
 
-## Tương thích dữ liệu cũ
+## Schema đồng nhất
 
-Schema chính thức hiện dùng field tiếng Anh. Model vẫn đọc được các tên field
-tiếng Việt cũ, ví dụ `TenChuyenKhoa`, `MaBS`, `NgayLamViec`, `GioBatDau` và
-`MyBN`, để tương thích khi cần khôi phục hoặc đọc dữ liệu cũ. Các document ở
-collection chuẩn trên Firebase đã được migration sang field tiếng Anh.
+Schema chính thức chỉ dùng field tiếng Anh. Trước khi chạy ứng dụng với phiên
+bản này, chạy migration trong `scripts/migrate-firestore.mjs` để copy dữ liệu
+từ field tiếng Việt sang field chuẩn, xác minh kết quả, rồi chạy cleanup để
+xóa các field tiếng Việt. Model và Repository không còn đọc field tiếng Việt.

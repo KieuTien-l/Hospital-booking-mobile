@@ -17,17 +17,13 @@ enum AppointmentStatus {
   factory AppointmentStatus.fromValue(Object? value) {
     switch (readString(value).toUpperCase()) {
       case 'PENDING':
-      case 'CHO_XAC_NHAN':
         return AppointmentStatus.pending;
       case 'CONFIRMED':
-      case 'DA_XAC_NHAN':
         return AppointmentStatus.confirmed;
       case 'COMPLETED':
-      case 'HOAN_THANH':
         return AppointmentStatus.completed;
       case 'CANCELLED':
       case 'CANCELED':
-      case 'DA_HUY':
         return AppointmentStatus.cancelled;
       case 'NO_SHOW':
         return AppointmentStatus.noShow;
@@ -97,128 +93,27 @@ class Appointment {
     String? documentId,
   }) {
     return Appointment(
-      id:
-          documentId ??
-          readStringForKeys(json, const ['id', 'Id', 'ID', 'MaLichHen']),
-      patientId: readReferenceIdForKeys(json, const [
-        'MyBN',
-        'myBN',
-        'MaBN',
-        'maBN',
-        'MaBenhNhan',
-        'maBenhNhan',
-        'BenhNhanId',
-        'benhNhanId',
-        'patientId',
-      ]),
-      doctorId: readReferenceIdForKeys(json, const [
-        'MaBS',
-        'maBS',
-        'MaBacSi',
-        'maBacSi',
-        'BacSiId',
-        'bacSiId',
-        'doctorId',
-      ]),
-      workScheduleId: readReferenceIdForKeys(json, const [
-        'MaLLV',
-        'maLLV',
-        'MaLichLamViec',
-        'maLichLamViec',
-        'LichLamViecId',
-        'lichLamViecId',
-        'workScheduleId',
-      ]),
-      timeSlotId: readReferenceIdForKeys(json, const [
-        'Maca',
-        'maca',
-        'MaCa',
-        'maCa',
-        'MaCaKham',
-        'maCaKham',
-        'CaKhamId',
-        'caKhamId',
-        'timeSlotId',
-      ]),
-      specialtyId: readOptionalStringForKeys(json, const [
-        'MaCK',
-        'maCK',
-        'MaChuyenKhoa',
-        'maChuyenKhoa',
-        'specialtyId',
-      ]),
-      appointmentDate: readDateTime(
-        readFirstValue(json, const [
-          'NgayKham',
-          'ngayKham',
-          'NgayHen',
-          'ngayHen',
-          'appointmentDate',
-        ]),
-      ),
-      startTime: readTimeStringForKeys(json, const [
-        'GioBatDau',
-        'gioBatDau',
-        'ThoiGianBatDau',
-        'startTime',
-      ]),
-      endTime: readTimeStringForKeys(json, const [
-        'GioKetThuc',
-        'gioKetThuc',
-        'ThoiGianKetThuc',
-        'endTime',
-      ]),
-      bookedAt: readDateTime(
-        readFirstValue(json, const ['NgayDat', 'ngayDat', 'bookedAt']),
-      ),
-      status: AppointmentStatus.fromValue(
-        readFirstValue(json, const ['TrangThai', 'trangThai', 'status']),
-      ),
-      reason: readOptionalStringForKeys(json, const [
-        'LyDoKham',
-        'lyDoKham',
-        'reason',
-      ]),
-      note: readOptionalStringForKeys(json, const ['GhiChu', 'ghiChu', 'note']),
-      cancellationReason: readOptionalStringForKeys(json, const [
-        'LyDoHuy',
-        'lyDoHuy',
-        'cancellationReason',
-      ]),
-      symptoms: readOptionalStringForKeys(json, const [
-        'TrieuChung',
-        'trieuChung',
-        'symptoms',
-      ]),
-      peopleCount: readInt(
-        readFirstValue(json, const [
-          'peopleCount',
-          'SoNguoiKham',
-          'soNguoiKham',
-        ]),
-        fallback: 1,
-      ),
-      queueNumber: _readOptionalInt(
-        readFirstValue(json, const [
-          'queueNumber',
-          'SoThuTuKham',
-          'soThuTuKham',
-        ]),
-      ),
-      checkInTime: readDateTime(
-        readFirstValue(json, const [
-          'ThoiGianCheckIn',
-          'thoiGianCheckIn',
-          'checkInTime',
-        ]),
-      ),
-      qrCode: readOptionalStringForKeys(json, const ['MaQR', 'maQR', 'qrCode']),
-      createdAt: readDateTime(
-        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
-      ),
-      updatedAt: readDateTime(
-        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
-      ),
+      id: documentId ?? readString(json['id']),
+      patientId: readReferenceId(json['patientId']),
+      doctorId: readReferenceId(json['doctorId']),
+      workScheduleId: readReferenceId(json['workScheduleId']),
+      timeSlotId: readReferenceId(json['timeSlotId']),
+      specialtyId: readOptionalString(json['specialtyId']),
+      appointmentDate: readDateTime(json['appointmentDate']),
+      startTime: readTimeString(json['startTime']),
+      endTime: readTimeString(json['endTime']),
+      bookedAt: readDateTime(json['bookedAt']),
+      status: AppointmentStatus.fromValue(json['status']),
+      reason: readOptionalString(json['reason']),
+      note: readOptionalString(json['note']),
+      cancellationReason: readOptionalString(json['cancellationReason']),
+      symptoms: readOptionalString(json['symptoms']),
+      peopleCount: readInt(json['peopleCount'], fallback: 1),
+      queueNumber: _readOptionalInt(json['queueNumber']),
+      checkInTime: readDateTime(json['checkInTime']),
+      qrCode: readOptionalString(json['qrCode']),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 

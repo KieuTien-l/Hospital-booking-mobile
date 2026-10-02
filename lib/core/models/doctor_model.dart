@@ -46,11 +46,7 @@ class Doctor {
   String get trangThai => status;
 
   factory Doctor.fromJson(Map<String, dynamic> json, {String? documentId}) {
-    final status = readStringForKeys(json, const [
-      'TrangThai',
-      'trangThai',
-      'status',
-    ]);
+    final status = readStringForKeys(json, const ['status']);
     final isActive = status.isNotEmpty
         ? !const {
             'INACTIVE',
@@ -58,93 +54,25 @@ class Doctor {
             'FALSE',
             '0',
           }.contains(status.toUpperCase())
-        : readBool(
-            readFirstValue(json, const ['isActive', 'active']),
-            fallback: true,
-          );
+        : readBool(json['isActive'], fallback: true);
 
     return Doctor(
-      id: documentId ?? readStringForKeys(json, const ['id', 'Id', 'ID']),
-      userId: readReferenceIdForKeys(json, const [
-        'MaTK',
-        'maTK',
-        'MaNguoiDung',
-        'maNguoiDung',
-        'userId',
-        'UserId',
-      ]),
-      fullName: readStringForKeys(json, const [
-        'HoTen',
-        'hoTen',
-        'TenBacSi',
-        'tenBacSi',
-        'fullName',
-        'name',
-        'Name',
-      ]),
-      email: readStringForKeys(json, const ['Email', 'email']),
-      phone: readStringForKeys(json, const [
-        'SoDienThoai',
-        'soDienThoai',
-        'phone',
-        'Phone',
-      ]),
-      specialtyId: readReferenceIdForKeys(json, const [
-        'MaCK',
-        'maCK',
-        'MaChuyenKhoa',
-        'maChuyenKhoa',
-        'ChuyenKhoaId',
-        'chuyenKhoaId',
-        'specialtyId',
-      ]),
-      yearsOfExperience: readInt(
-        readFirstValue(json, const [
-          'KinhNghiem',
-          'kinhNghiem',
-          'SoNamKinhNghiem',
-          'yearsOfExperience',
-        ]),
-      ),
-      consultationFee: readDouble(
-        readFirstValue(json, const [
-          'GiaKham',
-          'giaKham',
-          'PhiKham',
-          'consultationFee',
-        ]),
-      ),
+      id: documentId ?? readString(json['id']),
+      userId: readReferenceId(json['userId']),
+      fullName: readString(json['fullName']),
+      email: readString(json['email']),
+      phone: readString(json['phone']),
+      specialtyId: readReferenceId(json['specialtyId']),
+      yearsOfExperience: readInt(json['yearsOfExperience']),
+      consultationFee: readDouble(json['consultationFee']),
       isActive: isActive,
       status: status.isEmpty ? (isActive ? 'ACTIVE' : 'INACTIVE') : status,
-      specialtyName: readOptionalStringForKeys(json, const [
-        'TenChuyenKhoa',
-        'specialtyName',
-      ]),
-      qualification: readOptionalStringForKeys(json, const [
-        'HocHamHocVi',
-        'hocHamHocVi',
-        'BangCap',
-        'qualification',
-      ]),
-      biography: readOptionalStringForKeys(json, const [
-        'MoTaChiTiet',
-        'moTaChiTiet',
-        'MoTa',
-        'biography',
-      ]),
-      avatarUrl: readOptionalStringForKeys(json, const [
-        'AnhDaiDien',
-        'anhDaiDien',
-        'HinhAnh',
-        'hinhAnh',
-        'avatarUrl',
-      ]),
-      createdAt: readDateTime(
-        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
-      ),
-      updatedAt: readDateTime(
-        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
-      ),
+      specialtyName: readOptionalString(json['specialtyName']),
+      qualification: readOptionalString(json['qualification']),
+      biography: readOptionalString(json['biography']),
+      avatarUrl: readOptionalString(json['avatarUrl']),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 

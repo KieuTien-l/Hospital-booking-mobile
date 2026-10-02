@@ -24,36 +24,40 @@ void main() {
       expect(user.isActive, isTrue);
     });
 
-    test('maps legacy TAI_KHOAN data and writes the canonical fields', () {
-      final user = UserModel.fromJson(const {
-        'Khoa': 'Noi Tim mach',
-        'MaTK': 161,
-        'Quyen': 'DOCTOR',
-        'TrangThai': 'ACTIVE',
-        'Email': 'doctor@example.com',
-        'HoTen': 'Doctor One',
-        'SoDienThoai': '0900000000',
-      }, documentId: 'user-1');
+    test(
+      'reads canonical TAI_KHOAN fields and writes the canonical fields',
+      () {
+        final user = UserModel.fromJson(const {
+          'department': 'Noi Tim mach',
+          'accountKey': '161',
+          'permission': 'DOCTOR',
+          'status': 'ACTIVE',
+          'role': 'doctor',
+          'email': 'doctor@example.com',
+          'fullName': 'Doctor One',
+          'phone': '0900000000',
+        }, documentId: 'user-1');
 
-      expect(user.department, 'Noi Tim mach');
-      expect(user.accountKey, '161');
-      expect(user.permission, 'DOCTOR');
-      expect(user.status, 'ACTIVE');
-      expect(user.role, UserRole.doctor);
-      expect(
-        user.toFirestoreCreate().keys,
-        unorderedEquals(const [
-          'createdAt',
-          'email',
-          'fullName',
-          'isActive',
-          'phone',
-          'role',
-          'updatedAt',
-        ]),
-      );
-      expect(user.toFirestoreCreate()['role'], 'doctor');
-    });
+        expect(user.department, 'Noi Tim mach');
+        expect(user.accountKey, '161');
+        expect(user.permission, 'DOCTOR');
+        expect(user.status, 'ACTIVE');
+        expect(user.role, UserRole.doctor);
+        expect(
+          user.toFirestoreCreate().keys,
+          unorderedEquals(const [
+            'createdAt',
+            'email',
+            'fullName',
+            'isActive',
+            'phone',
+            'role',
+            'updatedAt',
+          ]),
+        );
+        expect(user.toFirestoreCreate()['role'], 'doctor');
+      },
+    );
   });
 
   group('SpecialtyModel', () {
@@ -70,12 +74,12 @@ void main() {
       expect(specialty.toJson()['imageUrl'], contains('cardiology'));
     });
 
-    test('maps the CHUYEN_KHOA Firestore fields and document id', () {
+    test('maps canonical CHUYEN_KHOA fields and document id', () {
       final specialty = Specialty.fromMap(const {
-        'TenChuyenKhoa': 'Tim mach',
-        'MoTa': 'Kham va dieu tri tim mach',
-        'HinhAnh': 'https://example.com/tim-mach.png',
-        'TrangThai': 'ACTIVE',
+        'name': 'Tim mach',
+        'description': 'Kham va dieu tri tim mach',
+        'imageUrl': 'https://example.com/tim-mach.png',
+        'status': 'ACTIVE',
       }, documentId: 'ck-1');
 
       expect(specialty.id, 'ck-1');
@@ -106,17 +110,17 @@ void main() {
       expect(doctor.toJson()['specialtyId'], 'cardiology');
     });
 
-    test('maps a doctor to its specialty', () {
+    test('maps a canonical doctor to its specialty', () {
       final doctor = Doctor.fromMap(const {
-        'HoTen': 'Nguyen Van An',
-        'MaCK': 'ck-1',
-        'MaTK': 'user-1',
-        'KinhNghiem': 12,
-        'GiaKham': 200000,
-        'HocHamHocVi': 'Bac si chuyen khoa I',
-        'AnhDaiDien': 'doctor.png',
-        'MoTaChiTiet': 'Kham noi tong quat',
-        'TrangThai': 'ACTIVE',
+        'fullName': 'Nguyen Van An',
+        'specialtyId': 'ck-1',
+        'userId': 'user-1',
+        'yearsOfExperience': 12,
+        'consultationFee': 200000,
+        'qualification': 'Bac si chuyen khoa I',
+        'avatarUrl': 'doctor.png',
+        'biography': 'Kham noi tong quat',
+        'status': 'ACTIVE',
       }, documentId: 'bs-1');
 
       expect(doctor.id, 'bs-1');
@@ -132,12 +136,12 @@ void main() {
   group('Scheduling models', () {
     final start = DateTime.utc(2026, 10, 1, 8);
 
-    test('maps LICH_LAM_VIEC date and time fields', () {
+    test('maps canonical LICH_LAM_VIEC date and time fields', () {
       final schedule = WorkSchedule.fromMap({
-        'MaBS': 'bs-1',
-        'NgayLamViec': Timestamp.fromDate(start),
-        'GioBatDau': '08:00',
-        'GioKetThuc': '08:30',
+        'doctorId': 'bs-1',
+        'workDate': Timestamp.fromDate(start),
+        'startTime': '08:00',
+        'endTime': '08:30',
       }, documentId: 'llv-1');
 
       expect(schedule.id, 'llv-1');
@@ -147,15 +151,15 @@ void main() {
       expect(schedule.endTime, '08:30');
     });
 
-    test('maps CA_KHAM status and schedule relationship', () {
+    test('maps canonical CA_KHAM status and schedule relationship', () {
       final slot = TimeSlot.fromMap({
-        'MaLLV': 'llv-1',
-        'MaBS': 'bs-1',
-        'GioBatDau': '08:00',
-        'GioKetThuc': '08:30',
-        'SoLuongDaDat': 0,
-        'SoLuongToiDa': 5,
-        'TrangThai': 'AVAILABLE',
+        'workScheduleId': 'llv-1',
+        'doctorId': 'bs-1',
+        'startTime': '08:00',
+        'endTime': '08:30',
+        'bookedCount': 0,
+        'capacity': 5,
+        'status': 'AVAILABLE',
       }, documentId: 'ck-1');
 
       expect(slot.id, 'ck-1');
@@ -183,18 +187,18 @@ void main() {
       expect(slot.isAvailable, isTrue);
     });
 
-    test('maps LICH_HEN to patient, doctor, schedule and slot', () {
+    test('maps canonical LICH_HEN to patient, doctor, schedule and slot', () {
       final appointment = Appointment.fromMap({
-        'MyBN': 'bn-1',
-        'MaBS': 'bs-1',
-        'MaCK': 'ck-1',
-        'MaLLV': 'llv-1',
-        'Maca': 'ca-1',
-        'NgayDat': Timestamp.fromDate(start),
-        'SoNguoiKham': 1,
-        'SoThuTuKham': 2,
-        'TrangThai': 'CONFIRMED',
-        'TrieuChung': 'Dau dau',
+        'patientId': 'bn-1',
+        'doctorId': 'bs-1',
+        'specialtyId': 'ck-1',
+        'workScheduleId': 'llv-1',
+        'timeSlotId': 'ca-1',
+        'bookedAt': Timestamp.fromDate(start),
+        'peopleCount': 1,
+        'queueNumber': 2,
+        'status': 'CONFIRMED',
+        'symptoms': 'Dau dau',
       }, documentId: 'lh-1');
 
       expect(appointment.id, 'lh-1');
@@ -235,15 +239,15 @@ void main() {
   });
 
   group('Patient', () {
-    test('maps BENH_NHAN and tolerates optional missing fields', () {
+    test('maps canonical BENH_NHAN and tolerates optional missing fields', () {
       final patient = Patient.fromMap(const {
-        'MaTK': 'firebase-uid-1',
-        'HoTen': 'Tran Thi Binh',
-        'SoDienThoai': '0900000000',
-        'Email': 'binh@example.com',
-        'MaBHYT': 'BHYT-01',
-        'DanToc': 'Kinh',
-        'NgheNghiep': 'Sinh vien',
+        'authUserId': 'firebase-uid-1',
+        'fullName': 'Tran Thi Binh',
+        'phone': '0900000000',
+        'email': 'binh@example.com',
+        'insuranceNumber': 'BHYT-01',
+        'ethnicity': 'Kinh',
+        'occupation': 'Sinh vien',
       }, documentId: 'bn-1');
 
       expect(patient.id, 'bn-1');

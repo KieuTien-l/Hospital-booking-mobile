@@ -68,6 +68,27 @@ class _FakePatientBookingRepository implements PatientBookingRepository {
   }
 
   @override
+  Future<List<TimeSlot>> getAvailableTimeSlotsByDoctorAndDate({
+    required String doctorId,
+    required DateTime workDate,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<TimeSlot>> getTimeSlotsByDoctorAndDate({
+    required String doctorId,
+    required DateTime workDate,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Appointment> getAppointmentById(String appointmentId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<WorkSchedule>> getWorkSchedules({
     required String doctorId,
     required DateTime workDate,

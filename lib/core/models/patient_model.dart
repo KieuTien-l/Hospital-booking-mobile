@@ -60,11 +60,7 @@ class Patient {
   String get trangThai => status;
 
   factory Patient.fromJson(Map<String, dynamic> json, {String? documentId}) {
-    final status = readStringForKeys(json, const [
-      'TrangThai',
-      'trangThai',
-      'status',
-    ]);
+    final status = readStringForKeys(json, const ['status']);
     final isActive = status.isNotEmpty
         ? !const {
             'INACTIVE',
@@ -72,95 +68,33 @@ class Patient {
             'FALSE',
             '0',
           }.contains(status.toUpperCase())
-        : readBool(
-            readFirstValue(json, const ['isActive', 'active']),
-            fallback: true,
-          );
+        : readBool(json['isActive'], fallback: true);
 
     return Patient(
-      id:
-          documentId ??
-          readStringForKeys(json, const ['id', 'Id', 'ID', 'MaBenhNhan']),
-      authUserId: readReferenceIdForKeys(json, const [
-        'MaTK',
-        'maTK',
-        'MaNguoiDung',
-        'maNguoiDung',
-        'Uid',
-        'uid',
-        'UserId',
-        'userId',
-        'authUserId',
-      ]),
-      fullName: readStringForKeys(json, const [
-        'HoTen',
-        'hoTen',
-        'TenBenhNhan',
-        'tenBenhNhan',
-        'fullName',
-      ]),
-      phone: readStringForKeys(json, const [
-        'SoDienThoai',
-        'soDienThoai',
-        'phone',
-        'Phone',
-      ]),
-      email: readStringForKeys(json, const ['Email', 'email']),
+      id: documentId ?? readString(json['id']),
+      authUserId: readReferenceId(json['authUserId']),
+      fullName: readString(json['fullName']),
+      phone: readString(json['phone']),
+      email: readString(json['email']),
       isActive: isActive,
-      dateOfBirth: readDateTime(
-        readFirstValue(json, const ['NgaySinh', 'ngaySinh', 'dateOfBirth']),
+      dateOfBirth: readDateTime(json['dateOfBirth']),
+      gender: readOptionalString(json['gender']),
+      address: readOptionalString(json['address']),
+      avatarUrl: readOptionalString(json['avatarUrl']),
+      insuranceNumber: readOptionalString(json['insuranceNumber']),
+      ethnicity: readOptionalString(json['ethnicity']),
+      occupation: readOptionalString(json['occupation']),
+      ward: readOptionalString(json['ward']),
+      district: readOptionalString(json['district']),
+      province: readOptionalString(json['province']),
+      country: readOptionalString(json['country']),
+      nationalId: readOptionalString(json['nationalId']),
+      relationshipToAccountHolder: readOptionalString(
+        json['relationshipToAccountHolder'],
       ),
-      gender: readOptionalStringForKeys(json, const [
-        'GioiTinh',
-        'gioiTinh',
-        'gender',
-      ]),
-      address: readOptionalStringForKeys(json, const [
-        'SoNha',
-        'soNha',
-        'DiaChi',
-        'diaChi',
-        'address',
-      ]),
-      avatarUrl: readOptionalStringForKeys(json, const [
-        'AnhDaiDien',
-        'anhDaiDien',
-        'HinhAnh',
-        'hinhAnh',
-        'avatarUrl',
-      ]),
-      insuranceNumber: readOptionalStringForKeys(json, const [
-        'MaBHYT',
-        'maBHYT',
-        'insuranceNumber',
-      ]),
-      ethnicity: readOptionalStringForKeys(json, const ['DanToc', 'danToc']),
-      occupation: readOptionalStringForKeys(json, const [
-        'NgheNghiep',
-        'ngheNghiep',
-      ]),
-      ward: readOptionalStringForKeys(json, const ['PhuongXa', 'phuongXa']),
-      district: readOptionalStringForKeys(json, const [
-        'QuanHuyen',
-        'quanHuyen',
-      ]),
-      province: readOptionalStringForKeys(json, const [
-        'TinhThanh',
-        'tinhThanh',
-      ]),
-      country: readOptionalStringForKeys(json, const ['QuocGia', 'quocGia']),
-      nationalId: readOptionalStringForKeys(json, const ['SoCCCD', 'soCCCD']),
-      relationshipToAccountHolder: readOptionalStringForKeys(json, const [
-        'QuanHeChuTaiKhoan',
-        'quanHeChuTaiKhoan',
-      ]),
       status: status.isEmpty ? (isActive ? 'ACTIVE' : 'INACTIVE') : status,
-      createdAt: readDateTime(
-        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
-      ),
-      updatedAt: readDateTime(
-        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
-      ),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 

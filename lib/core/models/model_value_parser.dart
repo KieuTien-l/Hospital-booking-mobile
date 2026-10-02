@@ -4,6 +4,11 @@ String readString(Object? value, {String fallback = ''}) {
   return value?.toString().trim() ?? fallback;
 }
 
+String? readOptionalString(Object? value) {
+  final result = readString(value);
+  return result.isEmpty ? null : result;
+}
+
 Object? readFirstValue(Map<String, dynamic> values, Iterable<String> keys) {
   for (final key in keys) {
     final value = values[key];

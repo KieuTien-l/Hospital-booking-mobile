@@ -131,10 +131,10 @@ class AuthFirestoreRestDatasource {
 }
 
 const _profileFieldNames = <String>{
-  'Khoa',
-  'MaTK',
-  'Quyen',
-  'TrangThai',
+  'department',
+  'accountKey',
+  'permission',
+  'status',
   'email',
   'fullName',
   'phone',

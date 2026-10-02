@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/models/appointment_model.dart';
 import '../../../../core/models/patient_model.dart';
+import '../../../../core/models/time_slot_model.dart';
 import '../../domain/repositories/patient_booking_repository.dart';
 import '../../domain/usecases/book_appointment.dart';
 
@@ -103,6 +104,36 @@ class PatientBookingProvider extends ChangeNotifier {
         symptoms: symptoms,
         peopleCount: peopleCount,
       );
+      _status = PatientBookingStatus.idle;
+      return appointment;
+    } catch (error) {
+      _setError(error);
+      rethrow;
+    } finally {
+      if (_status != PatientBookingStatus.error) {
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Returns the slots belonging to [doctorId] on the selected calendar day.
+  Future<List<TimeSlot>> getAvailableSlotsForDoctorAndDate({
+    required String doctorId,
+    required DateTime workDate,
+  }) {
+    return _repository.getAvailableTimeSlotsByDoctorAndDate(
+      doctorId: doctorId,
+      workDate: workDate,
+    );
+  }
+
+  /// Loads the full record for an appointment selected from the history list.
+  Future<Appointment> getAppointmentDetails(String appointmentId) async {
+    _status = PatientBookingStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final appointment = await _repository.getAppointmentById(appointmentId);
       _status = PatientBookingStatus.idle;
       return appointment;
     } catch (error) {

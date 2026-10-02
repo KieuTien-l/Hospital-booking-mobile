@@ -16,12 +16,8 @@ enum TimeSlotStatus {
   factory TimeSlotStatus.fromValue(Object? value) {
     switch (readString(value).toUpperCase()) {
       case 'AVAILABLE':
-      case 'AVAILABLE_SLOT':
-      case 'TRONG':
         return TimeSlotStatus.available;
       case 'BOOKED':
-      case 'DA_DAT':
-      case 'DADAT':
         return TimeSlotStatus.booked;
       case 'UNAVAILABLE':
       case 'BLOCKED':
@@ -73,69 +69,17 @@ class TimeSlot {
 
   factory TimeSlot.fromJson(Map<String, dynamic> json, {String? documentId}) {
     return TimeSlot(
-      id:
-          documentId ??
-          readStringForKeys(json, const ['id', 'Id', 'ID', 'MaCaKham']),
-      workScheduleId: readReferenceIdForKeys(json, const [
-        'MaLLV',
-        'maLLV',
-        'MaLichLamViec',
-        'maLichLamViec',
-        'LichLamViecId',
-        'lichLamViecId',
-        'workScheduleId',
-      ]),
-      doctorId: readReferenceIdForKeys(json, const [
-        'MaBS',
-        'maBS',
-        'MaBacSi',
-        'maBacSi',
-        'BacSiId',
-        'bacSiId',
-        'doctorId',
-      ]),
-      startTime: readTimeStringForKeys(json, const [
-        'GioBatDau',
-        'gioBatDau',
-        'ThoiGianBatDau',
-        'startTime',
-      ]),
-      endTime: readTimeStringForKeys(json, const [
-        'GioKetThuc',
-        'gioKetThuc',
-        'ThoiGianKetThuc',
-        'endTime',
-      ]),
-      status: TimeSlotStatus.fromValue(
-        readFirstValue(json, const ['TrangThai', 'trangThai', 'status']),
-      ),
-      bookedCount: _readOptionalInt(
-        readFirstValue(json, const [
-          'bookedCount',
-          'SoLuongDaDat',
-          'soLuongDaDat',
-        ]),
-      ),
-      capacity: _readOptionalInt(
-        readFirstValue(json, const [
-          'capacity',
-          'SoLuongToiDa',
-          'soLuongToiDa',
-        ]),
-      ),
-      appointmentId: readOptionalStringForKeys(json, const [
-        'MaLichHen',
-        'maLichHen',
-        'LichHenId',
-        'lichHenId',
-        'appointmentId',
-      ]),
-      createdAt: readDateTime(
-        readFirstValue(json, const ['createdAt', 'CreatedAt', 'NgayTao']),
-      ),
-      updatedAt: readDateTime(
-        readFirstValue(json, const ['updatedAt', 'UpdatedAt', 'NgayCapNhat']),
-      ),
+      id: documentId ?? readString(json['id']),
+      workScheduleId: readReferenceId(json['workScheduleId']),
+      doctorId: readReferenceId(json['doctorId']),
+      startTime: readTimeString(json['startTime']),
+      endTime: readTimeString(json['endTime']),
+      status: TimeSlotStatus.fromValue(json['status']),
+      bookedCount: _readOptionalInt(json['bookedCount']),
+      capacity: _readOptionalInt(json['capacity']),
+      appointmentId: readOptionalString(json['appointmentId']),
+      createdAt: readDateTime(json['createdAt']),
+      updatedAt: readDateTime(json['updatedAt']),
     );
   }
 
