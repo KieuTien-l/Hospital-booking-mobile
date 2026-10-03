@@ -1,0 +1,18 @@
+{
+  "name": "hospital-booking-firestore-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate:dry-run": "node migrate-firestore.mjs",
+    "migrate:apply": "node migrate-firestore.mjs --apply",
+    "cleanup:dry-run": "node migrate-firestore.mjs --cleanup",
+    "cleanup:apply": "node migrate-firestore.mjs --cleanup --apply",
+    "repair-auth:dry-run": "node repair-auth-profiles.mjs",
+    "repair-auth:apply": "node repair-auth-profiles.mjs --apply",
+    "seed-booking:dry-run": "node seed-booking-schedules.mjs",
+    "seed-booking:apply": "node seed-booking-schedules.mjs --apply"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.8.0"
+  }
+}
