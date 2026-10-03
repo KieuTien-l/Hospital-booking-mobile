@@ -1,4 +1,4 @@
-import '../../../../core/entities/user_entity.dart';
+import '../entities/user_entity.dart';
 
 abstract class AuthRepository {
   Stream<String?> get authStateChanges;

@@ -15,7 +15,7 @@ The login flow is:
 
 ```text
 Login UI -> AuthRepository -> Firebase Auth -> REST GET profile
--> Firestore JSON -> UserModel -> AuthProvider -> home screen
+-> Firestore JSON -> UserModel -> AuthController -> home screen
 ```
 
 `AuthFirestoreRestDatasource` uses a 10-second timeout and converts HTTP,

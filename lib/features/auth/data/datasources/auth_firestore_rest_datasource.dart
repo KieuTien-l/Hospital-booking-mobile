@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../../../../core/models/user_model.dart';
-import '../../../../core/network/api_exception.dart';
+import '../models/user_model.dart';
+import '../exceptions/api_exception.dart';
 
 class AuthFirestoreRestDatasource {
   AuthFirestoreRestDatasource({

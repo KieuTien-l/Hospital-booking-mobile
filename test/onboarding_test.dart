@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_4/core/storage/app_preferences.dart';
+import 'package:flutter_application_4/features/auth/domain/entities/user_entity.dart';
+import 'package:flutter_application_4/features/onboarding/data/datasources/app_preferences.dart';
+import 'package:flutter_application_4/features/onboarding/data/repositories/onboarding_repository_impl.dart';
 import 'package:flutter_application_4/features/auth/domain/repositories/auth_repository.dart';
 import 'package:flutter_application_4/features/auth/presentation/pages/login_page.dart';
-import 'package:flutter_application_4/features/auth/presentation/providers/auth_provider.dart';
+import 'package:flutter_application_4/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter_application_4/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:flutter_application_4/features/onboarding/presentation/pages/splash_page.dart';
 
@@ -40,12 +42,20 @@ class MemoryPreferences implements SharedPreferencesAsync {
 
 class UnusedAuthRepository implements AuthRepository {
   @override
+  Stream<String?> get authStateChanges => const Stream<String?>.empty();
+
+  @override
+  Future<UserEntity?> getCurrentUser() async => null;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Widget testApp(AppPreferences preferences) => ChangeNotifierProvider(
-  create: (_) => AuthProvider(authRepo: UnusedAuthRepository()),
-  child: MaterialApp(home: SplashPage(preferences: preferences)),
+  create: (_) => AuthController(authRepo: UnusedAuthRepository()),
+  child: MaterialApp(
+    home: SplashPage(preferences: OnboardingRepositoryImpl(preferences)),
+  ),
 );
 
 Future<void> finishSplash(WidgetTester tester) async {

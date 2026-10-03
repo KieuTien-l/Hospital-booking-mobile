@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/auth_provider.dart';
+import '../controllers/auth_controller.dart';
 import '../validators/auth_validators.dart';
 
 import 'register_page.dart';
@@ -30,12 +30,10 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-
-
   void _login() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = context.read<AuthController>();
     await authProvider.login(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
@@ -85,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthProvider>();
+    final authProvider = context.watch<AuthController>();
     final theme = Theme.of(context);
     return Theme(
       data: theme.copyWith(
@@ -213,8 +211,7 @@ class _LoginPageState extends State<LoginPage> {
                                             margin: const EdgeInsets.only(
                                               bottom: 16,
                                             ),
-                                            padding:
-                                                const EdgeInsets.symmetric(
+                                            padding: const EdgeInsets.symmetric(
                                               horizontal: 14,
                                               vertical: 10,
                                             ),
@@ -345,46 +342,46 @@ class _LoginPageState extends State<LoginPage> {
                                               ],
                                             ),
                                           ),
-                                           child: ElevatedButton(
-                                             onPressed: authProvider.isLoading
-                                                 ? null
-                                                 : _login,
-                                             style: ElevatedButton.styleFrom(
-                                               backgroundColor:
-                                                   Colors.transparent,
-                                               shadowColor: Colors.transparent,
-                                               foregroundColor: Colors.white,
-                                               disabledForegroundColor:
-                                                   Colors.white70,
-                                               minimumSize:
-                                                   const Size.fromHeight(54),
-                                               shape: RoundedRectangleBorder(
-                                                 borderRadius:
-                                                     BorderRadius.circular(12),
-                                               ),
-                                               elevation: 0,
-                                             ),
-                                             child: authProvider.isLoading
-                                                 ? const SizedBox(
-                                                     width: 24,
-                                                     height: 24,
-                                                     child:
-                                                         CircularProgressIndicator(
-                                                       color: Colors.white,
-                                                       strokeWidth: 2.5,
-                                                     ),
-                                                   )
-                                                 : const Text(
-                                                     'Đăng nhập',
-                                                     style: TextStyle(
-                                                       fontFamily:
-                                                           'BeVietnamPro',
-                                                       fontSize: 18,
-                                                       fontWeight:
-                                                           FontWeight.w700,
-                                                     ),
-                                                   ),
-                                           ),
+                                          child: ElevatedButton(
+                                            onPressed: authProvider.isLoading
+                                                ? null
+                                                : _login,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  Colors.transparent,
+                                              shadowColor: Colors.transparent,
+                                              foregroundColor: Colors.white,
+                                              disabledForegroundColor:
+                                                  Colors.white70,
+                                              minimumSize:
+                                                  const Size.fromHeight(54),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              elevation: 0,
+                                            ),
+                                            child: authProvider.isLoading
+                                                ? const SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                          strokeWidth: 2.5,
+                                                        ),
+                                                  )
+                                                : const Text(
+                                                    'Đăng nhập',
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          'BeVietnamPro',
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                          ),
                                         ),
                                       ],
                                     ),

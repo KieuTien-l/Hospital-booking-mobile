@@ -33,8 +33,10 @@ Tất cả sáu model đều:
 
 ## Tích hợp Repository và kiểm thử
 
-`FirebasePatientBookingRepository` sử dụng trực tiếp sáu model khi đọc các
-collection trên. Bộ kiểm thử model kiểm tra mapping quan hệ chuyên khoa – bác
+`BookingRepositoryImpl` phối hợp repository của từng feature. Datasource đọc
+collection và chuyển dữ liệu thành `*Model`; domain/controller dùng entity
+thuần Dart. Serialization nằm tại `features/<feature>/data/models/`.
+Bộ kiểm thử model kiểm tra mapping quan hệ chuyên khoa – bác
 sĩ – lịch làm việc – ca khám – lịch hẹn – bệnh nhân, dữ liệu `Timestamp`, số
 đếm ca khám và payload thiếu field.
 

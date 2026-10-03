@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_4/features/home/presentation/widgets/patient_home_view.dart';
 
@@ -47,4 +47,3 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 }
-

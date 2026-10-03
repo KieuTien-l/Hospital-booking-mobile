@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../../../core/entities/user_entity.dart';
-import '../../../../core/models/patient_model.dart';
-import '../../../../core/models/user_model.dart';
-import '../../../../core/network/api_exception.dart';
+import '../../domain/entities/user_entity.dart';
+import '../../../profile/data/models/patient_model.dart';
+import '../models/user_model.dart';
+import '../exceptions/api_exception.dart';
 import '../../domain/exceptions/auth_exception.dart';
 import 'auth_firestore_rest_datasource.dart';
 
@@ -90,7 +90,7 @@ class AuthFirebaseDatasource {
         permission: 'PATIENT',
         status: 'ACTIVE',
       );
-      final patient = Patient(
+      final patient = PatientModel(
         id: firebaseUser.uid,
         authUserId: firebaseUser.uid,
         fullName: fullName,
@@ -104,7 +104,7 @@ class AuthFirebaseDatasource {
         user.toFirestoreCreate(),
       );
       batch.set(
-        _firestore.collection(Patient.collectionName).doc(patient.id),
+        _firestore.collection(PatientModel.collectionName).doc(patient.id),
         patient.toFirestoreCreate(),
       );
       await batch.commit();

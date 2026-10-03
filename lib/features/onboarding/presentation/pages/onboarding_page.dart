@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app.dart';
-import '../../../../core/storage/app_preferences.dart';
+import '../../../../core/routes/auth_gate.dart';
+import '../../domain/repositories/onboarding_repository.dart';
+import '../controllers/onboarding_controller.dart';
 import '../../../../core/themes/app_colors.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key, required this.preferences});
 
-  final AppPreferences preferences;
+  final OnboardingRepository preferences;
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -20,7 +21,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      await widget.preferences.completeOnboarding();
+      await OnboardingController(widget.preferences).completeOnboarding();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(builder: (_) => const AuthGate()),

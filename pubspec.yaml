@@ -42,6 +42,8 @@ dependencies:
   http: ^1.2.2
 
 dev_dependencies:
+  # Already resolved by cloud_firestore; exposed for platform test doubles.
+  cloud_firestore_platform_interface: ^8.0.7
   flutter_test:
     sdk: flutter
 

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter_application_4/core/entities/user_entity.dart';
-import 'package:flutter_application_4/core/network/api_exception.dart';
+import 'package:flutter_application_4/features/auth/domain/entities/user_entity.dart';
+import 'package:flutter_application_4/features/auth/data/exceptions/api_exception.dart';
 import 'package:flutter_application_4/features/auth/data/datasources/auth_firestore_rest_datasource.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
