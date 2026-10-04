@@ -3,52 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import '../models/patient_function.dart';
+
 const _blue = Color(0xFF0753AB);
-const _features = <(String, String, FaIconData, Color)>[
-  ('Đặt khám', 'Đặt khám', FontAwesomeIcons.calendarPlus, Color(0xFF1685FF)),
-  (
-    'Lịch đặt khám',
-    'Lịch đặt\nkhám',
-    FontAwesomeIcons.calendarCheck,
-    Color(0xFF05BF96),
-  ),
-  (
-    'Thanh toán viện phí',
-    'Thanh toán\nviện phí',
-    FontAwesomeIcons.creditCard,
-    Color(0xFFFF822D),
-  ),
-  (
-    'Hồ sơ sức khỏe',
-    'Hồ sơ\nsức khỏe',
-    FontAwesomeIcons.fileLines,
-    Color(0xFF8245FF),
-  ),
-  (
-    'Kết quả cận lâm sàng',
-    'Kết quả\ncận lâm sàng',
-    FontAwesomeIcons.clipboard,
-    Color(0xFFFF4D8A),
-  ),
-  (
-    'Lắng nghe khách hàng',
-    'Lắng nghe\nkhách hàng',
-    FontAwesomeIcons.comments,
-    Color(0xFF1685FF),
-  ),
-  (
-    'Hướng dẫn sử dụng',
-    'Hướng dẫn\nsử dụng',
-    FontAwesomeIcons.rectangleList,
-    Color(0xFF05BF96),
-  ),
-  (
-    'Hỏi - đáp (Chatbot)',
-    'Hỏi - đáp\n(Chatbot)',
-    FontAwesomeIcons.circleQuestion,
-    Color(0xFF8245FF),
-  ),
-];
 
 class QuickFunctionsSection extends StatefulWidget {
   const QuickFunctionsSection({
@@ -71,7 +28,7 @@ class _QuickFunctionsSectionState extends State<QuickFunctionsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final matches = _features
+    final matches = patientFunctions
         .where(
           (feature) => feature.$1.toLowerCase().contains(
             widget.query.trim().toLowerCase(),
@@ -205,9 +162,7 @@ class _QuickFunctionsSectionState extends State<QuickFunctionsSection> {
                                             18,
                                           ),
                                           border: Border.all(
-                                            color: _blue.withValues(
-                                              alpha: .35,
-                                            ),
+                                            color: _blue.withValues(alpha: .35),
                                             width: 1,
                                           ),
                                           boxShadow: [

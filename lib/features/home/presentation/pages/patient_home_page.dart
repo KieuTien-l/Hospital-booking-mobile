@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../profile/presentation/controllers/patient_profile_controller.dart';
+import '../../../profile/presentation/pages/profile_page.dart';
+import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
 import '../widgets/other_functions_section.dart';
@@ -58,25 +62,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
     ),
   );
 
-  Widget _section(String title, {Widget? action}) => Padding(
-    padding: const EdgeInsets.only(top: 26, bottom: 14),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: _ink,
-            ),
-          ),
-        ),
-        ?action,
-      ],
-    ),
-  );
-
   Widget _functions() => QuickFunctionsSection(
     query: _query,
     onQueryChanged: (value) => setState(() => _query = value),
@@ -89,35 +74,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
     onTap: () => _open(
       title,
       'Nội dung minh họa cho giao diện HealWay. Tin tức chính thức sẽ được cập nhật khi kết nối dữ liệu bệnh viện.',
-    ),
-  );
-
-  Widget _service(String title, String subtitle, IconData icon) => Card(
-    margin: const EdgeInsets.only(bottom: 10),
-    child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFEAF5FC),
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Icon(icon, color: _blue),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 14,
-          color: _ink,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF7791A7)),
-      ),
-      trailing: const Icon(Icons.chevron_right, color: _blue),
-      onTap: () => _open(title),
     ),
   );
 
@@ -184,74 +140,31 @@ class _PatientHomePageState extends State<PatientHomePage> {
   );
 
   Widget _body(AuthController auth) {
-    final fullName = auth.currentUser?.fullName ?? '';
-    final email = auth.currentUser?.email ?? '';
     if (_tab == 0) return _home();
-    if (_tab == 2) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(children: [_section('Chức năng'), _functions()]),
+    if (_tab == 2) return FunctionsPage(onOpen: _open);
+    final user = auth.currentUser;
+    final candidate = context.watch<PatientProfileController?>()?.patient;
+    final patient = user != null && candidate?.authUserId == user.id
+        ? candidate
+        : null;
+    String value(String? profileValue, String? authValue) =>
+        profileValue != null && profileValue.trim().isNotEmpty
+        ? profileValue
+        : authValue ?? '';
+    if (user == null) {
+      return ProfilePage(
+        onOpen: _open,
+        onLogout: () => auth.logout(),
+        isLoggingOut: auth.isLoading,
       );
     }
-    if (_tab == 1) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.notifications_none_rounded, size: 64, color: _blue),
-              SizedBox(height: 16),
-              Text(
-                'Thông báo',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: _ink,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text('Bạn chưa có thông báo mới.'),
-            ],
-          ),
-        ),
-      );
-    }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          const SizedBox(height: 24),
-          const CircleAvatar(
-            radius: 40,
-            backgroundColor: Color(0xFFDCEFFA),
-            child: Icon(Icons.person_outline, size: 46, color: _blue),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            fullName.isEmpty ? 'Bệnh nhân' : fullName,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: _ink,
-            ),
-          ),
-          if (email.isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 8), child: Text(email)),
-          const SizedBox(height: 28),
-          _service(
-            'Hồ sơ sức khỏe',
-            'Thông tin sức khỏe cá nhân',
-            Icons.folder_shared_outlined,
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () => auth.logout(),
-            icon: const Icon(Icons.logout),
-            label: const Text('Đăng xuất'),
-          ),
-        ],
-      ),
+    return ProfilePage(
+      fullName: value(patient?.fullName, user.fullName),
+      email: value(patient?.email, user.email),
+      phone: value(patient?.phone, user.phone),
+      onOpen: _open,
+      onLogout: () => auth.logout(),
+      isLoggingOut: auth.isLoading,
     );
   }
 
@@ -266,46 +179,85 @@ class _PatientHomePageState extends State<PatientHomePage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F8FC),
         body: PatientHomeBackground(
-          child: SafeArea(
-            bottom: false,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
-                child: _body(auth),
+          child: ColoredBox(
+            color: _tab == 1 || _tab == 2 ? Colors.white : Colors.transparent,
+            child: SafeArea(
+              bottom: false,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (_tab != 1) _body(auth),
+                      Offstage(
+                        offstage: _tab != 1,
+                        child: const NotificationsPage(),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
         ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _tab,
-          onDestinationSelected: (value) => setState(() {
-            _tab = value;
-            _query = '';
-          }),
-          backgroundColor: Colors.white,
-          indicatorColor: const Color(0xFFDCEFFA),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded, color: _blue),
-              label: 'Trang chủ',
+        bottomNavigationBar: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Color(0xFFE6E8EC))),
+          ),
+          child: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              labelTextStyle: WidgetStateProperty.resolveWith(
+                (states) => TextStyle(
+                  fontFamily: 'BeVietnamPro',
+                  fontSize: 13,
+                  fontWeight: states.contains(WidgetState.selected)
+                      ? FontWeight.w700
+                      : FontWeight.w400,
+                  color: states.contains(WidgetState.selected)
+                      ? _blue
+                      : const Color(0xFF1B2B38),
+                ),
+              ),
+              iconTheme: WidgetStateProperty.all(
+                const IconThemeData(size: 28, color: Color(0xFF1B2B38)),
+              ),
+              indicatorShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.notifications_none),
-              selectedIcon: Icon(Icons.notifications, color: _blue),
-              label: 'Thông báo',
+            child: NavigationBar(
+              selectedIndex: _tab,
+              onDestinationSelected: (value) => setState(() {
+                _tab = value;
+                _query = '';
+              }),
+              backgroundColor: Colors.white,
+              indicatorColor: const Color(0xFFDCEFFA),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home_rounded, color: _blue),
+                  label: 'Trang chủ',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.notifications_none),
+                  selectedIcon: Icon(Icons.notifications, color: _blue),
+                  label: 'Thông báo',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.layers_outlined),
+                  selectedIcon: Icon(Icons.layers_rounded, color: _blue),
+                  label: 'Chức năng',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.account_circle_outlined),
+                  selectedIcon: Icon(Icons.account_circle, color: _blue),
+                  label: 'Cá nhân',
+                ),
+              ],
             ),
-            NavigationDestination(
-              icon: Icon(Icons.grid_view_outlined),
-              selectedIcon: Icon(Icons.grid_view_rounded, color: _blue),
-              label: 'Chức năng',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person, color: _blue),
-              label: 'Cá nhân',
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -31,6 +31,82 @@ class _HomeAuthRepository extends Fake implements AuthRepository {
 }
 
 void main() {
+  testWidgets('Profile uses auth data and existing navigation and logout', (
+    tester,
+  ) async {
+    final repository = _HomeAuthRepository();
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthController(authRepo: repository),
+        child: const MaterialApp(home: AuthGate()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cá nhân'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nguyễn An'), findsOneWidget);
+    expect(find.text('patient@example.com'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      3,
+    );
+    await tester.tap(find.text('Thông tin bệnh nhân'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Chức năng đang được hoàn thiện. Vui lòng quay lại sau.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Đã hiểu'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Đăng xuất'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Đăng xuất'));
+    await tester.pumpAndSettle();
+    expect(repository.loggedOut, isTrue);
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Functions tab shares navigation and Home placeholder actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+        child: const MaterialApp(home: PatientHomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithIcon(NavigationDestination, Icons.layers_outlined),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      2,
+    );
+    expect(find.text('Tiện ích khám bệnh'), findsOneWidget);
+    expect(find.text('Hỗ trợ & Tiện ích'), findsOneWidget);
+    await tester.tap(find.text('Đặt khám'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Chức năng đang được hoàn thiện. Vui lòng quay lại sau.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Đã hiểu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trang chủ'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Tìm kiếm'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Patient home supports small screens, search and navigation', (
     tester,
   ) async {
@@ -68,14 +144,36 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Thông báo'));
     await tester.pumpAndSettle();
-    expect(find.text('Bạn chưa có thông báo mới.'), findsOneWidget);
+    expect(find.text('LỊCH KHÁM ĐÃ ĐƯỢC XÁC NHẬN'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    await tester.tap(find.text('Chưa đọc'));
+    await tester.pumpAndSettle();
+    expect(find.text('CHÀO MỪNG BẠN ĐẾN VỚI HEALWAY'), findsNothing);
+    await tester.tap(find.text('Đọc tất cả'));
+    await tester.pumpAndSettle();
+    expect(find.text('CHƯA CÓ THÔNG BÁO'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Tất cả'));
+    await tester.pumpAndSettle();
+    expect(find.text('LỊCH KHÁM ĐÃ ĐƯỢC XÁC NHẬN'), findsOneWidget);
     await tester.tap(find.text('Chức năng'));
     await tester.pumpAndSettle();
-    expect(find.text('Hồ sơ\nsức khỏe'), findsOneWidget);
+    expect(find.text('Hồ sơ sức khỏe'), findsOneWidget);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      2,
+    );
+    await tester.tap(find.text('Thông báo').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chưa đọc'));
+    await tester.pumpAndSettle();
+    expect(find.text('CHƯA CÓ THÔNG BÁO'), findsOneWidget);
     await tester.tap(find.text('Cá nhân'));
     await tester.pumpAndSettle();
     expect(find.text('Nguyễn An'), findsOneWidget);
     expect(find.text('patient@example.com'), findsOneWidget);
+    await tester.ensureVisible(find.text('Đăng xuất'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Đăng xuất'));
     await tester.pumpAndSettle();
     expect(repository.loggedOut, isTrue);
