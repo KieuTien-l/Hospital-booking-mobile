@@ -26,7 +26,6 @@ import 'features/doctors/presentation/controllers/schedule_controller.dart';
 import 'features/onboarding/data/datasources/app_preferences.dart';
 import 'features/onboarding/data/repositories/onboarding_repository_impl.dart';
 import 'features/onboarding/presentation/controllers/onboarding_controller.dart';
-import 'features/onboarding/presentation/pages/splash_page.dart';
 import 'features/profile/data/datasources/patient_firebase_datasource.dart';
 import 'features/profile/data/repositories/patient_repository_impl.dart';
 import 'features/profile/domain/repositories/patient_repository.dart';
@@ -35,6 +34,7 @@ import 'features/specialties/data/datasources/specialty_firebase_datasource.dart
 import 'features/specialties/data/repositories/specialty_repository_impl.dart';
 import 'features/specialties/domain/repositories/specialty_repository.dart';
 import 'features/specialties/presentation/controllers/specialty_controller.dart';
+import 'features/home/presentation/pages/patient_home_page.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -113,7 +113,7 @@ class App extends StatelessWidget {
         title: 'HealWay',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const SplashPage(),
+        home: const PatientHomePage(),
       ),
     );
   }

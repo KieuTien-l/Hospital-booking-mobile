@@ -1,107 +1,76 @@
 import 'package:flutter/material.dart';
 
-const _blue = Color(0xFF0065B8);
-const _ink = Color(0xFF163958);
-
 class FeaturedNewsCard extends StatelessWidget {
   const FeaturedNewsCard({
     super.key,
     required this.title,
-    required this.icon,
-    required this.color,
+    required this.imageAsset,
     required this.onTap,
   });
 
   final String title;
-  final IconData icon;
-  final Color color;
+  final String imageAsset;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 270,
-    child: Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              constraints: const BoxConstraints(minHeight: 116),
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color, color.withValues(alpha: .65)],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final imageWidth = (constraints.maxWidth * .36).clamp(72.0, 220.0);
+      final fontSize = (constraints.maxWidth * .035).clamp(13.0, 20.0);
+      return Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0065FF),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'HEALWAY',
-                          style: TextStyle(
-                            color: Colors.white,
-                            letterSpacing: 2,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Đồng hành cùng\nsức khỏe của bạn',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(width: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(13),
+                  child: Image.asset(
+                    imageAsset,
+                    width: imageWidth,
+                    height: imageWidth * .64,
+                    fit: BoxFit.cover,
+                    excludeFromSemantics: true,
                   ),
-                  Icon(icon, size: 58, color: Colors.white),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'THÔNG TIN THAM KHẢO',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: _blue,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      height: 1.4,
-                      fontWeight: FontWeight.w700,
-                      color: _ink,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      height: 1.45,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF202533),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Khám phá thêm  →',
-                    style: TextStyle(fontSize: 12, color: _blue),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 24,
+                  color: Color(0xFF0065FF),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }

@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
+import '../widgets/other_functions_section.dart';
+import '../widgets/patient_home_background.dart';
+import '../widgets/patient_home_header.dart';
 
 const _blue = Color(0xFF0065B8);
 const _ink = Color(0xFF163958);
@@ -80,10 +83,9 @@ class _PatientHomePageState extends State<PatientHomePage> {
     onOpen: _open,
   );
 
-  Widget _news(String title, IconData icon, Color color) => FeaturedNewsCard(
+  Widget _news(String title, String imageAsset) => FeaturedNewsCard(
     title: title,
-    icon: icon,
-    color: color,
+    imageAsset: imageAsset,
     onTap: () => _open(
       title,
       'Nội dung minh họa cho giao diện HealWay. Tin tức chính thức sẽ được cập nhật khi kết nối dữ liệu bệnh viện.',
@@ -125,42 +127,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Center(
-          child: Text(
-            'Chào mừng đến với',
-            style: TextStyle(fontSize: 15, color: Color(0xFF54768D)),
-          ),
-        ),
-        const SizedBox(height: 5),
-        const Center(
-          child: Text(
-            'Bệnh viện Quốc tế Meridian',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w700,
-              color: _ink,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Center(
-          child: Image.asset(
-            'assets/images/name_logo.png',
-            width: 220,
-            height: 74,
-            fit: BoxFit.contain,
-            semanticLabel: 'HealWay',
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Center(
-          child: Text(
-            'Ứng dụng dành cho bệnh nhân',
-            style: TextStyle(color: Color(0xFF54768D), fontSize: 14),
-          ),
-        ),
-        const SizedBox(height: 28),
+        const PatientHomeHeader(),
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
@@ -174,51 +141,44 @@ class _PatientHomePageState extends State<PatientHomePage> {
           ),
           child: _functions(),
         ),
-        _section(
-          'Tin tức nổi bật',
-          action: TextButton(
-            onPressed: () => _open(
-              'Tin tức nổi bật',
-              'Tin tức trên trang chủ là nội dung minh họa. Tin tức chính thức của bệnh viện sẽ được cập nhật sau.',
+        const SizedBox(height: 24),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 18),
+              child: Text(
+                'Tin tức nổi bật',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0753AB),
+                ),
+              ),
             ),
-            child: const Text('Xem tất cả'),
+            _news(
+              'Cùng tham gia cuộc thi tìm hiểu quy định pháp luật về phòng, chống tác hại của thuốc lá',
+              'assets/images/news/healthcare.jpg',
+            ),
+            const SizedBox(height: 8),
+            _news(
+              'Thông báo về việc tìm chủ sở hữu của tài sản là tiền mặt do người bệnh/thân nhân để quên',
+              'assets/images/news/hospital.jpg',
+            ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 26, bottom: 14),
+          child: Text(
+            'Chức năng khác',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0753AB),
+            ),
           ),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _news(
-                'Chủ động đặt khám, an tâm mỗi ngày',
-                Icons.medical_services_outlined,
-                const Color(0xFF087CAF),
-              ),
-              const SizedBox(width: 14),
-              _news(
-                'Hồ sơ sức khỏe trong tầm tay',
-                Icons.favorite_border,
-                const Color(0xFF269D94),
-              ),
-            ],
-          ),
-        ),
-        _section('Dịch vụ nổi bật'),
-        _service(
-          'Bảng giá dịch vụ kỹ thuật',
-          'Tra cứu thông tin chi phí dịch vụ',
-          Icons.receipt_long_outlined,
-        ),
-        _service(
-          'Hướng dẫn khách hàng',
-          'Chuẩn bị cho hành trình thăm khám',
-          Icons.explore_outlined,
-        ),
-        _service(
-          'Liên hệ',
-          'Kết nối với Bệnh viện Quốc tế Meridian',
-          Icons.phone_in_talk_outlined,
-        ),
+        OtherFunctionsSection(onOpen: _open),
       ],
     ),
   );
@@ -305,14 +265,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F8FC),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFDCEFFA), Color(0xFFF4F9FC), Color(0xFFE8F6F5)],
-            ),
-          ),
+        body: PatientHomeBackground(
           child: SafeArea(
             bottom: false,
             child: Center(

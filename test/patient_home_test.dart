@@ -47,9 +47,14 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(PatientHomePage), findsOneWidget);
-    expect(find.text('Bệnh viện Quốc tế Meridian'), findsOneWidget);
+    expect(
+      find.text('Bệnh viện Quốc tế Meridian', findRichText: true),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
-    await tester.enterText(find.byType(TextField), 'Đặt khám');
+    await tester.tap(find.byTooltip('Tìm kiếm'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'Đặt khám');
     await tester.pump();
     expect(find.text('Đặt khám', findRichText: false).last, findsOneWidget);
     expect(find.text('Hồ sơ sức khỏe'), findsNothing);
@@ -66,7 +71,7 @@ void main() {
     expect(find.text('Bạn chưa có thông báo mới.'), findsOneWidget);
     await tester.tap(find.text('Chức năng'));
     await tester.pumpAndSettle();
-    expect(find.text('Hồ sơ sức khỏe'), findsOneWidget);
+    expect(find.text('Hồ sơ\nsức khỏe'), findsOneWidget);
     await tester.tap(find.text('Cá nhân'));
     await tester.pumpAndSettle();
     expect(find.text('Nguyễn An'), findsOneWidget);
