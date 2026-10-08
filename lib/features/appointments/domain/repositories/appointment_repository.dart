@@ -11,4 +11,20 @@ abstract class AppointmentRepository {
 
   /// Updates an existing appointment only; it must never create one.
   Future<Appointment> updateAppointment(Appointment appointment);
+
+  /// Cancels an appointment and frees up its time slot.
+  Future<Appointment> cancelAppointment(
+    String appointmentId,
+    String cancellationReason,
+  );
+
+  /// Reschedules an appointment to a new time slot.
+  Future<Appointment> rescheduleAppointment(
+    String appointmentId,
+    String newWorkScheduleId,
+    String newTimeSlotId,
+    DateTime newDate,
+    String newStartTime,
+    String newEndTime,
+  );
 }

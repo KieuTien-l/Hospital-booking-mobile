@@ -23,4 +23,27 @@ class AppointmentRepositoryImpl implements AppointmentRepository {
   @override
   Future<Appointment> updateAppointment(Appointment appointment) =>
       _datasource.updateAppointment(appointment);
+
+  @override
+  Future<Appointment> cancelAppointment(
+    String appointmentId,
+    String cancellationReason,
+  ) => _datasource.cancelAppointment(appointmentId, cancellationReason);
+
+  @override
+  Future<Appointment> rescheduleAppointment(
+    String appointmentId,
+    String newWorkScheduleId,
+    String newTimeSlotId,
+    DateTime newDate,
+    String newStartTime,
+    String newEndTime,
+  ) => _datasource.rescheduleAppointment(
+    appointmentId: appointmentId,
+    newWorkScheduleId: newWorkScheduleId,
+    newTimeSlotId: newTimeSlotId,
+    newDate: newDate,
+    newStartTime: newStartTime,
+    newEndTime: newEndTime,
+  );
 }

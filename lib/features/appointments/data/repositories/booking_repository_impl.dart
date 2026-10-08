@@ -92,4 +92,30 @@ class BookingRepositoryImpl implements BookingRepository {
   @override
   Future<Appointment> bookAppointment(Appointment appointment) =>
       appointmentRepository.createAppointment(appointment);
+
+  @override
+  Future<Appointment> cancelAppointment(
+    String appointmentId,
+    String cancellationReason,
+  ) => appointmentRepository.cancelAppointment(
+    appointmentId,
+    cancellationReason,
+  );
+
+  @override
+  Future<Appointment> rescheduleAppointment(
+    String appointmentId,
+    String newWorkScheduleId,
+    String newTimeSlotId,
+    DateTime newDate,
+    String newStartTime,
+    String newEndTime,
+  ) => appointmentRepository.rescheduleAppointment(
+    appointmentId,
+    newWorkScheduleId,
+    newTimeSlotId,
+    newDate,
+    newStartTime,
+    newEndTime,
+  );
 }

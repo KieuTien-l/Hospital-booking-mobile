@@ -47,4 +47,20 @@ abstract class BookingRepository {
 
   /// Atomically creates an appointment and marks its slot as booked.
   Future<Appointment> bookAppointment(Appointment appointment);
+
+  /// Cancels an appointment and frees up its time slot.
+  Future<Appointment> cancelAppointment(
+    String appointmentId,
+    String cancellationReason,
+  );
+
+  /// Reschedules an appointment to a new time slot.
+  Future<Appointment> rescheduleAppointment(
+    String appointmentId,
+    String newWorkScheduleId,
+    String newTimeSlotId,
+    DateTime newDate,
+    String newStartTime,
+    String newEndTime,
+  );
 }

@@ -115,4 +115,21 @@ class _FakePatientBookingRepository implements BookingRepository {
   Stream<List<Specialty>> watchSpecialties() {
     return const Stream.empty();
   }
+
+  @override
+  Future<Appointment> cancelAppointment(String appointmentId, String cancellationReason) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Appointment> rescheduleAppointment(
+    String appointmentId,
+    String newWorkScheduleId,
+    String newTimeSlotId,
+    DateTime newDate,
+    String newStartTime,
+    String newEndTime,
+  ) {
+    throw UnimplementedError();
+  }
 }

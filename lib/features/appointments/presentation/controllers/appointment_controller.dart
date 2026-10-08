@@ -148,6 +148,33 @@ class AppointmentController extends ChangeNotifier {
   AppointmentControllerStatus get status => _status;
   Patient? get patient => _patient;
   List<Appointment> get appointments => _appointments;
+  List<Appointment> get pendingAppointments => _appointments
+      .where((a) => a.status == AppointmentStatus.pending)
+      .toList();
+  List<Appointment> get confirmedAppointments => _appointments
+      .where((a) => a.status == AppointmentStatus.confirmed)
+      .toList();
+  List<Appointment> get completedAppointments => _appointments
+      .where((a) => a.status == AppointmentStatus.completed)
+      .toList();
+  List<Appointment> get cancelledAppointments => _appointments
+      .where((a) => a.status == AppointmentStatus.cancelled)
+      .toList();
+  List<Appointment> get upcomingAppointments => _appointments
+      .where(
+        (a) =>
+            a.status == AppointmentStatus.pending ||
+            a.status == AppointmentStatus.confirmed,
+      )
+      .toList();
+  List<Appointment> get pastAppointments => _appointments
+      .where(
+        (a) =>
+            a.status == AppointmentStatus.completed ||
+            a.status == AppointmentStatus.cancelled ||
+            a.status == AppointmentStatus.noShow,
+      )
+      .toList();
   String? get errorMessage => _errorMessage;
   bool get isLoading => _status == AppointmentControllerStatus.loading;
 
@@ -256,6 +283,64 @@ class AppointmentController extends ChangeNotifier {
       return null;
     } finally {
       _bookingInProgress = false;
+      if (_status != AppointmentControllerStatus.error) {
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<Appointment?> cancelAppointment(
+    String appointmentId,
+    String cancellationReason,
+  ) async {
+    _status = AppointmentControllerStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final updatedAppointment = await _repository.cancelAppointment(
+        appointmentId,
+        cancellationReason,
+      );
+      _appointment = updatedAppointment;
+      _status = ViewState.success;
+      return updatedAppointment;
+    } catch (error) {
+      _setError(error);
+      return null;
+    } finally {
+      if (_status != AppointmentControllerStatus.error) {
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<Appointment?> rescheduleAppointment({
+    required String appointmentId,
+    required String newWorkScheduleId,
+    required String newTimeSlotId,
+    required DateTime newDate,
+    required String newStartTime,
+    required String newEndTime,
+  }) async {
+    _status = AppointmentControllerStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final updatedAppointment = await _repository.rescheduleAppointment(
+        appointmentId,
+        newWorkScheduleId,
+        newTimeSlotId,
+        newDate,
+        newStartTime,
+        newEndTime,
+      );
+      _appointment = updatedAppointment;
+      _status = ViewState.success;
+      return updatedAppointment;
+    } catch (error) {
+      _setError(error);
+      return null;
+    } finally {
       if (_status != AppointmentControllerStatus.error) {
         notifyListeners();
       }

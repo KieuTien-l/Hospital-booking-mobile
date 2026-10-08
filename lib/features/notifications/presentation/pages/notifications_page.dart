@@ -31,7 +31,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
       final auth = context.read<AuthController>();
       final patientId = auth.currentUser?.id;
       if (patientId != null) {
-        context.read<NotificationController>().loadNotificationsForPatient(patientId);
+        context.read<NotificationController>().loadNotificationsForPatient(
+          patientId,
+        );
       }
     });
   }
@@ -40,7 +42,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (!item.isRead) {
       context.read<NotificationController>().markAsRead(item.id);
     }
-    
+
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -74,7 +76,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ),
     );
   }
-  
+
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
@@ -91,9 +93,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<NotificationController>();
     final items = controller.notifications;
-    final visible = items.where((item) => !_unreadOnly || !item.isRead).toList();
+    final visible = items
+        .where((item) => !_unreadOnly || !item.isRead)
+        .toList();
     final hasUnread = controller.unreadCount > 0;
-    
+
     return ColoredBox(
       color: Colors.white,
       child: SafeArea(
@@ -153,9 +157,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
             Expanded(
               child: ColoredBox(
                 color: const Color(0xFFF6F7F9),
-                child: controller.isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : visible.isEmpty
+                child: controller.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : visible.isEmpty
                     ? const _EmptyNotifications()
                     : ListView.separated(
                         key: const PageStorageKey('patient-notifications'),
@@ -223,7 +227,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item, required this.onTap, required this.timeStr});
+  const _NotificationCard({
+    required this.item,
+    required this.onTap,
+    required this.timeStr,
+  });
   final AppNotification item;
   final VoidCallback onTap;
   final String timeStr;

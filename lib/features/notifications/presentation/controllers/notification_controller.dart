@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../domain/entities/app_notification.dart';
 import '../../domain/repositories/notification_repository.dart';
 
@@ -18,7 +20,7 @@ class NotificationController extends ChangeNotifier {
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   NotificationController({required NotificationRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   void loadNotificationsForPatient(String patientId) {
     _isLoading = true;
@@ -26,18 +28,20 @@ class NotificationController extends ChangeNotifier {
     notifyListeners();
 
     _subscription?.cancel();
-    _subscription = _repository.getNotificationsForPatient(patientId).listen(
-      (notifications) {
-        _notifications = notifications;
-        _isLoading = false;
-        notifyListeners();
-      },
-      onError: (error) {
-        _errorMessage = error.toString();
-        _isLoading = false;
-        notifyListeners();
-      },
-    );
+    _subscription = _repository
+        .getNotificationsForPatient(patientId)
+        .listen(
+          (notifications) {
+            _notifications = notifications;
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (error) {
+            _errorMessage = error.toString();
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   Future<void> markAsRead(String notificationId) async {

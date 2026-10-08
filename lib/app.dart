@@ -77,7 +77,8 @@ class App extends StatelessWidget {
               AppointmentRepositoryImpl(AppointmentFirebaseDatasource()),
         ),
         Provider<NotificationRepository>(
-          create: (_) => NotificationRepositoryImpl(NotificationFirebaseDatasource()),
+          create: (_) =>
+              NotificationRepositoryImpl(NotificationFirebaseDatasource()),
         ),
         Provider<BookingRepository>(
           create: (context) => BookingRepositoryImpl(

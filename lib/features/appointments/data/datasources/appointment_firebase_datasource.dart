@@ -156,6 +156,207 @@ class AppointmentFirebaseDatasource {
     return appointment;
   }
 
+  Future<Appointment> cancelAppointment(
+    String appointmentId,
+    String cancellationReason,
+  ) async {
+    final normalizedId = appointmentId.trim();
+    if (normalizedId.isEmpty) {
+      throw const BookingException('An appointment id is required.');
+    }
+
+    final appointmentRef = _appointments.doc(normalizedId);
+
+    return _firestore.runTransaction((transaction) async {
+      final appSnapshot = await transaction.get(appointmentRef);
+      if (!appSnapshot.exists) {
+        throw const BookingException('The appointment does not exist.');
+      }
+
+      final appointment = AppointmentModel.fromFirestore(appSnapshot);
+      if (appointment.status == AppointmentStatus.cancelled) {
+        throw const BookingException('This appointment is already cancelled.');
+      }
+
+      final slotRef = _timeSlots.doc(appointment.timeSlotId);
+      final slotSnapshot = await transaction.get(slotRef);
+
+      transaction.update(appointmentRef, {
+        'status': AppointmentStatus.cancelled.firestoreValue,
+        'cancellationReason': cancellationReason,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (slotSnapshot.exists) {
+        final slot = TimeSlotModel.fromFirestore(slotSnapshot);
+        final currentCount = slot.bookedCount ?? 1;
+        final newCount = (currentCount - appointment.peopleCount).clamp(
+          0,
+          slot.capacity ?? 9999,
+        );
+
+        transaction.update(slotRef, {
+          'bookedCount': newCount,
+          'status': TimeSlotStatus.available.firestoreValue,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      return AppointmentModel(
+        id: appointment.id,
+        patientId: appointment.patientId,
+        doctorId: appointment.doctorId,
+        workScheduleId: appointment.workScheduleId,
+        timeSlotId: appointment.timeSlotId,
+        specialtyId: appointment.specialtyId,
+        appointmentDate: appointment.appointmentDate,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+        bookedAt: appointment.bookedAt,
+        status: AppointmentStatus.cancelled,
+        reason: appointment.reason,
+        note: appointment.note,
+        cancellationReason: cancellationReason,
+        symptoms: appointment.symptoms,
+        peopleCount: appointment.peopleCount,
+        queueNumber: appointment.queueNumber,
+        checkInTime: appointment.checkInTime,
+        qrCode: appointment.qrCode,
+        createdAt: appointment.createdAt,
+        updatedAt: DateTime.now(),
+      );
+    });
+  }
+
+  Future<Appointment> rescheduleAppointment({
+    required String appointmentId,
+    required String newWorkScheduleId,
+    required String newTimeSlotId,
+    required DateTime newDate,
+    required String newStartTime,
+    required String newEndTime,
+  }) async {
+    final normalizedId = appointmentId.trim();
+    if (normalizedId.isEmpty) {
+      throw const BookingException('An appointment id is required.');
+    }
+
+    final appointmentRef = _appointments.doc(normalizedId);
+    final newSlotRef = _timeSlots.doc(newTimeSlotId);
+    final newScheduleRef = _workSchedules.doc(newWorkScheduleId);
+
+    return _firestore.runTransaction((transaction) async {
+      final appSnapshot = await transaction.get(appointmentRef);
+      if (!appSnapshot.exists) {
+        throw const BookingException('The appointment does not exist.');
+      }
+      final appointment = AppointmentModel.fromFirestore(appSnapshot);
+      if (appointment.status == AppointmentStatus.cancelled ||
+          appointment.status == AppointmentStatus.completed) {
+        throw const BookingException(
+          'Cannot reschedule a cancelled or completed appointment.',
+        );
+      }
+
+      final oldSlotRef = _timeSlots.doc(appointment.timeSlotId);
+      final oldSlotSnapshot = await transaction.get(oldSlotRef);
+
+      final newSlotSnapshot = await transaction.get(newSlotRef);
+      final newScheduleSnapshot = await transaction.get(newScheduleRef);
+
+      if (!newSlotSnapshot.exists || !newScheduleSnapshot.exists) {
+        throw const BookingException(
+          'The new schedule or time slot no longer exists.',
+        );
+      }
+
+      final newSlot = TimeSlotModel.fromFirestore(newSlotSnapshot);
+      if (!newSlot.isAvailable) {
+        throw const BookingException(
+          'The new time slot is no longer available.',
+        );
+      }
+
+      final newBookedCount =
+          (newSlot.bookedCount ?? 0) + appointment.peopleCount;
+      if (newBookedCount > (newSlot.capacity ?? 1)) {
+        throw const BookingException(
+          'The new time slot does not have enough capacity.',
+        );
+      }
+      final nextNewSlotStatus = newBookedCount >= (newSlot.capacity ?? 1)
+          ? TimeSlotStatus.booked
+          : TimeSlotStatus.available;
+
+      // Release old slot
+      if (oldSlotSnapshot.exists && oldSlotRef.id != newSlotRef.id) {
+        final oldSlot = TimeSlotModel.fromFirestore(oldSlotSnapshot);
+        final currentOldCount = oldSlot.bookedCount ?? 1;
+        final newOldCount = (currentOldCount - appointment.peopleCount).clamp(
+          0,
+          oldSlot.capacity ?? 9999,
+        );
+        transaction.update(oldSlotRef, {
+          'bookedCount': newOldCount,
+          'status': TimeSlotStatus.available.firestoreValue,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update new slot
+      if (oldSlotRef.id != newSlotRef.id) {
+        transaction.update(newSlotRef, {
+          'bookedCount': newBookedCount,
+          'status': nextNewSlotStatus.firestoreValue,
+          'appointmentId': appointmentRef.id,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Just in case they reschedule to the EXACT same slot, though unlikely.
+        transaction.update(newSlotRef, {
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update appointment
+      transaction.update(appointmentRef, {
+        'workScheduleId': newWorkScheduleId,
+        'timeSlotId': newTimeSlotId,
+        'appointmentDate': newDate.toIso8601String(),
+        'startTime': newStartTime,
+        'endTime': newEndTime,
+        'status': AppointmentStatus
+            .pending
+            .firestoreValue, // reset status to pending when rescheduled
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return AppointmentModel(
+        id: appointment.id,
+        patientId: appointment.patientId,
+        doctorId: appointment.doctorId,
+        workScheduleId: newWorkScheduleId,
+        timeSlotId: newTimeSlotId,
+        specialtyId: appointment.specialtyId,
+        appointmentDate: newDate,
+        startTime: newStartTime,
+        endTime: newEndTime,
+        bookedAt: appointment.bookedAt,
+        status: AppointmentStatus.pending,
+        reason: appointment.reason,
+        note: appointment.note,
+        cancellationReason: appointment.cancellationReason,
+        symptoms: appointment.symptoms,
+        peopleCount: appointment.peopleCount,
+        queueNumber: appointment.queueNumber,
+        checkInTime: appointment.checkInTime,
+        qrCode: appointment.qrCode,
+        createdAt: appointment.createdAt,
+        updatedAt: DateTime.now(),
+      );
+    });
+  }
+
   void _validateNewAppointment(Appointment appointment) {
     if (appointment.patientId.trim().isEmpty ||
         appointment.doctorId.trim().isEmpty ||
