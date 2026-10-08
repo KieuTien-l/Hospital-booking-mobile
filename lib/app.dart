@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/routes/auth_gate.dart';
 import 'core/themes/app_theme.dart';
 import 'features/appointments/data/datasources/appointment_firebase_datasource.dart';
 import 'features/appointments/data/repositories/appointment_repository_impl.dart';
@@ -34,7 +35,10 @@ import 'features/specialties/data/datasources/specialty_firebase_datasource.dart
 import 'features/specialties/data/repositories/specialty_repository_impl.dart';
 import 'features/specialties/domain/repositories/specialty_repository.dart';
 import 'features/specialties/presentation/controllers/specialty_controller.dart';
-import 'features/home/presentation/pages/patient_home_page.dart';
+import 'features/notifications/data/datasources/notification_firebase_datasource.dart';
+import 'features/notifications/data/repositories/notification_repository_impl.dart';
+import 'features/notifications/domain/repositories/notification_repository.dart';
+import 'features/notifications/presentation/controllers/notification_controller.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -72,6 +76,9 @@ class App extends StatelessWidget {
           create: (_) =>
               AppointmentRepositoryImpl(AppointmentFirebaseDatasource()),
         ),
+        Provider<NotificationRepository>(
+          create: (_) => NotificationRepositoryImpl(NotificationFirebaseDatasource()),
+        ),
         Provider<BookingRepository>(
           create: (context) => BookingRepositoryImpl(
             specialtyRepository: context.read<SpecialtyRepository>(),
@@ -108,12 +115,17 @@ class App extends StatelessWidget {
             ),
           ),
         ),
+        ChangeNotifierProvider(
+          create: (context) => NotificationController(
+            repository: context.read<NotificationRepository>(),
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'HealWay',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const PatientHomePage(),
+        home: const AuthGate(),
       ),
     );
   }

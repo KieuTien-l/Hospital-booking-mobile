@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
-import '../models/notification_item.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../domain/entities/app_notification.dart';
+import '../controllers/notification_controller.dart';
 
 /// Content only: the patient shell owns the bottom navigation.
 class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key, this.initialItems = mockNotifications});
-
-  final List<NotificationItem> initialItems;
+  const NotificationsPage({super.key});
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -21,18 +22,25 @@ abstract final class _NotificationColors {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
-  late List<NotificationItem> _items;
   bool _unreadOnly = false;
 
   @override
   void initState() {
     super.initState();
-    _items = List.of(widget.initialItems);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthController>();
+      final patientId = auth.currentUser?.id;
+      if (patientId != null) {
+        context.read<NotificationController>().loadNotificationsForPatient(patientId);
+      }
+    });
   }
 
-  void _open(int index) {
-    final item = _items[index];
-    setState(() => _items[index] = item.markAsRead());
+  void _open(AppNotification item) {
+    if (!item.isRead) {
+      context.read<NotificationController>().markAsRead(item.id);
+    }
+    
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -50,7 +58,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                item.time,
+                _formatTime(item.createdAt),
                 style: const TextStyle(color: _NotificationColors.body),
               ),
               const SizedBox(height: 16),
@@ -66,14 +74,26 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ),
     );
   }
+  
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} phút trước';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} giờ trước';
+    } else {
+      return '${time.day}/${time.month}/${time.year}';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final visible = [
-      for (var i = 0; i < _items.length; i++)
-        if (!_unreadOnly || !_items[i].isRead) i,
-    ];
-    final hasUnread = _items.any((item) => !item.isRead);
+    final controller = context.watch<NotificationController>();
+    final items = controller.notifications;
+    final visible = items.where((item) => !_unreadOnly || !item.isRead).toList();
+    final hasUnread = controller.unreadCount > 0;
+    
     return ColoredBox(
       color: Colors.white,
       child: SafeArea(
@@ -96,11 +116,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                   TextButton.icon(
                     onPressed: hasUnread
-                        ? () => setState(() {
-                            _items = _items
-                                .map((item) => item.markAsRead())
-                                .toList();
-                          })
+                        ? () {
+                            final auth = context.read<AuthController>();
+                            final patientId = auth.currentUser?.id;
+                            if (patientId != null) {
+                              controller.markAllAsRead(patientId);
+                            }
+                          }
                         : null,
                     style: TextButton.styleFrom(
                       backgroundColor: _NotificationColors.soft,
@@ -131,7 +153,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
             Expanded(
               child: ColoredBox(
                 color: const Color(0xFFF6F7F9),
-                child: visible.isEmpty
+                child: controller.isLoading 
+                  ? const Center(child: CircularProgressIndicator())
+                  : visible.isEmpty
                     ? const _EmptyNotifications()
                     : ListView.separated(
                         key: const PageStorageKey('patient-notifications'),
@@ -139,8 +163,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         itemCount: visible.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) => _NotificationCard(
-                          item: _items[visible[index]],
+                          item: visible[index],
                           onTap: () => _open(visible[index]),
+                          timeStr: _formatTime(visible[index].createdAt),
                         ),
                       ),
               ),
@@ -198,9 +223,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item, required this.onTap});
-  final NotificationItem item;
+  const _NotificationCard({required this.item, required this.onTap, required this.timeStr});
+  final AppNotification item;
   final VoidCallback onTap;
+  final String timeStr;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -230,11 +256,11 @@ class _NotificationCard extends StatelessWidget {
                 Container(
                   width: 48,
                   height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F6F9),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF3F6F9),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.notifications_none_rounded,
                     color: _NotificationColors.body,
                     size: 26,
@@ -273,7 +299,7 @@ class _NotificationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        item.time,
+                        timeStr,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
