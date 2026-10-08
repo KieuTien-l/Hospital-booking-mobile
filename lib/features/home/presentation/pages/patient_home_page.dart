@@ -5,6 +5,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
@@ -26,41 +27,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
   int _tab = 0;
   String _query = '';
 
-  void _open(String title, [String? content]) => showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (context) => SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: _ink,
+  void _open(String title, [String? content]) {
+    if (title == 'Đặt khám') {
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const SpecialtyListPage()),
+      );
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _ink,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              content ??
-                  'Chức năng đang được hoàn thiện. Vui lòng quay lại sau.',
-              style: const TextStyle(fontSize: 16, height: 1.6),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Đã hiểu'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                content ??
+                    'Chức năng đang được hoàn thiện. Vui lòng quay lại sau.',
+                style: const TextStyle(fontSize: 16, height: 1.6),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Đã hiểu'),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _functions() => QuickFunctionsSection(
     query: _query,

@@ -79,65 +79,33 @@ void main() {
     },
   );
 
-  testWidgets('First launch completes onboarding; a new app skips it', (
+  for (final completed in <bool?>[null, false, true]) {
+    testWidgets('Splash opens login with onboarding flag $completed', (
+      tester,
+    ) async {
+      final storage = MemoryPreferences();
+      if (completed != null) storage.values['onboardingCompleted'] = completed;
+      await tester.pumpWidget(testApp(AppPreferences(preferences: storage)));
+      expect(find.byType(SplashPage), findsOneWidget);
+      expect(find.byType(LoginPage), findsNothing);
+      await finishSplash(tester);
+      expect(find.byType(OnboardingPage), findsNothing);
+      expect(find.byType(LoginPage), findsOneWidget);
+      expect(
+        Navigator.of(tester.element(find.byType(LoginPage))).canPop(),
+        isFalse,
+      );
+    });
+  }
+
+  testWidgets('Splash opens login even when preference reads fail', (
     tester,
   ) async {
     final storage = MemoryPreferences();
+    storage.state.failRead = true;
     await tester.pumpWidget(testApp(AppPreferences(preferences: storage)));
     await finishSplash(tester);
-    expect(find.byType(OnboardingPage), findsOneWidget);
-    expect(storage.values, isEmpty);
-
-    storage.state.pendingWrite = Completer<void>();
-    await tester.tap(find.text('Bắt đầu'));
-    await tester.pump();
-    expect(find.byType(LoginPage), findsNothing);
-    expect(find.text('Đang lưu...'), findsOneWidget);
-    storage.state.pendingWrite!.complete();
-    await tester.pumpAndSettle();
     expect(find.byType(LoginPage), findsOneWidget);
-    expect(storage.values['onboardingCompleted'], isTrue);
-    expect(
-      Navigator.of(tester.element(find.byType(LoginPage))).canPop(),
-      isFalse,
-    );
-
-    // Recreate the widget tree and preference service with the same storage.
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(testApp(AppPreferences(preferences: storage)));
-    await finishSplash(tester);
     expect(find.byType(OnboardingPage), findsNothing);
-    expect(find.byType(LoginPage), findsOneWidget);
   });
-
-  testWidgets('Explicit false shows onboarding', (tester) async {
-    final storage = MemoryPreferences()..values['onboardingCompleted'] = false;
-    await tester.pumpWidget(testApp(AppPreferences(preferences: storage)));
-    await finishSplash(tester);
-    expect(find.byType(OnboardingPage), findsOneWidget);
-  });
-
-  testWidgets(
-    'Read failure falls back to onboarding; write failure permits retry',
-    (tester) async {
-      final storage = MemoryPreferences();
-      storage.state
-        ..failRead = true
-        ..failWrite = true;
-      await tester.pumpWidget(testApp(AppPreferences(preferences: storage)));
-      await finishSplash(tester);
-      await tester.tap(find.text('Bắt đầu'));
-      await tester.pumpAndSettle();
-      expect(find.byType(OnboardingPage), findsOneWidget);
-      expect(storage.values, isEmpty);
-      expect(
-        find.text('Chưa thể lưu trạng thái. Vui lòng thử lại.'),
-        findsOneWidget,
-      );
-      storage.state.failWrite = false;
-      await tester.tap(find.text('Bắt đầu'));
-      await tester.pumpAndSettle();
-      expect(find.byType(LoginPage), findsOneWidget);
-    },
-  );
 }

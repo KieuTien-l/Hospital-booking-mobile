@@ -7,6 +7,14 @@ import 'package:flutter_application_4/features/auth/domain/repositories/auth_rep
 import 'package:flutter_application_4/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter_application_4/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_application_4/features/home/presentation/pages/patient_home_page.dart';
+import 'package:flutter_application_4/features/specialties/domain/entities/specialty.dart';
+import 'package:flutter_application_4/features/specialties/domain/repositories/specialty_repository.dart';
+import 'package:flutter_application_4/features/specialties/presentation/controllers/specialty_controller.dart';
+
+class _HomeSpecialtyRepository implements SpecialtyRepository {
+  @override
+  Stream<List<Specialty>> watchSpecialties() => Stream.value(const []);
+}
 
 class _HomeAuthRepository extends Fake implements AuthRepository {
   bool loggedOut = false;
@@ -76,8 +84,15 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => SpecialtyController(_HomeSpecialtyRepository()),
+          ),
+        ],
         child: const MaterialApp(home: PatientHomePage()),
       ),
     );
@@ -95,11 +110,8 @@ void main() {
     expect(find.text('Hỗ trợ & Tiện ích'), findsOneWidget);
     await tester.tap(find.text('Đặt khám'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Chức năng đang được hoàn thiện. Vui lòng quay lại sau.'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Đã hiểu'));
+    expect(find.text('Chọn chuyên khoa'), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Trang chủ'));
     await tester.pumpAndSettle();
@@ -116,8 +128,15 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final repository = _HomeAuthRepository();
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => AuthController(authRepo: repository),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => AuthController(authRepo: repository),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => SpecialtyController(_HomeSpecialtyRepository()),
+          ),
+        ],
         child: const MaterialApp(home: AuthGate()),
       ),
     );
@@ -136,11 +155,8 @@ void main() {
     expect(find.text('Hồ sơ sức khỏe'), findsNothing);
     await tester.tap(find.text('Đặt khám', findRichText: false).last);
     await tester.pumpAndSettle();
-    expect(
-      find.text('Chức năng đang được hoàn thiện. Vui lòng quay lại sau.'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Đã hiểu'));
+    expect(find.text('Chọn chuyên khoa'), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Thông báo'));
     await tester.pumpAndSettle();
