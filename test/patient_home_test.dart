@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_application_4/features/appointments/presentation/pages/select_appointment_date_page.dart';
 import 'package:flutter_application_4/core/routes/auth_gate.dart';
 import 'package:flutter_application_4/features/auth/domain/entities/user_entity.dart';
 import 'package:flutter_application_4/features/auth/domain/repositories/auth_repository.dart';
@@ -13,7 +14,9 @@ import 'package:flutter_application_4/features/specialties/presentation/controll
 
 class _HomeSpecialtyRepository implements SpecialtyRepository {
   @override
-  Stream<List<Specialty>> watchSpecialties() => Stream.value(const []);
+  Stream<List<Specialty>> watchSpecialties() => Stream.value(const [
+    Specialty(id: 'skin', name: 'Da liễu', description: '', isActive: true),
+  ]);
 }
 
 class _HomeAuthRepository extends Fake implements AuthRepository {
@@ -114,6 +117,21 @@ void main() {
     await tester.tap(find.text('NGUYỄN MINH AN'));
     await tester.pumpAndSettle();
     expect(find.text('Chọn chuyên khoa'), findsOneWidget);
+    await tester.tap(find.text('DA LIỄU'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SelectAppointmentDatePage), findsOneWidget);
+    expect(
+      tester
+          .widget<SelectAppointmentDatePage>(
+            find.byType(SelectAppointmentDatePage),
+          )
+          .specialty
+          .id,
+      'skin',
+    );
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Chọn chuyên khoa'), findsOneWidget);
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text('Chọn hồ sơ'), findsOneWidget);
@@ -125,6 +143,15 @@ void main() {
     );
     await tester.tap(find.text('Đặt khám'));
     await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.tap(find.text('NGUYỄN MINH AN'));
+      await tester.pump();
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('DA LIỄU'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SelectAppointmentDatePage), findsOneWidget);
     await tester.tap(find.byTooltip('Về trang chủ'));
     await tester.pumpAndSettle();
     expect(

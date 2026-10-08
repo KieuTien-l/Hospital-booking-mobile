@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../appointments/presentation/pages/select_appointment_date_page.dart';
+
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
@@ -34,6 +36,14 @@ class _PatientHomePageState extends State<PatientHomePage> {
       FocusScope.of(context).unfocus();
       final navigator = Navigator.of(context);
       final homeRoute = ModalRoute.of(context);
+      void returnHome() {
+        navigator.popUntil((route) => route == homeRoute);
+        setState(() {
+          _tab = 0;
+          _query = '';
+        });
+      }
+
       navigator.push<void>(
         MaterialPageRoute(
           builder: (_) => SelectPatientProfilePage(
@@ -44,17 +54,21 @@ class _PatientHomePageState extends State<PatientHomePage> {
               navigator.push<void>(
                 MaterialPageRoute(
                   settings: RouteSettings(arguments: patient),
-                  builder: (_) => const SpecialtyListPage(),
+                  builder: (_) => SpecialtyListPage(
+                    onSpecialtySelected: (specialty) => navigator.push<void>(
+                      MaterialPageRoute(
+                        settings: RouteSettings(arguments: patient),
+                        builder: (_) => SelectAppointmentDatePage(
+                          specialty: specialty,
+                          onHome: returnHome,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               );
             },
-            onHome: () {
-              navigator.popUntil((route) => route == homeRoute);
-              setState(() {
-                _tab = 0;
-                _query = '';
-              });
-            },
+            onHome: returnHome,
           ),
         ),
       );
