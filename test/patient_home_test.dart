@@ -110,11 +110,27 @@ void main() {
     expect(find.text('Hỗ trợ & Tiện ích'), findsOneWidget);
     await tester.tap(find.text('Đặt khám'));
     await tester.pumpAndSettle();
+    expect(find.text('Chọn hồ sơ'), findsOneWidget);
+    await tester.tap(find.text('NGUYỄN MINH AN'));
+    await tester.pumpAndSettle();
     expect(find.text('Chọn chuyên khoa'), findsOneWidget);
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Trang chủ'));
+    expect(find.text('Chọn hồ sơ'), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      2,
+    );
+    await tester.tap(find.text('Đặt khám'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Về trang chủ'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
     expect(find.byTooltip('Tìm kiếm'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -155,7 +171,7 @@ void main() {
     expect(find.text('Hồ sơ sức khỏe'), findsNothing);
     await tester.tap(find.text('Đặt khám', findRichText: false).last);
     await tester.pumpAndSettle();
-    expect(find.text('Chọn chuyên khoa'), findsOneWidget);
+    expect(find.text('Chọn hồ sơ'), findsOneWidget);
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Thông báo'));

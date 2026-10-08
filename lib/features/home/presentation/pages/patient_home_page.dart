@@ -5,6 +5,8 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../profile/presentation/pages/select_patient_profile_page.dart';
+import '../../../profile/presentation/models/patient_profile_demo_data.dart';
 import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
@@ -30,8 +32,31 @@ class _PatientHomePageState extends State<PatientHomePage> {
   void _open(String title, [String? content]) {
     if (title == 'Đặt khám') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => const SpecialtyListPage()),
+      final navigator = Navigator.of(context);
+      final homeRoute = ModalRoute.of(context);
+      navigator.push<void>(
+        MaterialPageRoute(
+          builder: (_) => SelectPatientProfilePage(
+            profiles: PatientProfileDemoData.profiles,
+            isDemo: true,
+            onProfileSelected: (patient) {
+              // Keep the selected profile in the presentation route for later integration.
+              navigator.push<void>(
+                MaterialPageRoute(
+                  settings: RouteSettings(arguments: patient),
+                  builder: (_) => const SpecialtyListPage(),
+                ),
+              );
+            },
+            onHome: () {
+              navigator.popUntil((route) => route == homeRoute);
+              setState(() {
+                _tab = 0;
+                _query = '';
+              });
+            },
+          ),
+        ),
       );
       return;
     }
