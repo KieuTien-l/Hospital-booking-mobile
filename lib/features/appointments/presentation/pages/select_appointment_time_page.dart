@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../../../doctors/presentation/models/doctor_detail_demo_data.dart';
+import '../../../doctors/presentation/pages/doctor_detail_page.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
 import '../../../specialties/domain/entities/specialty.dart';
 import '../models/appointment_time_demo_data.dart';
@@ -135,8 +137,20 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                             _expanded.add(doctor.id);
                           }
                         }),
-                        onInfo: () =>
-                            _message('Thông tin bác sĩ đang được hoàn thiện.'),
+                        onInfo: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => DoctorDetailPage(
+                              doctor: DoctorDetailDemoData.forDoctor(
+                                id: doctor.id,
+                                name: doctor.name,
+                                specialty: widget.specialty.name,
+                                avatarUrl: doctor.avatarUrl,
+                                location: doctor.location,
+                                session: doctor.session,
+                              ),
+                            ),
+                          ),
+                        ),
                         onDateSelected: (date) {
                           if (!DateUtils.isSameDay(date, _date)) {
                             setState(() {

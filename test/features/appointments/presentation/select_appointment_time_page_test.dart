@@ -6,6 +6,8 @@ import 'package:flutter_application_4/features/appointments/presentation/models/
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_date_strip.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_time_slot_grid.dart';
 import 'package:flutter_application_4/features/specialties/domain/entities/specialty.dart';
+import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_doctor_card.dart';
+import 'package:flutter_application_4/features/doctors/presentation/pages/doctor_detail_page.dart';
 
 const specialty = Specialty(
   id: 'skin',
@@ -138,6 +140,60 @@ void main() {
         find.byKey(const ValueKey('expand-demo-afternoon')),
       );
       expect(find.byType(AppointmentTimeSlotGrid), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Doctor detail opens matching identity and preserves booking UI on back',
+    (tester) async {
+      AppointmentTimeSelection? selection;
+      await showPage(tester, onContinue: (value) => selection = value);
+      final firstStrip = tester.widget<AppointmentDateStrip>(
+        find.byType(AppointmentDateStrip).first,
+      );
+      firstStrip.onSelected(DateTime(2026, 10, 16));
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.byKey(const ValueKey('slot-morning-5')));
+      for (final id in ['demo-morning', 'demo-afternoon']) {
+        await reveal(
+          tester,
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is AppointmentDoctorCard && widget.doctor.id == id,
+          ),
+        );
+        final card = find.byWidgetPredicate(
+          (widget) => widget is AppointmentDoctorCard && widget.doctor.id == id,
+        );
+        final expected = tester.widget<AppointmentDoctorCard>(card).doctor;
+        await tapVisible(
+          tester,
+          find.descendant(of: card, matching: find.byType(TextButton)),
+        );
+        final detail = tester.widget<DoctorDetailPage>(
+          find.byType(DoctorDetailPage),
+        );
+        expect(detail.doctor.id, expected.id);
+        expect(detail.doctor.name, expected.name);
+        expect(detail.doctor.specialty, specialty.name);
+        expect(detail.doctor.schedule.single.session, expected.session);
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+        expect(find.byType(DoctorDetailPage), findsNothing);
+        expect(
+          tester
+              .widgetList<AppointmentDateStrip>(
+                find.byType(AppointmentDateStrip),
+              )
+              .every((strip) => strip.selected == DateTime(2026, 10, 16)),
+          isTrue,
+        );
+      }
+      await tapVisible(tester, find.byKey(const ValueKey('continue-time')));
+      expect(selection!.doctor.id, 'demo-morning');
+      expect(selection!.date, DateTime(2026, 10, 16));
+      expect(selection!.slot.id, 'morning-5');
       expect(tester.takeException(), isNull);
     },
   );
