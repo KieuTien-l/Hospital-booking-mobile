@@ -4,18 +4,30 @@ class NotificationItem {
     required this.content,
     required this.time,
     this.isRead = false,
+    this.publishedAt,
+    this.detailContent,
+    this.eventTime,
+    this.location,
   });
 
   final String title;
   final String content;
   final String time;
   final bool isRead;
+  final DateTime? publishedAt;
+  final String? detailContent;
+  final String? eventTime;
+  final String? location;
 
   NotificationItem markAsRead() => NotificationItem(
     title: title,
     content: content,
     time: time,
     isRead: true,
+    publishedAt: publishedAt,
+    detailContent: detailContent,
+    eventTime: eventTime,
+    location: location,
   );
 }
 

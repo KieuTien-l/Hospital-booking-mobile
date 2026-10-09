@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
 import '../models/notification_item.dart';
+import 'notification_detail_page.dart';
 
 /// Content only: the patient shell owns the bottom navigation.
 class NotificationsPage extends StatefulWidget {
@@ -33,37 +34,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   void _open(int index) {
     final item = _items[index];
     setState(() => _items[index] = item.markAsRead());
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.title.toUpperCase(),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                item.time,
-                style: const TextStyle(color: _NotificationColors.body),
-              ),
-              const SizedBox(height: 16),
-              Text(item.content, style: const TextStyle(height: 1.6)),
-              const SizedBox(height: 24),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Đóng'),
-              ),
-            ],
-          ),
-        ),
-      ),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => NotificationDetailPage(item: item)),
     );
   }
 
