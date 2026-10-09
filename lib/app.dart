@@ -40,6 +40,7 @@ import 'features/doctors/presentation/controllers/schedule_controller.dart';
 import 'features/onboarding/data/datasources/app_preferences.dart';
 import 'features/onboarding/data/repositories/onboarding_repository_impl.dart';
 import 'features/onboarding/presentation/controllers/onboarding_controller.dart';
+import 'features/onboarding/presentation/pages/splash_page.dart';
 import 'features/profile/data/datasources/patient_firebase_datasource.dart';
 import 'features/profile/data/repositories/patient_repository_impl.dart';
 import 'features/profile/domain/repositories/patient_repository.dart';
@@ -156,7 +157,7 @@ class App extends StatelessWidget {
         title: 'HealWay',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const AuthGate(),
+        home: const SplashPage(),
       ),
     );
   }

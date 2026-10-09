@@ -145,6 +145,10 @@ class AuthFirebaseDatasource {
 
   String _loginMessage(FirebaseAuthException error) {
     switch (error.code) {
+      case 'network-request-failed':
+        return 'Không thể kết nối đến máy chủ đăng nhập. Vui lòng kiểm tra kết nối Internet rồi thử lại.';
+      case 'too-many-requests':
+        return 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng chờ một lúc rồi thử lại.';
       case 'user-not-found':
       case 'invalid-email':
         return 'The email address is invalid or is not registered.';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/routes/auth_gate.dart';
 import '../controllers/auth_controller.dart';
 import '../validators/auth_validators.dart';
 
@@ -37,6 +38,10 @@ class _LoginPageState extends State<LoginPage> {
     await authProvider.login(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
+    );
+    if (!mounted || !authProvider.isAuthenticated) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => const AuthGate()),
     );
   }
 

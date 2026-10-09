@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../appointments/presentation/pages/select_appointment_date_page.dart';
+
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
-import '../../../health_records/presentation/pages/health_records_page.dart';
-import '../../../profile/presentation/pages/edit_profile_page.dart';
-import '../../../appointments/presentation/pages/booking_specialty_page.dart';
-import '../../../appointments/presentation/pages/patient_appointments_page.dart';
-import '../../../feedbacks/presentation/pages/feedback_page.dart';
-import '../../../results/presentation/pages/test_results_page.dart';
-import '../../../specialties/presentation/controllers/specialty_controller.dart';
+import '../../../profile/presentation/pages/select_patient_profile_page.dart';
+import '../../../profile/presentation/models/patient_profile_demo_data.dart';
+import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
@@ -33,87 +31,49 @@ class _PatientHomePageState extends State<PatientHomePage> {
   int _tab = 0;
   String _query = '';
 
-  @override
-  void initState() {
-    super.initState();
-    // A patient profile is the bridge between the authenticated Firebase user
-    // and patient-scoped collections (appointments, records, notifications).
-    // Start the listener once the provider tree is available so every feature
-    // sees the same, current patient id.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final user = context.read<AuthController>().currentUser;
-      if (user != null) {
-        context.read<PatientProfileController?>()?.watchPatient(user.id);
-      }
-    });
-  }
-
   void _open(String title, [String? content]) {
     if (title == 'Đặt khám') {
-      // Keeps the page composable in previews/tests while the real app always
-      // supplies this controller from App's provider tree.
-      if (context.read<SpecialtyController?>() == null) {
-        _showUnavailableSheet(title, content);
-        return;
+      FocusScope.of(context).unfocus();
+      final navigator = Navigator.of(context);
+      final homeRoute = ModalRoute.of(context);
+      void returnHome() {
+        navigator.popUntil((route) => route == homeRoute);
+        setState(() {
+          _tab = 0;
+          _query = '';
+        });
       }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const BookingSpecialtyPage(),
-        ),
-      );
-      return;
-    }
-    if (title == 'Lịch đặt khám') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const PatientAppointmentsPage(),
-        ),
-      );
-      return;
-    }
-    if (title == 'Thông tin bệnh nhân' || title == 'Hồ sơ cá nhân') {
-      if (context.read<PatientProfileController?>() == null) {
-        _showUnavailableSheet(title, content);
-        return;
-      }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const EditProfilePage(),
-        ),
-      );
-      return;
-    }
-    if (title == 'Hồ sơ sức khỏe') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const HealthRecordsPage(),
-        ),
-      );
-      return;
-    }
-    if (title == 'Kết quả cận lâm sàng') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const TestResultsPage()),
-      );
-      return;
-    }
-    if (title == 'Lắng nghe khách hàng') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const FeedbackPage()),
-      );
-      return;
-    }
-    _showUnavailableSheet(title, content);
-  }
 
-  void _showUnavailableSheet(String title, String? content) {
+      navigator.push<void>(
+        MaterialPageRoute(
+          builder: (_) => SelectPatientProfilePage(
+            profiles: PatientProfileDemoData.profiles,
+            isDemo: true,
+            onProfileSelected: (patient) {
+              // Keep the selected profile in the presentation route for later integration.
+              navigator.push<void>(
+                MaterialPageRoute(
+                  settings: RouteSettings(arguments: patient),
+                  builder: (_) => SpecialtyListPage(
+                    onSpecialtySelected: (specialty) => navigator.push<void>(
+                      MaterialPageRoute(
+                        settings: RouteSettings(arguments: patient),
+                        builder: (_) => SelectAppointmentDatePage(
+                          specialty: specialty,
+                          onHome: returnHome,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+            onHome: returnHome,
+          ),
+        ),
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -135,20 +95,20 @@ class _PatientHomePageState extends State<PatientHomePage> {
               ),
               const SizedBox(height: 16),
               Text(
-              content ??
-                  'Chức năng đang được hoàn thiện. Vui lòng quay lại sau.',
-              style: const TextStyle(fontSize: 16, height: 1.6),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Đã hiểu'),
-            ),
-          ],
+                content ??
+                    'Chức năng đang được hoàn thiện. Vui lòng quay lại sau.',
+                style: const TextStyle(fontSize: 16, height: 1.6),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Đã hiểu'),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _functions() => QuickFunctionsSection(

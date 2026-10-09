@@ -2,12 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
-import '../../../../core/routes/auth_gate.dart';
+import '../../../auth/presentation/pages/login_page.dart';
 import '../../domain/repositories/onboarding_repository.dart';
-import '../controllers/onboarding_controller.dart';
-import 'onboarding_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key, this.preferences});
@@ -19,30 +16,18 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  late final OnboardingRepository _preferences;
-  late final OnboardingController _controller;
-
   @override
   void initState() {
     super.initState();
-    _preferences =
-        widget.preferences ?? context.read<OnboardingController>().repository;
-    _controller = OnboardingController(_preferences);
     _openNextPage();
   }
 
   Future<void> _openNextPage() async {
-    final completed = _controller.isOnboardingCompleted();
     await Future<void>.delayed(const Duration(seconds: 3));
-    final onboardingCompleted = await completed;
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => onboardingCompleted
-            ? const AuthGate()
-            : OnboardingPage(preferences: _preferences),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const LoginPage()),
     );
   }
 
