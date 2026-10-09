@@ -41,6 +41,7 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.5.5
   http: ^1.2.2
+  intl: ^0.20.2
 
 dev_dependencies:
   # Already resolved by cloud_firestore; exposed for platform test doubles.

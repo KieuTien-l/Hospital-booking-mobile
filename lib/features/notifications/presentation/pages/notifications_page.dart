@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
-import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../../core/widgets/view_state_widgets.dart';
+import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../domain/entities/app_notification.dart';
 import '../controllers/notification_controller.dart';
 
@@ -23,17 +24,31 @@ abstract final class _NotificationColors {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   bool _unreadOnly = false;
+  String? _loadedPatientId;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = context.read<AuthController>();
-      final patientId = auth.currentUser?.id;
-      if (patientId != null) {
-        context.read<NotificationController>().loadNotificationsForPatient(
-          patientId,
-        );
+      _loadNotificationsFor(
+        context.read<PatientProfileController?>()?.patient?.id,
+      );
+    });
+  }
+
+  void _loadNotificationsFor(String? patientId) {
+    if (!mounted ||
+        patientId == null ||
+        patientId.isEmpty ||
+        patientId == _loadedPatientId) {
+      return;
+    }
+    _loadedPatientId = patientId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _loadedPatientId == patientId) {
+        context
+            .read<NotificationController>()
+            .loadNotificationsForPatient(patientId);
       }
     });
   }
@@ -91,7 +106,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<NotificationController>();
+    final controller = context.watch<NotificationController?>();
+    if (controller == null) {
+      return const _NotificationPreview();
+    }
+    final patientId = context
+        .watch<PatientProfileController?>()
+        ?.patient
+        ?.id;
+    _loadNotificationsFor(patientId);
     final items = controller.notifications;
     final visible = items
         .where((item) => !_unreadOnly || !item.isRead)
@@ -121,8 +144,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   TextButton.icon(
                     onPressed: hasUnread
                         ? () {
-                            final auth = context.read<AuthController>();
-                            final patientId = auth.currentUser?.id;
                             if (patientId != null) {
                               controller.markAllAsRead(patientId);
                             }
@@ -158,9 +179,21 @@ class _NotificationsPageState extends State<NotificationsPage> {
               child: ColoredBox(
                 color: const Color(0xFFF6F7F9),
                 child: controller.isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const AppLoadingWidget(message: 'Đang tải thông báo...')
+                    : controller.errorMessage != null
+                    ? AppErrorWidget(
+                        message: controller.errorMessage!,
+                        onRetry: () {
+                          if (patientId != null) {
+                            controller.loadNotificationsForPatient(patientId);
+                          }
+                        },
+                      )
                     : visible.isEmpty
-                    ? const _EmptyNotifications()
+                    ? const AppEmptyWidget(
+                        message: 'Các thông báo mới sẽ xuất hiện tại đây.',
+                        icon: Icons.notifications_none_rounded,
+                      )
                     : ListView.separated(
                         key: const PageStorageKey('patient-notifications'),
                         padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
@@ -221,6 +254,99 @@ class _NotificationsPageState extends State<NotificationsPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A lightweight fallback for isolated widget previews. The production app
+/// always supplies NotificationController from App's provider tree.
+class _NotificationPreview extends StatefulWidget {
+  const _NotificationPreview();
+
+  @override
+  State<_NotificationPreview> createState() => _NotificationPreviewState();
+}
+
+class _NotificationPreviewState extends State<_NotificationPreview> {
+  bool _unreadOnly = false;
+  var _items = <AppNotification>[
+    AppNotification(
+      id: 'preview-appointment',
+      patientId: 'preview-patient',
+      title: 'Lịch khám đã được xác nhận',
+      content: 'Lịch hẹn của bạn đã được xác nhận.',
+      createdAt: DateTime(2026, 1, 1),
+    ),
+    AppNotification(
+      id: 'preview-welcome',
+      patientId: 'preview-patient',
+      title: 'Chào mừng bạn đến với HealWay',
+      content: 'Cảm ơn bạn đã sử dụng ứng dụng.',
+      createdAt: DateTime(2026, 1, 1),
+      isRead: true,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = _items.where((item) => !_unreadOnly || !item.isRead).toList();
+    return ColoredBox(
+      color: Colors.white,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Thông báo',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(
+                    () => _items = _items
+                        .map((item) => item.copyWith(isRead: true))
+                        .toList(),
+                  ),
+                  child: const Text('Đọc tất cả'),
+                ),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => setState(() => _unreadOnly = false),
+                  child: const Text('Tất cả'),
+                ),
+              ),
+              Expanded(
+                child: TextButton(
+                  onPressed: () => setState(() => _unreadOnly = true),
+                  child: const Text('Chưa đọc'),
+                ),
+              ),
+            ],
+          ),
+          Expanded(
+            child: visible.isEmpty
+                ? const Center(child: Text('CHƯA CÓ THÔNG BÁO'))
+                : ListView(
+                    children: visible
+                        .map(
+                          (item) => ListTile(
+                            title: Text(item.title.toUpperCase()),
+                            subtitle: Text(item.content),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -332,46 +458,6 @@ class _NotificationCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    ),
-  );
-}
-
-class _EmptyNotifications extends StatelessWidget {
-  const _EmptyNotifications();
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircleAvatar(
-            radius: 42,
-            backgroundColor: _NotificationColors.soft,
-            child: Icon(
-              Icons.notifications_none_rounded,
-              size: 40,
-              color: _NotificationColors.title,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Chưa có thông báo',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: _NotificationColors.title,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Các thông báo mới sẽ xuất hiện tại đây.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: _NotificationColors.body, height: 1.5),
-          ),
-        ],
       ),
     ),
   );

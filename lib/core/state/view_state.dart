@@ -22,6 +22,9 @@ abstract class ViewStateController extends ChangeNotifier {
   bool get isSuccess => status == ViewState.success;
   bool get isEmpty => status == ViewState.empty;
   bool get hasError => status == ViewState.error;
+  // `isError` is kept as the presentation-friendly counterpart to
+  // `hasError`, and avoids each screen having to inspect the raw enum.
+  bool get isError => status == ViewState.error;
   int beginRequest() {
     final token = ++_request;
     setState(ViewState.loading);

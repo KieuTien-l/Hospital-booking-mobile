@@ -98,6 +98,7 @@ for (const doctor of activeDoctors) {
         endTime,
         bookedCount: 0,
         capacity: 5,
+        reservationCounts: {},
         status: 'AVAILABLE',
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),

@@ -38,6 +38,7 @@ class TimeSlot {
     this.bookedCount,
     this.capacity,
     this.appointmentId,
+    this.reservationCounts = const {},
     this.createdAt,
     this.updatedAt,
   });
@@ -51,6 +52,9 @@ class TimeSlot {
   final int? bookedCount;
   final int? capacity;
   final String? appointmentId;
+  /// The number of places held by each appointment id. It lets a transaction
+  /// release the correct reservation when several appointments share a slot.
+  final Map<String, int> reservationCounts;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 

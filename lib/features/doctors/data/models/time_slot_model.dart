@@ -17,6 +17,7 @@ class TimeSlotModel extends TimeSlot {
     super.bookedCount,
     super.capacity,
     super.appointmentId,
+    super.reservationCounts,
     super.createdAt,
     super.updatedAt,
   });
@@ -31,6 +32,7 @@ class TimeSlotModel extends TimeSlot {
     bookedCount: value.bookedCount,
     capacity: value.capacity,
     appointmentId: value.appointmentId,
+    reservationCounts: value.reservationCounts,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   );
@@ -49,6 +51,7 @@ class TimeSlotModel extends TimeSlot {
       bookedCount: _readOptionalInt(json['bookedCount']),
       capacity: _readOptionalInt(json['capacity']),
       appointmentId: readOptionalString(json['appointmentId']),
+      reservationCounts: _readReservationCounts(json['reservationCounts']),
       createdAt: readDateTime(json['createdAt']),
       updatedAt: readDateTime(json['updatedAt']),
     );
@@ -78,6 +81,7 @@ class TimeSlotModel extends TimeSlot {
       if (bookedCount != null) 'bookedCount': bookedCount,
       if (capacity != null) 'capacity': capacity,
       if (appointmentId != null) 'appointmentId': appointmentId,
+      if (reservationCounts.isNotEmpty) 'reservationCounts': reservationCounts,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
@@ -93,6 +97,7 @@ class TimeSlotModel extends TimeSlot {
       if (bookedCount != null) 'bookedCount': bookedCount,
       if (capacity != null) 'capacity': capacity,
       if (appointmentId != null) 'appointmentId': appointmentId,
+      if (reservationCounts.isNotEmpty) 'reservationCounts': reservationCounts,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -100,5 +105,14 @@ class TimeSlotModel extends TimeSlot {
   static int? _readOptionalInt(Object? value) {
     if (value == null) return null;
     return readInt(value);
+  }
+
+  static Map<String, int> _readReservationCounts(Object? value) {
+    if (value is! Map) return const {};
+    return Map.unmodifiable({
+      for (final entry in value.entries)
+        if (readString(entry.key).isNotEmpty)
+          readString(entry.key): readInt(entry.value),
+    });
   }
 }

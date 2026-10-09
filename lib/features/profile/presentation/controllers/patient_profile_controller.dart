@@ -71,7 +71,12 @@ class PatientProfileController extends ViewStateController {
     try {
       await _subscription?.cancel();
       if (!isCurrent(token)) return null;
-      final saved = await _repository.updatePatient(patient);
+      // First-time users do not have a BENH_NHAN document yet.  Treat an
+      // empty id as a create so the profile form can be used to complete the
+      // booking prerequisite instead of failing an update request.
+      final saved = patient.id.trim().isEmpty
+          ? await _repository.createPatient(patient)
+          : await _repository.updatePatient(patient);
       if (!isCurrent(token)) return null;
       _patient = saved;
       _patientId = saved.id;
@@ -82,6 +87,22 @@ class PatientProfileController extends ViewStateController {
       if (isCurrent(token)) setState(ViewState.error, error);
       return null;
     }
+  }
+
+  String? validateProfile(Patient patient) {
+    if (patient.fullName.trim().isEmpty) {
+      return 'Họ tên không được để trống';
+    }
+    if (patient.phone.trim().isEmpty) {
+      return 'Số điện thoại không được để trống';
+    }
+    if (patient.dateOfBirth == null) {
+      return 'Ngày sinh không được để trống';
+    }
+    if (patient.gender?.trim().isEmpty ?? true) {
+      return 'Giới tính không được để trống';
+    }
+    return null; // Return null if valid
   }
 
   @override

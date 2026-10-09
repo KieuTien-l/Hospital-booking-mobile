@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../core/utils/model_value_parser.dart';
 import '../../domain/entities/app_notification.dart';
 
 class NotificationModel extends AppNotification {
@@ -15,11 +16,11 @@ class NotificationModel extends AppNotification {
   factory NotificationModel.fromMap(Map<String, dynamic> map, String id) {
     return NotificationModel(
       id: id,
-      patientId: map['patientId'] ?? '',
-      title: map['title'] ?? '',
-      content: map['content'] ?? '',
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      isRead: map['isRead'] ?? false,
+      patientId: readReferenceId(map['patientId']),
+      title: readString(map['title']),
+      content: readString(map['content']),
+      createdAt: readDateTime(map['createdAt']) ?? DateTime.now(),
+      isRead: readBool(map['isRead']),
     );
   }
 

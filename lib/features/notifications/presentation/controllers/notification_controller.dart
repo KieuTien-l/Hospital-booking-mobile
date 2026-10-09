@@ -6,6 +6,8 @@ import '../../domain/entities/app_notification.dart';
 import '../../domain/repositories/notification_repository.dart';
 
 class NotificationController extends ChangeNotifier {
+  NotificationController(this._repository);
+
   final NotificationRepository _repository;
   StreamSubscription? _subscription;
 
@@ -18,9 +20,6 @@ class NotificationController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
-
-  NotificationController({required NotificationRepository repository})
-    : _repository = repository;
 
   void loadNotificationsForPatient(String patientId) {
     _isLoading = true;

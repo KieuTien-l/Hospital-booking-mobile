@@ -257,4 +257,65 @@ void main() {
       expect(store.documents['BENH_NHAN/patient-1']!['status'], 'ACTIVE');
     },
   );
+
+  test('Cancelling a booking releases only its reservation', () async {
+    final store = bookingStore();
+    final repository = AppointmentRepositoryImpl(
+      AppointmentFirebaseDatasource(firestore: store.asFirestore()),
+    );
+    final saved = await repository.createAppointment(request());
+
+    await repository.cancelAppointment(saved.id, 'Changed plans');
+
+    final slot = store.documents['CA_KHAM/slot-1']!;
+    final appointment = store.documents['LICH_HEN/${saved.id}']!;
+    expect(slot['bookedCount'], 1);
+    expect(slot['status'], 'AVAILABLE');
+    expect(slot['appointmentId'], saved.id);
+    expect(slot['reservationCounts'], isEmpty);
+    expect(appointment['status'], 'CANCELLED');
+  });
+
+  test('Rescheduling transfers the reservation between slots atomically', () async {
+    final store = bookingStore()
+      ..documents.addAll({
+        'LICH_LAM_VIEC/schedule-2': {
+          'doctorId': 'doctor-1',
+          'workDate': DateTime(2026, 10, 6),
+          'status': 'ACTIVE',
+        },
+        'CA_KHAM/slot-2': {
+          'doctorId': 'doctor-1',
+          'workScheduleId': 'schedule-2',
+          'status': 'AVAILABLE',
+          'startTime': '09:00',
+          'endTime': '09:30',
+          'capacity': 3,
+          'bookedCount': 0,
+          'reservationCounts': <String, int>{},
+        },
+      });
+    final repository = AppointmentRepositoryImpl(
+      AppointmentFirebaseDatasource(firestore: store.asFirestore()),
+    );
+    final saved = await repository.createAppointment(request());
+
+    final moved = await repository.rescheduleAppointment(
+      saved.id,
+      'schedule-2',
+      'slot-2',
+      DateTime(2026, 10, 6),
+      '09:00',
+      '09:30',
+    );
+
+    expect(moved.timeSlotId, 'slot-2');
+    expect(store.documents['CA_KHAM/slot-1']!['bookedCount'], 1);
+    expect(store.documents['CA_KHAM/slot-1']!['reservationCounts'], isEmpty);
+    expect(store.documents['CA_KHAM/slot-2']!['bookedCount'], 1);
+    expect(store.documents['CA_KHAM/slot-2']!['reservationCounts'], {
+      saved.id: 1,
+    });
+    expect(store.documents['LICH_HEN/${saved.id}']!['timeSlotId'], 'slot-2');
+  });
 }

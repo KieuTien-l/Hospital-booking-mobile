@@ -5,6 +5,13 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../health_records/presentation/pages/health_records_page.dart';
+import '../../../profile/presentation/pages/edit_profile_page.dart';
+import '../../../appointments/presentation/pages/booking_specialty_page.dart';
+import '../../../appointments/presentation/pages/patient_appointments_page.dart';
+import '../../../feedbacks/presentation/pages/feedback_page.dart';
+import '../../../results/presentation/pages/test_results_page.dart';
+import '../../../specialties/presentation/controllers/specialty_controller.dart';
 import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
@@ -26,27 +33,108 @@ class _PatientHomePageState extends State<PatientHomePage> {
   int _tab = 0;
   String _query = '';
 
-  void _open(String title, [String? content]) => showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (context) => SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: _ink,
+  @override
+  void initState() {
+    super.initState();
+    // A patient profile is the bridge between the authenticated Firebase user
+    // and patient-scoped collections (appointments, records, notifications).
+    // Start the listener once the provider tree is available so every feature
+    // sees the same, current patient id.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final user = context.read<AuthController>().currentUser;
+      if (user != null) {
+        context.read<PatientProfileController?>()?.watchPatient(user.id);
+      }
+    });
+  }
+
+  void _open(String title, [String? content]) {
+    if (title == 'Đặt khám') {
+      // Keeps the page composable in previews/tests while the real app always
+      // supplies this controller from App's provider tree.
+      if (context.read<SpecialtyController?>() == null) {
+        _showUnavailableSheet(title, content);
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const BookingSpecialtyPage(),
+        ),
+      );
+      return;
+    }
+    if (title == 'Lịch đặt khám') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const PatientAppointmentsPage(),
+        ),
+      );
+      return;
+    }
+    if (title == 'Thông tin bệnh nhân' || title == 'Hồ sơ cá nhân') {
+      if (context.read<PatientProfileController?>() == null) {
+        _showUnavailableSheet(title, content);
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const EditProfilePage(),
+        ),
+      );
+      return;
+    }
+    if (title == 'Hồ sơ sức khỏe') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const HealthRecordsPage(),
+        ),
+      );
+      return;
+    }
+    if (title == 'Kết quả cận lâm sàng') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const TestResultsPage()),
+      );
+      return;
+    }
+    if (title == 'Lắng nghe khách hàng') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FeedbackPage()),
+      );
+      return;
+    }
+    _showUnavailableSheet(title, content);
+  }
+
+  void _showUnavailableSheet(String title, String? content) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _ink,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
+              const SizedBox(height: 16),
+              Text(
               content ??
                   'Chức năng đang được hoàn thiện. Vui lòng quay lại sau.',
               style: const TextStyle(fontSize: 16, height: 1.6),
@@ -61,6 +149,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
       ),
     ),
   );
+  }
 
   Widget _functions() => QuickFunctionsSection(
     query: _query,
