@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../models/patient_profile_form_draft.dart';
 import '../validators/patient_profile_validators.dart';
 import 'patient_profile_additional_fields.dart';
 import 'patient_profile_section_card.dart';
@@ -13,12 +14,14 @@ class PatientProfileForm extends StatefulWidget {
     required this.ethnicities,
     required this.occupations,
     required this.relationships,
+    this.draft,
   });
 
   final GlobalKey<FormState> formKey;
   final List<String> ethnicities;
   final List<String> occupations;
   final List<String> relationships;
+  final PatientProfileFormDraft? draft;
 
   @override
   State<PatientProfileForm> createState() => _PatientProfileFormState();
@@ -26,7 +29,10 @@ class PatientProfileForm extends StatefulWidget {
 
 class _PatientProfileFormState extends State<PatientProfileForm> {
   final _dateText = TextEditingController();
+  final _localDraft = PatientProfileFormDraft();
   DateTime? _birthDate;
+
+  PatientProfileFormDraft get _draft => widget.draft ?? _localDraft;
 
   @override
   void dispose() {
@@ -49,7 +55,11 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
     ),
   );
 
-  Widget _dropdown(String label, List<String> options) => Column(
+  Widget _dropdown(
+    String label,
+    List<String> options,
+    ValueChanged<String?> onSaved,
+  ) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _label(label),
@@ -64,6 +74,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
             .map((value) => DropdownMenuItem(value: value, child: Text(value)))
             .toList(),
         onChanged: (_) {},
+        onSaved: onSaved,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: (value) =>
             PatientProfileValidators.selection(value, label, options),
@@ -120,6 +131,7 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
               autovalidateMode: AutovalidateMode.onUserInteraction,
               validator: (value) =>
                   PatientProfileValidators.name(value, 'Họ và chữ lót'),
+              onSaved: (value) => _draft.familyName = value?.trim() ?? '',
             ),
             const SizedBox(height: 20),
             _label('Tên bệnh nhân'),
@@ -135,11 +147,13 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
               autovalidateMode: AutovalidateMode.onUserInteraction,
               validator: (value) =>
                   PatientProfileValidators.name(value, 'Tên bệnh nhân'),
+              onSaved: (value) => _draft.givenName = value?.trim() ?? '',
             ),
             const SizedBox(height: 20),
             _label('Ngày sinh'),
             FormField<String>(
               autovalidateMode: AutovalidateMode.onUserInteraction,
+              onSaved: (_) => _draft.dateOfBirth = _birthDate,
               validator: (_) {
                 if (_birthDate == null) return 'Vui lòng chọn ngày sinh.';
                 if (_birthDate!.isAfter(DateUtils.dateOnly(DateTime.now()))) {
@@ -164,11 +178,16 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
               ),
             ),
             const SizedBox(height: 20),
-            _dropdown('Dân tộc', widget.ethnicities),
+            _dropdown(
+              'Dân tộc',
+              widget.ethnicities,
+              (value) => _draft.ethnicity = value,
+            ),
             const SizedBox(height: 20),
             _label('Giới tính'),
             FormField<String>(
               autovalidateMode: AutovalidateMode.onUserInteraction,
+              onSaved: (value) => _draft.gender = value,
               validator: (value) => PatientProfileValidators.selection(
                 value,
                 'giới tính',
@@ -210,13 +229,21 @@ class _PatientProfileFormState extends State<PatientProfileForm> {
               ),
             ),
             const SizedBox(height: 20),
-            _dropdown('Nghề nghiệp', widget.occupations),
+            _dropdown(
+              'Nghề nghiệp',
+              widget.occupations,
+              (value) => _draft.occupation = value,
+            ),
             const SizedBox(height: 20),
-            _dropdown('Quan hệ với chủ tài khoản', widget.relationships),
+            _dropdown(
+              'Quan hệ với chủ tài khoản',
+              widget.relationships,
+              (value) => _draft.relationshipToAccountHolder = value,
+            ),
           ],
         ),
         const SizedBox(height: 20),
-        const PatientProfileAdditionalFields(),
+        PatientProfileAdditionalFields(draft: _draft),
       ],
     ),
   );

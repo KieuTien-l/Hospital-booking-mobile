@@ -1,5 +1,5 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -440,6 +440,12 @@ function mapWorkSchedule(data) {
   const changes = {};
   copy(data, changes, 'doctorId', ['MaBS'], referenceId);
   copy(data, changes, 'workDate', ['NgayLamViec']);
+  const normalizedWorkDate = workDateTimestamp(
+    data.workDate ?? data.NgayLamViec,
+  );
+  if (normalizedWorkDate != null && !(data.workDate instanceof Timestamp)) {
+    changes.workDate = normalizedWorkDate;
+  }
   copy(data, changes, 'startTime', ['GioBatDau']);
   copy(data, changes, 'endTime', ['GioKetThuc']);
   copy(data, changes, 'status', ['TrangThai'], activityStatus);
@@ -544,6 +550,21 @@ function referenceId(value) {
     return value.id;
   }
   return String(value).trim();
+}
+
+function workDateTimestamp(value) {
+  if (value instanceof Timestamp) return value;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return Timestamp.fromDate(value);
+  }
+  if (typeof value !== 'string') return null;
+
+  const text = value.trim();
+  if (text === '') return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(text)
+    ? new Date(`${text}T00:00:00+07:00`)
+    : new Date(text);
+  return Number.isNaN(date.getTime()) ? null : Timestamp.fromDate(date);
 }
 
 function isActive(value) {

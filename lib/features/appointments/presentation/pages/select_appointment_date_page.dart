@@ -17,6 +17,7 @@ class SelectAppointmentDatePage extends StatefulWidget {
     this.holidayDates,
     this.onDateSelected,
     this.today,
+    this.useDemoData = true,
   });
 
   final Specialty specialty;
@@ -30,6 +31,9 @@ class SelectAppointmentDatePage extends StatefulWidget {
   /// Optional clock override for deterministic previews and tests.
   final DateTime? today;
 
+  /// Production selects a start date; availability is loaded on the next page.
+  final bool useDemoData;
+
   @override
   State<SelectAppointmentDatePage> createState() =>
       _SelectAppointmentDatePageState();
@@ -42,11 +46,22 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
   DateTime get _today => DateUtils.dateOnly(widget.today ?? DateTime.now());
   Set<DateTime> _normalize(Set<DateTime> dates) =>
       dates.map(DateUtils.dateOnly).toSet();
-  Set<DateTime> get _available => widget.availableDates == null
-      ? AppointmentCalendarDemoData.availableDates(_month)
-      : _normalize(widget.availableDates!);
+  Set<DateTime> get _available {
+    if (widget.availableDates != null) {
+      return _normalize(widget.availableDates!);
+    }
+    if (widget.useDemoData) {
+      return AppointmentCalendarDemoData.availableDates(_month);
+    }
+    final dayCount = DateUtils.getDaysInMonth(_month.year, _month.month);
+    return List<DateTime>.generate(
+      dayCount,
+      (index) => DateTime(_month.year, _month.month, index + 1),
+    ).where((date) => !date.isBefore(_today)).toSet();
+  }
+
   Set<DateTime> get _holidays => widget.holidayDates == null
-      ? widget.availableDates == null
+      ? widget.availableDates == null && widget.useDemoData
             ? AppointmentCalendarDemoData.holidayDates(_month)
             : <DateTime>{}
       : _normalize(widget.holidayDates!);
@@ -64,11 +79,7 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
     if (_month.isBefore(currentMonth)) _month = currentMonth;
     final selected = _selected;
     if (selected != null &&
-        (selected.isBefore(_today) ||
-            !(widget.availableDates == null
-                    ? AppointmentCalendarDemoData.availableDates(selected)
-                    : _available)
-                .contains(selected))) {
+        (selected.isBefore(_today) || !_available.contains(selected))) {
       _selected = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) widget.onDateSelected?.call(null);
@@ -163,7 +174,8 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
                         ),
                       ),
                     ],
-                    if (widget.availableDates == null) ...[
+                    if (widget.availableDates == null &&
+                        widget.useDemoData) ...[
                       const SizedBox(height: 12),
                       const Text(
                         'Lịch minh họa — ngày khả dụng và dấu ngày lễ chưa phải dữ liệu thực tế.',

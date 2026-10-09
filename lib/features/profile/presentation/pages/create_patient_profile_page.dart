@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
+import '../../domain/entities/patient.dart';
+import '../controllers/patient_profile_controller.dart';
+import '../models/patient_profile_form_draft.dart';
 import '../models/patient_profile_demo_data.dart';
 import '../widgets/patient_profile_form.dart';
 
@@ -24,19 +29,72 @@ class CreatePatientProfilePage extends StatefulWidget {
 
 class _CreatePatientProfilePageState extends State<CreatePatientProfilePage> {
   final _formKey = GlobalKey<FormState>();
+  final _draft = PatientProfileFormDraft();
 
-  void _validate() {
+  Future<void> _save() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Thông tin hợp lệ. Chức năng lưu hồ sơ sẽ được tích hợp sau.',
-          ),
+    _formKey.currentState!.save();
+
+    final user = context.read<AuthController?>()?.currentUser;
+    final controller = context.read<PatientProfileController?>();
+    if (user == null || controller == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập để lưu hồ sơ.')),
+      );
+      return;
+    }
+
+    final current = controller.patient;
+    final patient = Patient(
+      id: current?.id ?? '',
+      authUserId: user.id,
+      fullName: _draft.fullName,
+      phone: _draft.phone.isEmpty ? user.phone : _draft.phone,
+      email: _draft.email.isEmpty ? user.email : _draft.email,
+      isActive: current?.isActive ?? true,
+      dateOfBirth: _draft.dateOfBirth,
+      gender: _draft.gender,
+      address: _draft.address,
+      avatarUrl: current?.avatarUrl,
+      insuranceNumber: current?.insuranceNumber,
+      ethnicity: _draft.ethnicity,
+      occupation: _draft.occupation,
+      ward: _draft.ward.trim().isEmpty ? null : _draft.ward.trim(),
+      district: current?.district,
+      province: _draft.province.trim().isEmpty ? null : _draft.province.trim(),
+      country: _draft.country.trim().isEmpty ? null : _draft.country.trim(),
+      nationalId: _draft.identityDocument,
+      relationshipToAccountHolder: _draft.relationshipToAccountHolder,
+      status: current?.status ?? 'ACTIVE',
+    );
+    final error = controller.validateProfile(patient);
+    if (error != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    final saved = await controller.updatePatient(patient);
+    if (!mounted) return;
+    if (saved == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(controller.errorMessage ?? 'Không thể lưu hồ sơ.'),
         ),
       );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          current == null
+              ? 'Tạo hồ sơ thành công!'
+              : 'Cập nhật hồ sơ thành công!',
+        ),
+      ),
+    );
+    Navigator.of(context).pop();
   }
 
   @override
@@ -67,6 +125,7 @@ class _CreatePatientProfilePageState extends State<CreatePatientProfilePage> {
                   ethnicities: widget.ethnicities,
                   occupations: widget.occupations,
                   relationships: widget.relationships,
+                  draft: _draft,
                 ),
               ),
             ),
@@ -81,7 +140,7 @@ class _CreatePatientProfilePageState extends State<CreatePatientProfilePage> {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _validate,
+                  onPressed: _save,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primaryDark,
                     foregroundColor: Colors.white,

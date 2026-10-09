@@ -13,9 +13,11 @@ class ConfirmAppointmentPage extends StatefulWidget {
     super.key,
     required this.information,
     this.onContinue,
+    this.onSubmitBooking,
   });
   final AppointmentConfirmationUiModel information;
   final ValueChanged<AppointmentConfirmationResult>? onContinue;
+  final BookingReviewSubmitter? onSubmitBooking;
 
   @override
   State<ConfirmAppointmentPage> createState() => _ConfirmAppointmentPageState();
@@ -91,8 +93,10 @@ class _ConfirmAppointmentPageState extends State<ConfirmAppointmentPage> {
                             } else {
                               Navigator.of(context).push<void>(
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      BookingReviewPage(items: [result]),
+                                  builder: (_) => BookingReviewPage(
+                                    items: [result],
+                                    onSubmitBooking: widget.onSubmitBooking,
+                                  ),
                                 ),
                               );
                             }

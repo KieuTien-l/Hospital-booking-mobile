@@ -7,4 +7,10 @@ abstract class WorkScheduleRepository {
     required String doctorId,
     DateTime? workDate,
   });
+
+  Future<List<WorkSchedule>> getWorkSchedulesForDoctorsAndDateRange({
+    required List<String> doctorIds,
+    required DateTime startDate,
+    required DateTime endDate,
+  });
 }

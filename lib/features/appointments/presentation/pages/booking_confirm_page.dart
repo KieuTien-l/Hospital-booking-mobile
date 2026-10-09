@@ -6,8 +6,10 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/domain/entities/time_slot.dart';
 import '../../../doctors/domain/entities/work_schedule.dart';
+import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../controllers/appointment_controller.dart';
+import 'booking_success_page.dart';
 
 class BookingConfirmPage extends StatefulWidget {
   const BookingConfirmPage({
@@ -16,12 +18,16 @@ class BookingConfirmPage extends StatefulWidget {
     required this.date,
     required this.timeSlot,
     required this.workSchedule,
+    this.patient,
+    this.onBookingRejected,
   });
 
   final Doctor doctor;
   final DateTime date;
   final TimeSlot timeSlot;
   final WorkSchedule workSchedule;
+  final Patient? patient;
+  final Future<void> Function()? onBookingRejected;
 
   @override
   State<BookingConfirmPage> createState() => _BookingConfirmPageState();
@@ -46,10 +52,13 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
       return;
     }
 
-    final patient = context.read<PatientProfileController?>()?.patient;
+    final patient =
+        widget.patient ?? context.read<PatientProfileController?>()?.patient;
     if (patient == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng cập nhật hồ sơ bệnh nhân trước.')),
+        const SnackBar(
+          content: Text('Vui lòng cập nhật hồ sơ bệnh nhân trước.'),
+        ),
       );
       return;
     }
@@ -68,10 +77,12 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
     );
 
     if (result != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đặt lịch thành công!')),
+      Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute(builder: (_) => const BookingSuccessPage()),
+        (route) => route.isFirst,
       );
-      Navigator.popUntil(context, (route) => route.isFirst);
+    } else {
+      await widget.onBookingRejected?.call();
     }
   }
 
@@ -97,9 +108,18 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
                   children: [
                     _buildRow('Bác sĩ', widget.doctor.fullName),
                     _buildRow('Chuyên khoa', widget.doctor.specialtyName ?? ''),
-                    _buildRow('Ngày khám', DateFormat('dd/MM/yyyy').format(widget.date)),
-                    _buildRow('Giờ khám', '${widget.timeSlot.startTime} - ${widget.timeSlot.endTime}'),
-                    _buildRow('Phí khám', '${widget.doctor.consultationFee.toInt()} đ'),
+                    _buildRow(
+                      'Ngày khám',
+                      DateFormat('dd/MM/yyyy').format(widget.date),
+                    ),
+                    _buildRow(
+                      'Giờ khám',
+                      '${widget.timeSlot.startTime} - ${widget.timeSlot.endTime}',
+                    ),
+                    _buildRow(
+                      'Phí khám',
+                      '${widget.doctor.consultationFee.toInt()} đ',
+                    ),
                   ],
                 ),
               ),
@@ -151,11 +171,17 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
                     ? const SizedBox(
                         width: 24,
                         height: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Text(
                         'Xác nhận đặt lịch',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ],

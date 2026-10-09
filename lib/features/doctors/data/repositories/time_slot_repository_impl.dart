@@ -33,4 +33,11 @@ class TimeSlotRepositoryImpl implements TimeSlotRepository {
     doctorId: doctorId,
     workDate: workDate,
   );
+
+  @override
+  Future<List<TimeSlot>> getAvailableTimeSlotsByWorkScheduleIds({
+    required List<String> workScheduleIds,
+  }) => _datasource.getAvailableTimeSlotsByWorkScheduleIds(
+    workScheduleIds: workScheduleIds,
+  );
 }

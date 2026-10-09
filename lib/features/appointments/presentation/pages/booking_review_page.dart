@@ -7,6 +7,12 @@ import '../models/booking_review_ui_model.dart';
 import '../widgets/booking_review_patient_card.dart';
 import '../widgets/booking_review_specialty_card.dart';
 import '../widgets/booking_review_actions.dart';
+import 'booking_success_page.dart';
+
+/// Returns null after a successful booking, otherwise a safe message to show.
+typedef BookingReviewSubmitter = Future<String?> Function(
+  List<AppointmentConfirmationResult> items,
+);
 
 class BookingReviewPage extends StatefulWidget {
   const BookingReviewPage({
@@ -15,11 +21,13 @@ class BookingReviewPage extends StatefulWidget {
     this.onRemoveSpecialty,
     this.onAddSpecialty,
     this.onConfirmBooking,
+    this.onSubmitBooking,
   });
   final List<AppointmentConfirmationResult> items;
   final ValueChanged<AppointmentConfirmationResult>? onRemoveSpecialty;
   final VoidCallback? onAddSpecialty;
   final ValueChanged<List<AppointmentConfirmationResult>>? onConfirmBooking;
+  final BookingReviewSubmitter? onSubmitBooking;
 
   @override
   State<BookingReviewPage> createState() => _BookingReviewPageState();
@@ -27,6 +35,7 @@ class BookingReviewPage extends StatefulWidget {
 
 class _BookingReviewPageState extends State<BookingReviewPage> {
   bool _expanded = true;
+  bool _submitting = false;
 
   void _message(String message) => ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
@@ -58,6 +67,33 @@ class _BookingReviewPageState extends State<BookingReviewPage> {
     } else {
       _message('Chức năng xóa chuyên khoa sẽ được tích hợp sau.');
     }
+  }
+
+  Future<void> _confirmBooking() async {
+    final submitter = widget.onSubmitBooking;
+    if (submitter == null) {
+      if (widget.onConfirmBooking != null) {
+        widget.onConfirmBooking!(List.unmodifiable(widget.items));
+      } else {
+        _message(
+          'Giao diện xác nhận đã hoàn thành. Chức năng đặt khám sẽ được tích hợp sau.',
+        );
+      }
+      return;
+    }
+
+    setState(() => _submitting = true);
+    final error = await submitter(List.unmodifiable(widget.items));
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    if (error != null) {
+      _message(error);
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil<void>(
+      MaterialPageRoute(builder: (_) => const BookingSuccessPage()),
+      (route) => route.isFirst,
+    );
   }
 
   @override
@@ -129,15 +165,9 @@ class _BookingReviewPageState extends State<BookingReviewPage> {
               widget.onAddSpecialty ??
               () => _message('Chức năng thêm chuyên khoa chưa được hỗ trợ.'),
           onConfirm: widget.items.any(bookingReviewItemIsValid)
-              ? () {
-                  if (widget.onConfirmBooking != null) {
-                    widget.onConfirmBooking!(List.unmodifiable(widget.items));
-                  } else {
-                    _message(
-                      'Giao diện xác nhận đã hoàn thành. Chức năng đặt khám sẽ được tích hợp sau.',
-                    );
-                  }
-                }
+              ? _submitting
+                    ? null
+                    : _confirmBooking
               : null,
         ),
       ),

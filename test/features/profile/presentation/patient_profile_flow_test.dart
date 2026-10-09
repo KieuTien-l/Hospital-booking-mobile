@@ -1,11 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_application_4/core/themes/app_theme.dart';
+import 'package:flutter_application_4/features/auth/domain/entities/user_entity.dart';
+import 'package:flutter_application_4/features/auth/domain/repositories/auth_repository.dart';
+import 'package:flutter_application_4/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter_application_4/features/profile/domain/entities/patient.dart';
+import 'package:flutter_application_4/features/profile/domain/repositories/patient_repository.dart';
+import 'package:flutter_application_4/features/profile/presentation/controllers/patient_profile_controller.dart';
 import 'package:flutter_application_4/features/profile/presentation/models/patient_profile_demo_data.dart';
 import 'package:flutter_application_4/features/profile/presentation/pages/create_patient_profile_page.dart';
 import 'package:flutter_application_4/features/profile/presentation/pages/select_patient_profile_page.dart';
 import 'package:flutter_application_4/features/profile/presentation/widgets/patient_profile_additional_fields.dart';
+
+class _ProfileAuthRepository extends Fake implements AuthRepository {
+  @override
+  Stream<String?> get authStateChanges => const Stream.empty();
+
+  @override
+  Future<UserEntity?> getCurrentUser() async => const UserEntity(
+    id: 'user-1',
+    fullName: 'Nguyễn Minh An',
+    email: 'account@example.com',
+    phone: '0900000123',
+    role: UserRole.patient,
+    isActive: true,
+  );
+}
+
+class _MemoryPatientRepository extends Fake implements PatientRepository {
+  Patient? saved;
+  var createCalls = 0;
+
+  @override
+  Stream<Patient?> watchPatientByAuthUser(String authUserId) =>
+      Stream.value(saved);
+
+  @override
+  Future<Patient?> getPatientById(String patientId) async => saved;
+
+  @override
+  Future<Patient> createPatient(Patient patient) async {
+    createCalls++;
+    saved = Patient(
+      id: 'patient-1',
+      authUserId: patient.authUserId,
+      fullName: patient.fullName,
+      phone: patient.phone,
+      email: patient.email,
+      isActive: patient.isActive,
+      dateOfBirth: patient.dateOfBirth,
+      gender: patient.gender,
+      address: patient.address,
+      ethnicity: patient.ethnicity,
+      occupation: patient.occupation,
+      ward: patient.ward,
+      province: patient.province,
+      country: patient.country,
+      nationalId: patient.nationalId,
+      relationshipToAccountHolder: patient.relationshipToAccountHolder,
+      status: patient.status,
+    );
+    return saved!;
+  }
+
+  @override
+  Future<Patient> updatePatient(Patient patient) async {
+    saved = patient;
+    return patient;
+  }
+}
 
 void main() {
   for (final document in ['nationalId', 'personalId', 'passport']) {
@@ -215,14 +279,107 @@ void main() {
       );
       await tester.tap(find.text('TẠO HỒ SƠ KHÁM BỆNH'));
       await tester.pumpAndSettle();
-      expect(
-        find.text(
-          'Thông tin hợp lệ. Chức năng lưu hồ sơ sẽ được tích hợp sau.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Vui lòng đăng nhập để lưu hồ sơ.'), findsOneWidget);
       expect(find.byType(CreatePatientProfilePage), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('A signed-in user saves the completed profile', (tester) async {
+    final patients = _MemoryPatientRepository();
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => AuthController(authRepo: _ProfileAuthRepository()),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => PatientProfileController(patients),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const CreatePatientProfilePage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final auth = tester
+        .element(find.byType(CreatePatientProfilePage))
+        .read<AuthController>();
+    await tester.pumpAndSettle();
+    expect(auth.currentUser, isNotNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('familyName')),
+      'Nguyễn Minh',
+    );
+    await tester.enterText(find.byKey(const ValueKey('givenName')), 'An');
+    await tester.tap(find.byTooltip('Chọn ngày sinh'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chọn').last);
+    await tester.pumpAndSettle();
+
+    Future<void> choose(String label, String value) async {
+      final dropdown = find.byKey(ValueKey(label));
+      await tester.ensureVisible(dropdown);
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(value).last);
+      await tester.pumpAndSettle();
+    }
+
+    await choose('Dân tộc', 'Kinh');
+    await tester.ensureVisible(find.byType(RadioGroup<String>));
+    await tester.tap(find.text('Nam'));
+    await tester.pumpAndSettle();
+    await choose('Nghề nghiệp', 'Hưu trí');
+    await choose('Quan hệ với chủ tài khoản', 'Tôi');
+    await tester.ensureVisible(find.byKey(const ValueKey('passport')));
+    await tester.enterText(find.byKey(const ValueKey('passport')), 'DEMO12345');
+    await tester.tap(find.text('TẠO HỒ SƠ KHÁM BỆNH'));
+    await tester.pumpAndSettle();
+
+    expect(patients.createCalls, 1);
+    expect(patients.saved?.authUserId, 'user-1');
+    expect(patients.saved?.fullName, 'Nguyễn Minh An');
+    expect(patients.saved?.phone, '0900000123');
+    expect(patients.saved?.email, 'account@example.com');
+    expect(patients.saved?.nationalId, 'DEMO12345');
+    expect(patients.saved?.relationshipToAccountHolder, 'Tôi');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Production profile selection uses the watched patient', (
+    tester,
+  ) async {
+    final patients = _MemoryPatientRepository()
+      ..saved = const Patient(
+        id: 'patient-1',
+        authUserId: 'user-1',
+        fullName: 'Hồ Sơ Thật',
+        phone: '0900000123',
+        email: 'patient@example.com',
+        isActive: true,
+      );
+    final controller = PatientProfileController(patients);
+    addTearDown(controller.dispose);
+    await controller.watchPatient('user-1');
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: controller,
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: SelectPatientProfilePage(
+            profiles: PatientProfileDemoData.profiles,
+            onProfileSelected: (_) {},
+            onHome: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('HỒ SƠ THẬT'), findsOneWidget);
+    expect(find.text('NGUYỄN MINH AN'), findsNothing);
+  });
 }

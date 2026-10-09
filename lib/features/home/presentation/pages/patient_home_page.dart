@@ -5,10 +5,14 @@ import '../../../appointments/presentation/pages/select_appointment_date_page.da
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
+import '../../../profile/presentation/pages/create_patient_profile_page.dart';
+import '../../../profile/presentation/pages/edit_profile_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/pages/select_patient_profile_page.dart';
 import '../../../profile/presentation/models/patient_profile_demo_data.dart';
+import '../../../health_records/presentation/pages/health_records_page.dart';
 import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
@@ -31,11 +35,51 @@ class _PatientHomePageState extends State<PatientHomePage> {
   int _tab = 0;
   String _query = '';
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = context.read<AuthController>().currentUser;
+      if (user != null) {
+        context.read<PatientProfileController?>()?.watchPatient(user.id);
+      }
+    });
+  }
+
   void _open(String title, [String? content]) {
+    if (title == 'Thông tin bệnh nhân') {
+      final profileController = context.read<PatientProfileController?>();
+      if (profileController?.isLoading == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đang tải hồ sơ bệnh nhân...')),
+        );
+        return;
+      }
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => profileController?.patient == null
+              ? const CreatePatientProfilePage()
+              : const EditProfilePage(),
+        ),
+      );
+      return;
+    }
+    if (title == 'Hồ sơ cá nhân') {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const HealthRecordsPage()),
+      );
+      return;
+    }
     if (title == 'Đặt khám') {
       FocusScope.of(context).unfocus();
       final navigator = Navigator.of(context);
       final homeRoute = ModalRoute.of(context);
+      final profileController = context.read<PatientProfileController?>();
+      final List<Patient> profiles = profileController == null
+          ? PatientProfileDemoData.profiles
+          : profileController.patient == null
+          ? const <Patient>[]
+          : <Patient>[profileController.patient!];
       void returnHome() {
         navigator.popUntil((route) => route == homeRoute);
         setState(() {
@@ -47,8 +91,8 @@ class _PatientHomePageState extends State<PatientHomePage> {
       navigator.push<void>(
         MaterialPageRoute(
           builder: (_) => SelectPatientProfilePage(
-            profiles: PatientProfileDemoData.profiles,
-            isDemo: true,
+            profiles: profiles,
+            isDemo: profileController == null,
             onProfileSelected: (patient) {
               // Keep the selected profile in the presentation route for later integration.
               navigator.push<void>(
@@ -61,6 +105,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
                         builder: (_) => SelectAppointmentDatePage(
                           specialty: specialty,
                           onHome: returnHome,
+                          useDemoData: profileController == null,
                         ),
                       ),
                     ),

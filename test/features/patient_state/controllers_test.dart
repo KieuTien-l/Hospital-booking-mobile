@@ -124,6 +124,69 @@ void main() {
       }
       if (outcome == 'error') expect(c.errorMessage, contains('offline'));
     });
+
+    test(
+      'weekly schedule loading -> $outcome is batched by date range',
+      () async {
+        final weeklySchedules = outcome == 'empty'
+            ? <WorkSchedule>[]
+            : [
+                WorkSchedule(id: 'w', doctorId: 'd', workDate: date),
+                WorkSchedule(
+                  id: 'w-next',
+                  doctorId: 'd',
+                  workDate: date.add(const Duration(days: 1)),
+                ),
+              ];
+        final repo = FakeSchedules()
+          ..fail = outcome == 'error'
+          ..rangeSchedules = weeklySchedules
+          ..rangeSlots = outcome == 'empty'
+              ? []
+              : [
+                  slot,
+                  TimeSlot(
+                    id: 't-next',
+                    workScheduleId: 'w-next',
+                    doctorId: 'd',
+                    startTime: '09:00',
+                    status: TimeSlotStatus.available,
+                  ),
+                ];
+        final controller = ScheduleController(
+          workScheduleRepository: repo,
+          timeSlotRepository: repo,
+        );
+        addTearDown(controller.dispose);
+
+        if (outcome == 'error') {
+          await expectLater(
+            controller.loadWeeklySchedulesForDoctors(
+              doctors: [doctor],
+              startDate: date,
+              days: 5,
+            ),
+            throwsA(isA<Exception>()),
+          );
+        } else {
+          final result = await controller.loadWeeklySchedulesForDoctors(
+            doctors: [doctor],
+            startDate: date,
+            days: 5,
+          );
+          expect(repo.rangeScheduleRequest, (
+            'd',
+            date,
+            date.add(const Duration(days: 4)),
+          ));
+          expect(
+            repo.requestedWorkScheduleIds,
+            weeklySchedules.map((item) => item.id).toList(),
+          );
+          expect(result['d']?[date], outcome == 'empty' ? isNull : [slot]);
+        }
+      },
+    );
     test('patient loading -> $outcome', () async {
       final repo = FakePatients()
         ..fail = outcome == 'error'
@@ -332,7 +395,11 @@ class FakeDoctors implements DoctorRepository {
 class FakeSchedules implements WorkScheduleRepository, TimeSlotRepository {
   bool fail = false;
   List<TimeSlot> slots = [];
+  List<WorkSchedule> rangeSchedules = [];
+  List<TimeSlot> rangeSlots = [];
   DateTime? lastDate;
+  (String, DateTime, DateTime)? rangeScheduleRequest;
+  List<String>? requestedWorkScheduleIds;
   @override
   Future<List<WorkSchedule>> getWorkSchedules({
     required String doctorId,
@@ -349,6 +416,26 @@ class FakeSchedules implements WorkScheduleRepository, TimeSlotRepository {
   }) async {
     lastDate = workDate;
     return slots;
+  }
+
+  @override
+  Future<List<WorkSchedule>> getWorkSchedulesForDoctorsAndDateRange({
+    required List<String> doctorIds,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    if (fail) throw Exception('offline');
+    rangeScheduleRequest = (doctorIds.single, startDate, endDate);
+    return rangeSchedules;
+  }
+
+  @override
+  Future<List<TimeSlot>> getAvailableTimeSlotsByWorkScheduleIds({
+    required List<String> workScheduleIds,
+  }) async {
+    if (fail) throw Exception('offline');
+    requestedWorkScheduleIds = workScheduleIds;
+    return rangeSlots;
   }
 
   @override

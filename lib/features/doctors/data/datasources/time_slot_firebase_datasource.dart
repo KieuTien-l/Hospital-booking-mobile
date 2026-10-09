@@ -9,6 +9,7 @@ class TimeSlotFirebaseDatasource {
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
+  static const _whereInLimit = 30;
 
   CollectionReference<Map<String, dynamic>> get _timeSlots =>
       _firestore.collection(TimeSlotModel.collectionName);
@@ -70,10 +71,47 @@ class TimeSlotFirebaseDatasource {
     return slots.where((slot) => slot.isAvailable).toList(growable: false);
   }
 
+  Future<List<TimeSlot>> getAvailableTimeSlotsByWorkScheduleIds({
+    required List<String> workScheduleIds,
+  }) async {
+    final ids = _normalizedIds(workScheduleIds);
+    if (ids.isEmpty) return const [];
+
+    final snapshots = await Future.wait(
+      _chunks(ids)
+          .map((ids) => _timeSlots.where('workScheduleId', whereIn: ids).get()),
+    );
+    final slots = <String, TimeSlot>{
+      for (final snapshot in snapshots)
+        for (final document in snapshot.docs)
+          document.id: TimeSlotModel.fromFirestore(document),
+    };
+    return slots.values
+        .where((slot) => slot.isAvailable)
+        .toList(growable: false);
+  }
+
   bool _isSameDate(DateTime? source, DateTime target) {
     return source != null &&
         source.year == target.year &&
         source.month == target.month &&
         source.day == target.day;
+  }
+
+  Iterable<List<String>> _chunks(List<String> values) sync* {
+    for (var start = 0; start < values.length; start += _whereInLimit) {
+      final end = (start + _whereInLimit).clamp(0, values.length).toInt();
+      yield values.sublist(start, end);
+    }
+  }
+
+  List<String> _normalizedIds(Iterable<String> values) {
+    final ids = <String>[];
+    final seen = <String>{};
+    for (final value in values) {
+      final id = value.trim();
+      if (id.isNotEmpty && seen.add(id)) ids.add(id);
+    }
+    return ids;
   }
 }

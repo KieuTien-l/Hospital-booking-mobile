@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_4/core/themes/app_theme.dart';
+import 'package:flutter_application_4/features/doctors/domain/entities/doctor.dart';
+import 'package:flutter_application_4/features/doctors/domain/entities/time_slot.dart';
+import 'package:flutter_application_4/features/doctors/domain/entities/work_schedule.dart';
+import 'package:flutter_application_4/features/doctors/domain/repositories/doctor_repository.dart';
+import 'package:flutter_application_4/features/doctors/domain/repositories/time_slot_repository.dart';
+import 'package:flutter_application_4/features/doctors/domain/repositories/work_schedule_repository.dart';
+import 'package:flutter_application_4/features/doctors/presentation/controllers/schedule_controller.dart';
 import 'package:flutter_application_4/features/appointments/presentation/pages/select_appointment_time_page.dart';
+import 'package:flutter_application_4/features/appointments/presentation/models/appointment_time_demo_data.dart';
 import 'package:flutter_application_4/features/appointments/presentation/models/appointment_time_ui_models.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_date_strip.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_time_slot_grid.dart';
@@ -9,6 +18,12 @@ import 'package:flutter_application_4/features/specialties/domain/entities/speci
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_doctor_card.dart';
 import 'package:flutter_application_4/features/doctors/presentation/pages/doctor_detail_page.dart';
 import 'package:flutter_application_4/features/appointments/presentation/pages/appointment_information_page.dart';
+import 'package:flutter_application_4/features/appointments/presentation/pages/booking_review_page.dart';
+import 'package:flutter_application_4/features/appointments/presentation/controllers/appointment_controller.dart';
+import 'package:flutter_application_4/features/appointments/domain/entities/appointment.dart';
+import 'package:flutter_application_4/features/appointments/domain/repositories/booking_repository.dart';
+import 'package:flutter_application_4/features/appointments/domain/usecases/book_appointment.dart';
+import 'package:flutter_application_4/features/profile/domain/entities/patient.dart';
 
 const specialty = Specialty(
   id: 'skin',
@@ -40,7 +55,8 @@ void main() {
         home: SelectAppointmentTimePage(
           specialty: specialty,
           initialDate: DateTime(2026, 10, 9),
-          doctors: doctors,
+          doctors:
+              doctors ?? AppointmentTimeDemoData.doctors(DateTime(2026, 10, 9)),
           onContinue: onContinue,
         ),
       ),
@@ -241,6 +257,136 @@ void main() {
     );
   });
 
+  testWidgets(
+    'Loads five-day availability for all specialty doctors in batch',
+    (tester) async {
+      final startDate = DateTime(2026, 10, 9);
+      final doctors = _LiveDoctors();
+      final schedules = _LiveSchedules(startDate);
+      final controller = ScheduleController(
+        workScheduleRepository: schedules,
+        timeSlotRepository: schedules,
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<DoctorRepository>.value(value: doctors),
+            ChangeNotifierProvider<ScheduleController>.value(value: controller),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: SelectAppointmentTimePage(
+              specialty: specialty,
+              initialDate: startDate,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(doctors.requestedSpecialtyId, specialty.id);
+      expect(schedules.rangeRequest?.$1, ['doctor-1', 'doctor-2']);
+      expect(schedules.rangeRequest?.$2, startDate);
+      expect(
+        schedules.rangeRequest?.$3,
+        startDate.add(const Duration(days: 4)),
+      );
+      expect(schedules.requestedWorkScheduleIds, ['schedule-1']);
+      expect(find.byType(AppointmentDoctorCard), findsNWidgets(2));
+      expect(find.byKey(const ValueKey('slot-live-1')), findsOneWidget);
+      expect(
+        tester
+            .widget<AppointmentDateStrip>(find.byType(AppointmentDateStrip))
+            .dates,
+        List.generate(5, (index) => startDate.add(Duration(days: index))),
+      );
+    },
+  );
+
+  testWidgets('Live selection keeps the confirmation UI with real IDs', (
+    tester,
+  ) async {
+    final startDate = DateTime(2026, 10, 9);
+    final doctors = _LiveDoctors();
+    final schedules = _LiveSchedules(startDate);
+    final scheduleController = ScheduleController(
+      workScheduleRepository: schedules,
+      timeSlotRepository: schedules,
+    );
+    final bookingRepository = _LiveBookingRepository();
+    final appointmentController = AppointmentController(
+      bookingRepository: bookingRepository,
+      bookAppointmentUseCase: BookAppointment(bookingRepository),
+    );
+    addTearDown(scheduleController.dispose);
+    addTearDown(appointmentController.dispose);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<DoctorRepository>.value(value: doctors),
+          ChangeNotifierProvider<ScheduleController>.value(
+            value: scheduleController,
+          ),
+          ChangeNotifierProvider<AppointmentController>.value(
+            value: appointmentController,
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          onGenerateRoute: (_) => MaterialPageRoute<void>(
+            settings: const RouteSettings(
+              arguments: Patient(
+                id: 'patient-1',
+                authUserId: 'user-1',
+                fullName: 'Nguyễn Minh An',
+                phone: '0900000123',
+                email: 'patient@example.com',
+                isActive: true,
+              ),
+            ),
+            builder: (_) => SelectAppointmentTimePage(
+              specialty: specialty,
+              initialDate: startDate,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tapVisible(tester, find.byKey(const ValueKey('slot-live-1')));
+    await tapVisible(tester, find.byKey(const ValueKey('continue-time')));
+
+    final page = tester.widget<ConfirmAppointmentPage>(
+      find.byType(ConfirmAppointmentPage),
+    );
+    expect(page.information.selection.doctor.id, 'doctor-1');
+    expect(page.information.selection.slot.workScheduleId, 'schedule-1');
+    expect(page.information.selection.slot.id, 'live-1');
+    expect(page.information.selection.slot.startTime, '08:00');
+    expect(page.onSubmitBooking, isNotNull);
+
+    await tapVisible(tester, find.byKey(const ValueKey('health-yes')));
+    await tapVisible(tester, find.byKey(const ValueKey('private-no')));
+    await tapVisible(
+      tester,
+      find.byKey(const ValueKey('continue-confirmation')),
+    );
+    expect(find.byType(BookingReviewPage), findsOneWidget);
+    await tapVisible(
+      tester,
+      find.byKey(const ValueKey('confirm-booking-review')),
+    );
+    await tester.pumpAndSettle();
+    expect(bookingRepository.booked?.patientId, 'patient-1');
+    expect(bookingRepository.booked?.doctorId, 'doctor-1');
+    expect(bookingRepository.booked?.workScheduleId, 'schedule-1');
+    expect(bookingRepository.booked?.timeSlotId, 'live-1');
+  });
+
   for (final size in [const Size(412, 915), const Size(320, 700)]) {
     testWidgets('Layout and horizontal dates at $size with large text', (
       tester,
@@ -265,4 +411,98 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+}
+
+class _LiveDoctors implements DoctorRepository {
+  String? requestedSpecialtyId;
+
+  @override
+  Future<List<Doctor>> getDoctorsBySpecialty(String specialtyId) async {
+    requestedSpecialtyId = specialtyId;
+    return const [
+      Doctor(
+        id: 'doctor-1',
+        userId: 'user-1',
+        fullName: 'Nguyễn Văn A',
+        email: '',
+        phone: '',
+        specialtyId: 'skin',
+        yearsOfExperience: 8,
+        consultationFee: 150000,
+        isActive: true,
+        qualification: 'BSCKII',
+      ),
+      Doctor(
+        id: 'doctor-2',
+        userId: 'user-2',
+        fullName: 'Trần Thị B',
+        email: '',
+        phone: '',
+        specialtyId: 'skin',
+        yearsOfExperience: 5,
+        consultationFee: 120000,
+        isActive: true,
+      ),
+    ];
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _LiveSchedules implements WorkScheduleRepository, TimeSlotRepository {
+  _LiveSchedules(this.startDate);
+
+  final DateTime startDate;
+  (List<String>, DateTime, DateTime)? rangeRequest;
+  List<String>? requestedWorkScheduleIds;
+
+  @override
+  Future<List<WorkSchedule>> getWorkSchedulesForDoctorsAndDateRange({
+    required List<String> doctorIds,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    rangeRequest = (doctorIds, startDate, endDate);
+    return [
+      WorkSchedule(
+        id: 'schedule-1',
+        doctorId: 'doctor-1',
+        workDate: this.startDate,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<TimeSlot>> getAvailableTimeSlotsByWorkScheduleIds({
+    required List<String> workScheduleIds,
+  }) async {
+    requestedWorkScheduleIds = workScheduleIds;
+    return const [
+      TimeSlot(
+        id: 'live-1',
+        workScheduleId: 'schedule-1',
+        doctorId: 'doctor-1',
+        startTime: '08:00',
+        endTime: '08:30',
+        status: TimeSlotStatus.available,
+      ),
+    ];
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _LiveBookingRepository implements BookingRepository {
+  Appointment? booked;
+
+  @override
+  Future<Appointment> bookAppointment(Appointment appointment) async {
+    booked = appointment;
+    return appointment;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

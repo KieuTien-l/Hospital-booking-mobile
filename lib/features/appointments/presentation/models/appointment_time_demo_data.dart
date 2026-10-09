@@ -17,26 +17,34 @@ abstract final class AppointmentTimeDemoData {
           for (final day in dates)
             day: const [
               AppointmentTimeOption(
+                workScheduleId: 'demo-ws',
                 id: 'morning-1',
                 label: '06:30 - 07:30',
                 available: false,
               ),
               AppointmentTimeOption(
+                workScheduleId: 'demo-ws',
                 id: 'morning-2',
                 label: '07:30 - 08:30',
                 available: false,
               ),
               AppointmentTimeOption(
+                workScheduleId: 'demo-ws',
                 id: 'morning-3',
                 label: '08:30 - 09:30',
                 available: false,
               ),
               AppointmentTimeOption(
+                workScheduleId: 'demo-ws',
                 id: 'morning-4',
                 label: '09:30 - 10:30',
                 available: false,
               ),
-              AppointmentTimeOption(id: 'morning-5', label: '10:30 - 11:30'),
+              AppointmentTimeOption(
+                workScheduleId: 'demo-ws',
+                id: 'morning-5',
+                label: '10:30 - 11:30',
+              ),
             ],
         },
       ),
@@ -51,15 +59,18 @@ abstract final class AppointmentTimeDemoData {
                 ? const []
                 : const [
                     AppointmentTimeOption(
+                      workScheduleId: 'demo-ws',
                       id: 'afternoon-1',
                       label: '13:00 - 14:00',
                     ),
                     AppointmentTimeOption(
+                      workScheduleId: 'demo-ws',
                       id: 'afternoon-2',
                       label: '14:00 - 15:00',
                       available: false,
                     ),
                     AppointmentTimeOption(
+                      workScheduleId: 'demo-ws',
                       id: 'afternoon-3',
                       label: '15:00 - 16:00',
                     ),

@@ -21,7 +21,11 @@ void main() {
         schedule: {},
       ),
       date: DateTime(2026, 10, 14),
-      slot: const AppointmentTimeOption(id: 'slot', label: '08:30 - 09:30'),
+      slot: const AppointmentTimeOption(
+        id: 'slot',
+        workScheduleId: 'schedule',
+        label: '08:30 - 09:30',
+      ),
     ),
   );
 

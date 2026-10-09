@@ -69,4 +69,67 @@ class ScheduleController extends ViewStateController {
       if (isCurrent(token)) setState(ViewState.error, error);
     }
   }
+
+  Future<Map<String, Map<DateTime, List<TimeSlot>>>>
+  loadWeeklySchedulesForDoctors({
+    required List<Doctor> doctors,
+    required DateTime startDate,
+    required int days,
+  }) async {
+    if (days <= 0) return const {};
+
+    final doctorIds = doctors
+        .map((doctor) => doctor.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (doctorIds.isEmpty) return {};
+
+    final normalizedStart = DateTime(
+      startDate.year,
+      startDate.month,
+      startDate.day,
+    );
+    final endDate = normalizedStart.add(Duration(days: days - 1));
+    final schedules = await _schedules.getWorkSchedulesForDoctorsAndDateRange(
+      doctorIds: doctorIds,
+      startDate: normalizedStart,
+      endDate: endDate,
+    );
+
+    final slots = await _slots.getAvailableTimeSlotsByWorkScheduleIds(
+      workScheduleIds: schedules.map((schedule) => schedule.id).toList(),
+    );
+
+    final scheduleMap = {for (final s in schedules) s.id: s};
+
+    final result = <String, Map<DateTime, List<TimeSlot>>>{};
+    for (final doctor in doctors) {
+      result[doctor.id] = {};
+    }
+
+    for (final slot in slots) {
+      final schedule = scheduleMap[slot.workScheduleId];
+      if (schedule != null && schedule.workDate != null) {
+        final docMap = result[schedule.doctorId] ??= {};
+        final date = DateTime(
+          schedule.workDate!.year,
+          schedule.workDate!.month,
+          schedule.workDate!.day,
+        );
+        final dateSlots = docMap[date] ??= [];
+        dateSlots.add(slot);
+      }
+    }
+
+    for (final docMap in result.values) {
+      for (final dateSlots in docMap.values) {
+        dateSlots.sort(
+          (a, b) => (a.startTime ?? '').compareTo(b.startTime ?? ''),
+        );
+      }
+    }
+
+    return result;
+  }
 }

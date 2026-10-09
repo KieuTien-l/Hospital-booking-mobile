@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/health_record_model.dart';
 
 class HealthRecordFirebaseDatasource {
@@ -7,13 +8,19 @@ class HealthRecordFirebaseDatasource {
 
   static const String collectionName = 'HO_SO_SUC_KHOE';
 
-  Future<List<HealthRecordModel>> getHealthRecordsByPatient(String patientId) async {
+  Future<List<HealthRecordModel>> getHealthRecordsByPatient(
+    String patientId,
+  ) async {
     final query = await _firestore
         .collection(collectionName)
         .where('patientId', isEqualTo: patientId)
-        .orderBy('recordDate', descending: true)
         .get();
-    return query.docs.map((doc) => HealthRecordModel.fromFirestore(doc)).toList();
+    final records = query.docs
+        .map((doc) => HealthRecordModel.fromFirestore(doc))
+        .toList();
+    // Sort locally so reading a patient's records does not require a
+    // composite Firestore index.
+    records.sort((a, b) => b.recordDate.compareTo(a.recordDate));
+    return List.unmodifiable(records);
   }
 }
-

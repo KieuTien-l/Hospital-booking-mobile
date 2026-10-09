@@ -67,3 +67,21 @@ documents are preserved. Use `--date=YYYY-MM-DD` to seed a specific date.
 npm run seed-booking:dry-run --prefix scripts
 npm run seed-booking:apply --prefix scripts
 ```
+
+To seed a single doctor only, pass that Firestore doctor document ID:
+
+```powershell
+npm run seed-booking:apply --prefix scripts -- --date=2026-10-20 --doctor-id=DOCTOR_DOCUMENT_ID
+```
+
+## Add the Cardiology booking sample
+
+This adds three clearly labelled sample doctors (including Phạm Ngọc Mai),
+their work schedules, and twelve available slots. It uses the existing
+Cardiology specialty document and defaults to `2027-09-16` in Vietnam time.
+It only upserts document IDs beginning with `sample_`.
+
+```powershell
+npm run seed-cardiology:dry-run --prefix scripts -- --date=2027-09-16
+npm run seed-cardiology:apply --prefix scripts -- --date=2027-09-16
+```

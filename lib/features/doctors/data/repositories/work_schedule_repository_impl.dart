@@ -13,4 +13,15 @@ class WorkScheduleRepositoryImpl implements WorkScheduleRepository {
     required String doctorId,
     DateTime? workDate,
   }) => _datasource.getWorkSchedules(doctorId: doctorId, workDate: workDate);
+
+  @override
+  Future<List<WorkSchedule>> getWorkSchedulesForDoctorsAndDateRange({
+    required List<String> doctorIds,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) => _datasource.getWorkSchedulesForDoctorsAndDateRange(
+    doctorIds: doctorIds,
+    startDate: startDate,
+    endDate: endDate,
+  );
 }

@@ -32,7 +32,11 @@ void main() {
         schedule: {},
       ),
       date: DateTime(2026, 10, 14),
-      slot: const AppointmentTimeOption(id: 'slot', label: '08:30 - 09:30'),
+      slot: const AppointmentTimeOption(
+        id: 'slot',
+        workScheduleId: 'schedule',
+        label: '08:30 - 09:30',
+      ),
     ),
   );
   final item = AppointmentConfirmationResult(
@@ -150,6 +154,18 @@ void main() {
           .onPressed,
       isNotNull,
     );
+  });
+
+  testWidgets('Successful live booking opens the success page', (tester) async {
+    await show(
+      tester,
+      BookingReviewPage(items: [item], onSubmitBooking: (_) async => null),
+    );
+    await tester.tap(find.byKey(const ValueKey('confirm-booking-review')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Đặt lịch thành công'), findsOneWidget);
+    expect(find.byKey(const ValueKey('booking-success-home')), findsOneWidget);
   });
 
   for (final size in [const Size(412, 915), const Size(320, 700)]) {

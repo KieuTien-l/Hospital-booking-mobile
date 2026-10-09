@@ -10,7 +10,9 @@
     "repair-auth:dry-run": "node repair-auth-profiles.mjs",
     "repair-auth:apply": "node repair-auth-profiles.mjs --apply",
     "seed-booking:dry-run": "node seed-booking-schedules.mjs",
-    "seed-booking:apply": "node seed-booking-schedules.mjs --apply"
+    "seed-booking:apply": "node seed-booking-schedules.mjs --apply",
+    "seed-cardiology:dry-run": "node seed-cardiology-sample.mjs",
+    "seed-cardiology:apply": "node seed-cardiology-sample.mjs --apply"
   },
   "dependencies": {
     "firebase-admin": "^13.8.0"

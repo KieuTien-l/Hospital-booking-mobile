@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../models/patient_profile_form_draft.dart';
 import '../validators/patient_profile_validators.dart';
 import 'patient_profile_section_card.dart';
 import 'patient_profile_section_title.dart';
 
 /// UI-only fields; no writes to a repository or changes to the patient entity.
 class PatientProfileAdditionalFields extends StatefulWidget {
-  const PatientProfileAdditionalFields({super.key});
+  const PatientProfileAdditionalFields({super.key, this.draft});
+
+  final PatientProfileFormDraft? draft;
 
   @override
   State<PatientProfileAdditionalFields> createState() =>
@@ -26,6 +29,7 @@ class _PatientProfileAdditionalFieldsState
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
     ValueChanged<String>? onChanged,
+    FormFieldSetter<String>? onSaved,
   }) => Padding(
     padding: const EdgeInsets.only(top: 16),
     child: Column(
@@ -42,6 +46,7 @@ class _PatientProfileAdditionalFieldsState
           autovalidateMode: AutovalidateMode.onUserInteraction,
           validator: validator,
           onChanged: onChanged,
+          onSaved: onSaved,
         ),
       ],
     ),
@@ -63,6 +68,7 @@ class _PatientProfileAdditionalFieldsState
             hint: 'Nhập số điện thoại',
             keyboardType: TextInputType.phone,
             validator: PatientProfileValidators.phone,
+            onSaved: (value) => widget.draft?.phone = value?.trim() ?? '',
           ),
           _input(
             'Email',
@@ -70,6 +76,7 @@ class _PatientProfileAdditionalFieldsState
             hint: 'Nhập email',
             keyboardType: TextInputType.emailAddress,
             validator: PatientProfileValidators.email,
+            onSaved: (value) => widget.draft?.email = value?.trim() ?? '',
           ),
         ],
       ),
@@ -113,6 +120,20 @@ class _PatientProfileAdditionalFieldsState
                       _identityValues[entry.key] = value;
                       field.didChange(value);
                     },
+                    onSaved: (value) {
+                      final normalized = value?.trim() ?? '';
+                      switch (entry.key) {
+                        case 'nationalId':
+                          widget.draft?.nationalId = normalized;
+                          break;
+                        case 'personalId':
+                          widget.draft?.personalId = normalized;
+                          break;
+                        case 'passport':
+                          widget.draft?.passport = normalized;
+                          break;
+                      }
+                    },
                   ),
                 if (field.hasError)
                   Padding(
@@ -142,6 +163,7 @@ class _PatientProfileAdditionalFieldsState
             hint: 'Nhập quốc gia',
             validator: (value) =>
                 PatientProfileValidators.address(value, 'Quốc gia'),
+            onSaved: (value) => widget.draft?.country = value?.trim() ?? '',
           ),
           _input(
             'Tỉnh / Thành phố',
@@ -149,6 +171,7 @@ class _PatientProfileAdditionalFieldsState
             hint: 'Nhập tỉnh hoặc thành phố',
             validator: (value) =>
                 PatientProfileValidators.address(value, 'Tỉnh / Thành phố'),
+            onSaved: (value) => widget.draft?.province = value?.trim() ?? '',
           ),
           _input(
             'Phường / Xã',
@@ -156,6 +179,7 @@ class _PatientProfileAdditionalFieldsState
             hint: 'Nhập phường hoặc xã',
             validator: (value) =>
                 PatientProfileValidators.address(value, 'Phường / Xã'),
+            onSaved: (value) => widget.draft?.ward = value?.trim() ?? '',
           ),
           _input(
             'Số nhà / Đường / Khu phố / Ấp',
@@ -166,6 +190,8 @@ class _PatientProfileAdditionalFieldsState
               'Địa chỉ',
               maxLength: 255,
             ),
+            onSaved: (value) =>
+                widget.draft?.streetAddress = value?.trim() ?? '',
           ),
         ],
       ),

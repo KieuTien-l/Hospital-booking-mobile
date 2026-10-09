@@ -9,6 +9,10 @@ const requestedDate = process.argv
     .slice(2)
     .find((argument) => argument.startsWith('--date='))
     ?.replace('--date=', '');
+const requestedDoctorId = process.argv
+    .slice(2)
+    .find((argument) => argument.startsWith('--doctor-id='))
+    ?.replace('--doctor-id=', '');
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 
 if (!serviceAccountPath) {
@@ -43,8 +47,15 @@ const [doctorsSnapshot, schedulesSnapshot, slotsSnapshot] = await Promise.all([
 ]);
 const activeDoctors = doctorsSnapshot.docs.filter((document) => {
   const data = document.data();
-  return data.isActive !== false && data.status !== 'INACTIVE';
+  return (
+    data.isActive !== false &&
+    data.status !== 'INACTIVE' &&
+    (!requestedDoctorId || document.id === requestedDoctorId)
+  );
 });
+if (requestedDoctorId && activeDoctors.length === 0) {
+  throw new Error(`Active doctor ${requestedDoctorId} was not found.`);
+}
 const schedulesByDoctorId = new Map();
 
 for (const document of schedulesSnapshot.docs) {
@@ -113,6 +124,7 @@ if (apply) {
 
 console.table([
   { item: 'Seed date (Asia/Ho_Chi_Minh)', count: date },
+  { item: 'Requested doctor', count: requestedDoctorId ?? 'all active doctors' },
   { item: 'Active doctors scanned', count: activeDoctors.length },
   { item: 'Work schedules to create', count: pendingSchedules.length },
   { item: 'Time slots to create', count: pendingSlots.length },

@@ -27,6 +27,15 @@ service cloud.firestore {
               .data.authUserId == request.auth.uid;
     }
 
+    // Profile edits need only verify the signed-in Firebase user owns the
+    // profile document. This avoids coupling a patient's own profile update
+    // to a separate account-document lookup.
+    function ownsPatientProfile(patientId) {
+      return signedIn() &&
+          get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
+              .data.authUserId == request.auth.uid;
+    }
+
     function isDoctor(doctorId) {
       return hasActiveRole('doctor') &&
           get(/databases/$(database)/documents/BAC_SI/$(doctorId))
@@ -321,7 +330,7 @@ service cloud.firestore {
       allow create: if isAdmin() ||
           (signedIn() && request.resource.data.authUserId == request.auth.uid);
       allow update: if isAdmin() ||
-          (ownsPatient(patientId) &&
+          (ownsPatientProfile(patientId) &&
               request.resource.data.authUserId == resource.data.authUserId &&
               request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                 'fullName',

@@ -8,6 +8,7 @@ import 'package:flutter_application_4/features/auth/domain/repositories/auth_rep
 import 'package:flutter_application_4/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter_application_4/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_application_4/features/home/presentation/pages/patient_home_page.dart';
+import 'package:flutter_application_4/features/profile/presentation/pages/create_patient_profile_page.dart';
 import 'package:flutter_application_4/features/specialties/domain/entities/specialty.dart';
 import 'package:flutter_application_4/features/specialties/domain/repositories/specialty_repository.dart';
 import 'package:flutter_application_4/features/specialties/presentation/controllers/specialty_controller.dart';
@@ -64,11 +65,8 @@ void main() {
     );
     await tester.tap(find.text('Thông tin bệnh nhân'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Chức năng đang được hoàn thiện. Vui lòng quay lại sau.'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Đã hiểu'));
+    expect(find.byType(CreatePatientProfilePage), findsOneWidget);
+    await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Đăng xuất'));
     await tester.pumpAndSettle();

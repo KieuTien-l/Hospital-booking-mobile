@@ -1,12 +1,17 @@
-/// Presentation values; no booking or persistence behavior.
 class AppointmentTimeOption {
   const AppointmentTimeOption({
     required this.id,
+    required this.workScheduleId,
     required this.label,
+    this.startTime,
+    this.endTime,
     this.available = true,
   });
   final String id;
+  final String workScheduleId;
   final String label;
+  final String? startTime;
+  final String? endTime;
   final bool available;
 }
 

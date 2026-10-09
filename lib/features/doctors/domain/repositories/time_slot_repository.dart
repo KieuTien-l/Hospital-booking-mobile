@@ -18,4 +18,12 @@ abstract class TimeSlotRepository {
     required String doctorId,
     required DateTime workDate,
   });
+
+  /// Fetches available slots for several work schedules in batched queries.
+  ///
+  /// Callers should obtain the schedules for a date range first, then use their
+  /// ids here. This avoids resolving the same schedules twice.
+  Future<List<TimeSlot>> getAvailableTimeSlotsByWorkScheduleIds({
+    required List<String> workScheduleIds,
+  });
 }

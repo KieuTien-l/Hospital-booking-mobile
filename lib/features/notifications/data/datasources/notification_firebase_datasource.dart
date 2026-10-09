@@ -10,12 +10,15 @@ class NotificationFirebaseDatasource {
     return _firestore
         .collection(_collectionPath)
         .where('patientId', isEqualTo: patientId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
+          final notifications = snapshot.docs
               .map((doc) => NotificationModel.fromMap(doc.data(), doc.id))
               .toList();
+          // Keeping the ordering in the client avoids a composite Firestore
+          // index, and notification lists are small for an individual patient.
+          notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return List.unmodifiable(notifications);
         });
   }
 
@@ -29,12 +32,13 @@ class NotificationFirebaseDatasource {
     final snapshot = await _firestore
         .collection(_collectionPath)
         .where('patientId', isEqualTo: patientId)
-        .where('isRead', isEqualTo: false)
         .get();
 
     final batch = _firestore.batch();
     for (var doc in snapshot.docs) {
-      batch.update(doc.reference, {'isRead': true});
+      if (doc.data()['isRead'] != true) {
+        batch.update(doc.reference, {'isRead': true});
+      }
     }
     await batch.commit();
   }
