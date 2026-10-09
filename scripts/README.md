@@ -85,3 +85,25 @@ It only upserts document IDs beginning with `sample_`.
 npm run seed-cardiology:dry-run --prefix scripts -- --date=2027-09-16
 npm run seed-cardiology:apply --prefix scripts -- --date=2027-09-16
 ```
+
+## Seed booking data for multiple specialties
+
+This seeds every active non-sample doctor belonging to an active specialty.
+For each selected day it creates an active work schedule and eight available
+30-minute slots from 08:00 to 12:00. Existing schedules and slots are never
+overwritten.
+
+```powershell
+npm run seed-multispecialty:dry-run --prefix scripts -- --start-date=2026-10-20 --days=7
+npm run seed-multispecialty:apply --prefix scripts -- --start-date=2026-10-20 --days=7
+```
+
+## Audit booking data
+
+This is read-only. It checks document relationships and capacity/status
+consistency, then reports the number of doctors with available slots in every
+active specialty for each selected date.
+
+```powershell
+npm run audit-booking --prefix scripts -- --start-date=2026-10-20 --days=7
+```

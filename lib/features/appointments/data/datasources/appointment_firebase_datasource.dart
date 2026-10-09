@@ -4,6 +4,7 @@ import '../models/appointment_model.dart';
 import '../../../doctors/data/models/doctor_model.dart';
 import '../../../doctors/data/models/time_slot_model.dart';
 import '../../../doctors/data/models/work_schedule_model.dart';
+import '../../../profile/data/models/patient_model.dart';
 import '../../domain/exceptions/booking_exception.dart';
 
 /// Firestore-backed appointment repository for the LICH_HEN collection.
@@ -21,6 +22,10 @@ class AppointmentFirebaseDatasource {
       _firestore.collection(WorkScheduleModel.collectionName);
   CollectionReference<Map<String, dynamic>> get _doctors =>
       _firestore.collection(DoctorModel.collectionName);
+  CollectionReference<Map<String, dynamic>> get _notifications =>
+      _firestore.collection('notifications');
+  CollectionReference<Map<String, dynamic>> get _patients =>
+      _firestore.collection(PatientModel.collectionName);
 
   Stream<List<Appointment>> watchAppointmentsByPatient(String patientId) {
     final normalizedId = patientId.trim();
@@ -29,21 +34,19 @@ class AppointmentFirebaseDatasource {
     return _appointments
         .where('patientId', isEqualTo: normalizedId)
         .snapshots()
-        .map(
-          (snapshot) {
-            final appointments = snapshot.docs
-                .map(AppointmentModel.fromFirestore)
-                .toList();
-            // Avoid requiring a composite Firestore index for a basic patient
-            // feed, while still giving the UI a deterministic newest-first list.
-            appointments.sort((a, b) {
-              final aDate = a.appointmentDate ?? a.bookedAt ?? a.createdAt;
-              final bDate = b.appointmentDate ?? b.bookedAt ?? b.createdAt;
-              return (bDate ?? DateTime(0)).compareTo(aDate ?? DateTime(0));
-            });
-            return List.unmodifiable(appointments);
-          },
-        );
+        .map((snapshot) {
+          final appointments = snapshot.docs
+              .map(AppointmentModel.fromFirestore)
+              .toList();
+          // Avoid requiring a composite Firestore index for a basic patient
+          // feed, while still giving the UI a deterministic newest-first list.
+          appointments.sort((a, b) {
+            final aDate = a.appointmentDate ?? a.bookedAt ?? a.createdAt;
+            final bDate = b.appointmentDate ?? b.bookedAt ?? b.createdAt;
+            return (bDate ?? DateTime(0)).compareTo(aDate ?? DateTime(0));
+          });
+          return List.unmodifiable(appointments);
+        });
   }
 
   Future<Appointment> getAppointmentById(String appointmentId) async {
@@ -65,22 +68,27 @@ class AppointmentFirebaseDatasource {
     final slotDocument = _timeSlots.doc(appointment.timeSlotId);
     final scheduleDocument = _workSchedules.doc(appointment.workScheduleId);
     final doctorDocument = _doctors.doc(appointment.doctorId);
+    final patientDocument = _patients.doc(appointment.patientId);
+    final notificationDocument = _notifications.doc();
 
     return _firestore.runTransaction((transaction) async {
       final slotSnapshot = await transaction.get(slotDocument);
       final scheduleSnapshot = await transaction.get(scheduleDocument);
       final doctorSnapshot = await transaction.get(doctorDocument);
+      final patientSnapshot = await transaction.get(patientDocument);
       if (!slotSnapshot.exists ||
           !scheduleSnapshot.exists ||
-          !doctorSnapshot.exists) {
+          !doctorSnapshot.exists ||
+          !patientSnapshot.exists) {
         throw const BookingException(
-          'The selected schedule or time slot no longer exists.',
+          'The selected schedule, time slot, or patient profile no longer exists.',
         );
       }
 
       final slot = TimeSlotModel.fromFirestore(slotSnapshot);
       final schedule = WorkScheduleModel.fromFirestore(scheduleSnapshot);
       final doctor = DoctorModel.fromFirestore(doctorSnapshot);
+      final patient = PatientModel.fromFirestore(patientSnapshot);
       if (!slot.isAvailable) {
         throw const BookingException('This time slot is no longer available.');
       }
@@ -112,7 +120,8 @@ class AppointmentFirebaseDatasource {
       }
       if ((appointment.startTime != null &&
               appointment.startTime != slot.startTime) ||
-          (appointment.endTime != null && appointment.endTime != slot.endTime)) {
+          (appointment.endTime != null &&
+              appointment.endTime != slot.endTime)) {
         throw const BookingException(
           'The selected time does not match the selected time slot.',
         );
@@ -161,8 +170,38 @@ class AppointmentFirebaseDatasource {
         'reservationCounts': reservationCounts,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      transaction.set(notificationDocument, {
+        'patientId': savedAppointment.patientId,
+        'appointmentId': appointmentDocument.id,
+        'title': 'Đặt lịch thành công',
+        'content': _bookingNotificationContent(
+          patientName: patient.fullName,
+          doctorName: doctor.fullName,
+          date: schedule.workDate!,
+          startTime: slot.startTime!,
+        ),
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
       return savedAppointment;
     });
+  }
+
+  String _bookingNotificationContent({
+    required String patientName,
+    required String doctorName,
+    required DateTime date,
+    required String startTime,
+  }) {
+    final recipient = patientName.trim().isEmpty ? 'bạn' : patientName.trim();
+    final doctor = doctorName.trim().isEmpty
+        ? 'bác sĩ đã chọn'
+        : 'BS. ${doctorName.trim()}';
+    final dateLabel =
+        '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}';
+    return 'Chào $recipient, lịch hẹn với $doctor lúc $startTime ngày '
+        '$dateLabel đã được ghi nhận.';
   }
 
   Future<Appointment> updateAppointment(Appointment appointment) async {
@@ -333,7 +372,9 @@ class AppointmentFirebaseDatasource {
         throw const BookingException('The new time slot is incomplete.');
       }
       if (newSlot.capacity == null || newSlot.capacity! < 1) {
-        throw const BookingException('The new time slot has no valid capacity.');
+        throw const BookingException(
+          'The new time slot has no valid capacity.',
+        );
       }
       if (newStartTime != newSlot.startTime || newEndTime != newSlot.endTime) {
         throw const BookingException(
@@ -364,7 +405,10 @@ class AppointmentFirebaseDatasource {
         )..remove(appointment.id);
         transaction.update(oldSlotRef, {
           'bookedCount': newOldCount,
-          'status': _slotStatusFor(newOldCount, oldSlot.capacity).firestoreValue,
+          'status': _slotStatusFor(
+            newOldCount,
+            oldSlot.capacity,
+          ).firestoreValue,
           'appointmentId': appointment.id,
           'reservationCounts': oldReservationCounts,
           'updatedAt': FieldValue.serverTimestamp(),

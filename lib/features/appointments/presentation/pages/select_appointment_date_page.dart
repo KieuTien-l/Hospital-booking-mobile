@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../../../doctors/domain/repositories/doctor_repository.dart';
+import '../../../doctors/presentation/controllers/schedule_controller.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
 import '../../../specialties/domain/entities/specialty.dart';
 import '../models/appointment_calendar_demo_data.dart';
@@ -42,8 +45,14 @@ class SelectAppointmentDatePage extends StatefulWidget {
 class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
   late DateTime _month;
   DateTime? _selected;
+  Set<DateTime> _liveAvailableDates = <DateTime>{};
+  bool _loadingLiveAvailability = false;
+  String? _liveAvailabilityError;
+  int _availabilityRequest = 0;
 
   DateTime get _today => DateUtils.dateOnly(widget.today ?? DateTime.now());
+  bool get _loadsLiveAvailability =>
+      widget.availableDates == null && !widget.useDemoData;
   Set<DateTime> _normalize(Set<DateTime> dates) =>
       dates.map(DateUtils.dateOnly).toSet();
   Set<DateTime> get _available {
@@ -53,11 +62,7 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
     if (widget.useDemoData) {
       return AppointmentCalendarDemoData.availableDates(_month);
     }
-    final dayCount = DateUtils.getDaysInMonth(_month.year, _month.month);
-    return List<DateTime>.generate(
-      dayCount,
-      (index) => DateTime(_month.year, _month.month, index + 1),
-    ).where((date) => !date.isBefore(_today)).toSet();
+    return _liveAvailableDates;
   }
 
   Set<DateTime> get _holidays => widget.holidayDates == null
@@ -70,6 +75,11 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
   void initState() {
     super.initState();
     _month = DateTime(_today.year, _today.month);
+    if (_loadsLiveAvailability) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _loadLiveAvailability(),
+      );
+    }
   }
 
   @override
@@ -85,6 +95,12 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
         if (mounted) widget.onDateSelected?.call(null);
       });
     }
+    if (_loadsLiveAvailability &&
+        (oldWidget.specialty.id != widget.specialty.id ||
+            oldWidget.useDemoData != widget.useDemoData ||
+            oldWidget.availableDates != widget.availableDates)) {
+      _loadLiveAvailability();
+    }
   }
 
   void _select(DateTime date) {
@@ -93,9 +109,72 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
     widget.onDateSelected?.call(date);
   }
 
-  void _changeMonth(int offset) => setState(() {
-    _month = DateTime(_month.year, _month.month + offset);
-  });
+  void _changeMonth(int offset) {
+    var selectionCleared = false;
+    setState(() {
+      _month = DateTime(_month.year, _month.month + offset);
+      if (_selected != null &&
+          (_selected!.year != _month.year ||
+              _selected!.month != _month.month)) {
+        _selected = null;
+        selectionCleared = true;
+      }
+    });
+    if (selectionCleared) widget.onDateSelected?.call(null);
+    if (_loadsLiveAvailability) _loadLiveAvailability();
+  }
+
+  Future<void> _loadLiveAvailability() async {
+    if (!_loadsLiveAvailability) return;
+    final request = ++_availabilityRequest;
+    final visibleMonth = DateTime(_month.year, _month.month);
+    setState(() {
+      _loadingLiveAvailability = true;
+      _liveAvailabilityError = null;
+    });
+    try {
+      final doctorRepository = context.read<DoctorRepository?>();
+      final scheduleController = context.read<ScheduleController?>();
+      if (doctorRepository == null || scheduleController == null) {
+        throw StateError('Không thể tải dữ liệu lịch khám.');
+      }
+      final doctors = await doctorRepository.getDoctorsBySpecialty(
+        widget.specialty.id,
+      );
+      final dayCount = DateUtils.getDaysInMonth(
+        visibleMonth.year,
+        visibleMonth.month,
+      );
+      final schedules = await scheduleController.loadWeeklySchedulesForDoctors(
+        doctors: doctors,
+        startDate: visibleMonth,
+        days: dayCount,
+      );
+      final dates = <DateTime>{
+        for (final byDay in schedules.values)
+          for (final entry in byDay.entries)
+            if (entry.value.isNotEmpty && !entry.key.isBefore(_today))
+              DateUtils.dateOnly(entry.key),
+      };
+      if (!mounted || request != _availabilityRequest) return;
+      final selected = _selected;
+      final selectionCleared =
+          selected != null && !dates.contains(DateUtils.dateOnly(selected));
+      setState(() {
+        _liveAvailableDates = dates;
+        _loadingLiveAvailability = false;
+        if (selectionCleared) _selected = null;
+      });
+      if (selectionCleared) widget.onDateSelected?.call(null);
+    } catch (_) {
+      if (!mounted || request != _availabilityRequest) return;
+      setState(() {
+        _liveAvailableDates = <DateTime>{};
+        _loadingLiveAvailability = false;
+        _liveAvailabilityError = 'Không thể tải ngày có lịch khám.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Theme(
@@ -161,6 +240,41 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
                     ),
                     const SizedBox(height: 24),
                     const AppointmentCalendarLegend(),
+                    if (_loadsLiveAvailability && _loadingLiveAvailability)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 16),
+                        child: LinearProgressIndicator(),
+                      ),
+                    if (_loadsLiveAvailability &&
+                        _liveAvailabilityError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Không thể tải ngày có lịch khám.',
+                                style: TextStyle(color: AppColors.error),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _loadLiveAvailability,
+                              child: const Text('Thử lại'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_loadsLiveAvailability &&
+                        !_loadingLiveAvailability &&
+                        _liveAvailabilityError == null &&
+                        _liveAvailableDates.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: Text(
+                          'Chưa có khung giờ trống trong tháng này.',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
                     if (_selected != null) ...[
                       const SizedBox(height: 12),
                       Semantics(

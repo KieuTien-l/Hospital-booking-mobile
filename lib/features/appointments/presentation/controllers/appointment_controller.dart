@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'dart:async';
 
@@ -443,8 +444,23 @@ class AppointmentController extends ChangeNotifier {
   void _setError(Object error) {
     if (_disposed) return;
     _status = AppointmentControllerStatus.error;
-    _errorMessage = error.toString().replaceFirst('Exception: ', '');
+    _errorMessage = _messageFor(error);
     notifyListeners();
+  }
+
+  String _messageFor(Object error) {
+    if (error is FirebaseException && error.code == 'resource-exhausted') {
+      return 'Firebase đang tạm giới hạn lượng truy cập. '
+          'Lịch hẹn chưa được tạo; vui lòng chờ vài phút rồi thử lại một lần.';
+    }
+
+    final rawMessage = error.toString();
+    if (rawMessage.contains('cloud_firestore/resource-exhausted') ||
+        rawMessage.contains('RESOURCE_EXHAUSTED')) {
+      return 'Firebase đang tạm giới hạn lượng truy cập. '
+          'Lịch hẹn chưa được tạo; vui lòng chờ vài phút rồi thử lại một lần.';
+    }
+    return rawMessage.replaceFirst('Exception: ', '');
   }
 
   @override

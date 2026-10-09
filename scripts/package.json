@@ -12,7 +12,12 @@
     "seed-booking:dry-run": "node seed-booking-schedules.mjs",
     "seed-booking:apply": "node seed-booking-schedules.mjs --apply",
     "seed-cardiology:dry-run": "node seed-cardiology-sample.mjs",
-    "seed-cardiology:apply": "node seed-cardiology-sample.mjs --apply"
+    "seed-cardiology:apply": "node seed-cardiology-sample.mjs --apply",
+    "seed-notifications:dry-run": "node seed-test-notifications.mjs",
+    "seed-notifications:apply": "node seed-test-notifications.mjs --apply",
+    "seed-multispecialty:dry-run": "node seed-multispecialty-booking-data.mjs",
+    "seed-multispecialty:apply": "node seed-multispecialty-booking-data.mjs --apply",
+    "audit-booking": "node audit-booking-data.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.8.0"

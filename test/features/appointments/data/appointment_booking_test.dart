@@ -141,7 +141,15 @@ class MemoryTransaction extends platform.TransactionPlatform {
 
 MemoryFirestore bookingStore() => MemoryFirestore()
   ..documents.addAll({
-    'BAC_SI/doctor-1': {'specialtyId': 'specialty-1', 'status': 'ACTIVE'},
+    'BAC_SI/doctor-1': {
+      'fullName': 'Phạm Ngọc Mai',
+      'specialtyId': 'specialty-1',
+      'status': 'ACTIVE',
+    },
+    'BENH_NHAN/patient-1': {
+      'authUserId': 'user-1',
+      'fullName': 'Đoàn Thị Ngọc Vân',
+    },
     'LICH_LAM_VIEC/schedule-1': {
       'doctorId': 'doctor-1',
       'workDate': DateTime(2026, 10, 5),
@@ -193,6 +201,20 @@ void main() {
         expect(slot['bookedCount'], 1 + count);
         expect(slot['status'], count == 2 ? 'BOOKED' : 'AVAILABLE');
         expect(slot['appointmentId'], saved.id);
+        final notifications = store.documents.entries
+            .where((entry) => entry.key.startsWith('notifications/'))
+            .map((entry) => entry.value)
+            .toList();
+        expect(notifications, hasLength(1));
+        expect(notifications.single['patientId'], 'patient-1');
+        expect(notifications.single['appointmentId'], saved.id);
+        expect(notifications.single['title'], 'Đặt lịch thành công');
+        expect(
+          notifications.single['content'],
+          contains('Chào Đoàn Thị Ngọc Vân'),
+        );
+        expect(notifications.single['content'], contains('BS. Phạm Ngọc Mai'));
+        expect(notifications.single['isRead'], isFalse);
       },
     );
   }
@@ -276,46 +298,49 @@ void main() {
     expect(appointment['status'], 'CANCELLED');
   });
 
-  test('Rescheduling transfers the reservation between slots atomically', () async {
-    final store = bookingStore()
-      ..documents.addAll({
-        'LICH_LAM_VIEC/schedule-2': {
-          'doctorId': 'doctor-1',
-          'workDate': DateTime(2026, 10, 6),
-          'status': 'ACTIVE',
-        },
-        'CA_KHAM/slot-2': {
-          'doctorId': 'doctor-1',
-          'workScheduleId': 'schedule-2',
-          'status': 'AVAILABLE',
-          'startTime': '09:00',
-          'endTime': '09:30',
-          'capacity': 3,
-          'bookedCount': 0,
-          'reservationCounts': <String, int>{},
-        },
+  test(
+    'Rescheduling transfers the reservation between slots atomically',
+    () async {
+      final store = bookingStore()
+        ..documents.addAll({
+          'LICH_LAM_VIEC/schedule-2': {
+            'doctorId': 'doctor-1',
+            'workDate': DateTime(2026, 10, 6),
+            'status': 'ACTIVE',
+          },
+          'CA_KHAM/slot-2': {
+            'doctorId': 'doctor-1',
+            'workScheduleId': 'schedule-2',
+            'status': 'AVAILABLE',
+            'startTime': '09:00',
+            'endTime': '09:30',
+            'capacity': 3,
+            'bookedCount': 0,
+            'reservationCounts': <String, int>{},
+          },
+        });
+      final repository = AppointmentRepositoryImpl(
+        AppointmentFirebaseDatasource(firestore: store.asFirestore()),
+      );
+      final saved = await repository.createAppointment(request());
+
+      final moved = await repository.rescheduleAppointment(
+        saved.id,
+        'schedule-2',
+        'slot-2',
+        DateTime(2026, 10, 6),
+        '09:00',
+        '09:30',
+      );
+
+      expect(moved.timeSlotId, 'slot-2');
+      expect(store.documents['CA_KHAM/slot-1']!['bookedCount'], 1);
+      expect(store.documents['CA_KHAM/slot-1']!['reservationCounts'], isEmpty);
+      expect(store.documents['CA_KHAM/slot-2']!['bookedCount'], 1);
+      expect(store.documents['CA_KHAM/slot-2']!['reservationCounts'], {
+        saved.id: 1,
       });
-    final repository = AppointmentRepositoryImpl(
-      AppointmentFirebaseDatasource(firestore: store.asFirestore()),
-    );
-    final saved = await repository.createAppointment(request());
-
-    final moved = await repository.rescheduleAppointment(
-      saved.id,
-      'schedule-2',
-      'slot-2',
-      DateTime(2026, 10, 6),
-      '09:00',
-      '09:30',
-    );
-
-    expect(moved.timeSlotId, 'slot-2');
-    expect(store.documents['CA_KHAM/slot-1']!['bookedCount'], 1);
-    expect(store.documents['CA_KHAM/slot-1']!['reservationCounts'], isEmpty);
-    expect(store.documents['CA_KHAM/slot-2']!['bookedCount'], 1);
-    expect(store.documents['CA_KHAM/slot-2']!['reservationCounts'], {
-      saved.id: 1,
-    });
-    expect(store.documents['LICH_HEN/${saved.id}']!['timeSlotId'], 'slot-2');
-  });
+      expect(store.documents['LICH_HEN/${saved.id}']!['timeSlotId'], 'slot-2');
+    },
+  );
 }
