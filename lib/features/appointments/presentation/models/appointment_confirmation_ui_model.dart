@@ -1,4 +1,5 @@
 import 'appointment_time_ui_models.dart';
+import '../../../profile/domain/entities/patient.dart';
 
 /// Presentation data only; this does not create an appointment.
 class AppointmentConfirmationUiModel {
@@ -6,12 +7,14 @@ class AppointmentConfirmationUiModel {
     required this.specialtyName,
     required this.selection,
     this.patientName,
+    this.patient,
     this.fee,
     this.isDemoFee = false,
   });
   final String specialtyName;
   final AppointmentTimeSelection selection;
   final String? patientName;
+  final Patient? patient;
   final int? fee;
   final bool isDemoFee;
 }

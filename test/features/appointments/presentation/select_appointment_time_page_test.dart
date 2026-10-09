@@ -8,7 +8,7 @@ import 'package:flutter_application_4/features/appointments/presentation/widgets
 import 'package:flutter_application_4/features/specialties/domain/entities/specialty.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_doctor_card.dart';
 import 'package:flutter_application_4/features/doctors/presentation/pages/doctor_detail_page.dart';
-import 'package:flutter_application_4/features/appointments/presentation/pages/confirm_appointment_page.dart';
+import 'package:flutter_application_4/features/appointments/presentation/pages/appointment_information_page.dart';
 
 const specialty = Specialty(
   id: 'skin',

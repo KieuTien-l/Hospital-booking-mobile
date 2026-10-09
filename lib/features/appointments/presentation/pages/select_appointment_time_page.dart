@@ -10,7 +10,7 @@ import '../models/appointment_time_demo_data.dart';
 import '../models/appointment_time_ui_models.dart';
 import '../models/appointment_confirmation_ui_model.dart';
 import '../models/appointment_confirmation_demo_data.dart';
-import 'confirm_appointment_page.dart';
+import 'appointment_information_page.dart';
 import '../widgets/appointment_doctor_card.dart';
 
 class SelectAppointmentTimePage extends StatefulWidget {
@@ -209,6 +209,9 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                                       selection: _selection!,
                                       patientName: profile is Patient
                                           ? profile.fullName
+                                          : null,
+                                      patient: profile is Patient
+                                          ? profile
                                           : null,
                                       fee: fee,
                                       isDemoFee: fee != null,

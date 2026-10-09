@@ -6,6 +6,7 @@ import '../models/appointment_confirmation_ui_model.dart';
 import '../widgets/appointment_summary_card.dart';
 import '../widgets/insurance_choice_card.dart';
 import '../widgets/appointment_confirmation_actions.dart';
+import 'booking_review_page.dart';
 
 class ConfirmAppointmentPage extends StatefulWidget {
   const ConfirmAppointmentPage({
@@ -40,7 +41,7 @@ class _ConfirmAppointmentPageState extends State<ConfirmAppointmentPage> {
           backgroundColor: Colors.transparent,
           foregroundColor: AppColors.textOnPrimary,
           title: const Text(
-            'Xác nhận đặt khám',
+            'Thông tin đặt khám',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
@@ -88,8 +89,11 @@ class _ConfirmAppointmentPageState extends State<ConfirmAppointmentPage> {
                             if (widget.onContinue != null) {
                               widget.onContinue!(result);
                             } else {
-                              _message(
-                                'Thông tin đã được chọn đầy đủ. Bước tiếp theo đang được hoàn thiện.',
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      BookingReviewPage(items: [result]),
+                                ),
                               );
                             }
                           },

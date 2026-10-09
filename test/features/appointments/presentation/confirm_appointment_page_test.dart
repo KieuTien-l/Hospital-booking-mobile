@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_4/core/themes/app_theme.dart';
 import 'package:flutter_application_4/features/appointments/presentation/models/appointment_confirmation_ui_model.dart';
 import 'package:flutter_application_4/features/appointments/presentation/models/appointment_time_ui_models.dart';
-import 'package:flutter_application_4/features/appointments/presentation/pages/confirm_appointment_page.dart';
+import 'package:flutter_application_4/features/appointments/presentation/pages/appointment_information_page.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/insurance_choice_card.dart';
 
 void main() {
