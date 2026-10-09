@@ -4,9 +4,13 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../doctors/presentation/models/doctor_detail_demo_data.dart';
 import '../../../doctors/presentation/pages/doctor_detail_page.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
+import '../../../profile/domain/entities/patient.dart';
 import '../../../specialties/domain/entities/specialty.dart';
 import '../models/appointment_time_demo_data.dart';
 import '../models/appointment_time_ui_models.dart';
+import '../models/appointment_confirmation_ui_model.dart';
+import '../models/appointment_confirmation_demo_data.dart';
+import 'confirm_appointment_page.dart';
 import '../widgets/appointment_doctor_card.dart';
 
 class SelectAppointmentTimePage extends StatefulWidget {
@@ -58,10 +62,6 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
       _reset();
     }
   }
-
-  void _message(String message) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
 
   @override
   Widget build(BuildContext context) => Theme(
@@ -194,8 +194,27 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                             if (widget.onContinue != null) {
                               widget.onContinue!(_selection!);
                             } else {
-                              _message(
-                                'Đã chọn khung giờ. Bước xác nhận đặt khám đang được hoàn thiện.',
+                              final profile = ModalRoute.of(context)
+                                  ?.settings
+                                  .arguments;
+                              final fee =
+                                  AppointmentConfirmationDemoData.feeForDoctor(
+                                    _selection!.doctor.id,
+                                  );
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) => ConfirmAppointmentPage(
+                                    information: AppointmentConfirmationUiModel(
+                                      specialtyName: widget.specialty.name,
+                                      selection: _selection!,
+                                      patientName: profile is Patient
+                                          ? profile.fullName
+                                          : null,
+                                      fee: fee,
+                                      isDemoFee: fee != null,
+                                    ),
+                                  ),
+                                ),
                               );
                             }
                           },

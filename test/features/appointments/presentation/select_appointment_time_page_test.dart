@@ -8,6 +8,7 @@ import 'package:flutter_application_4/features/appointments/presentation/widgets
 import 'package:flutter_application_4/features/specialties/domain/entities/specialty.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_doctor_card.dart';
 import 'package:flutter_application_4/features/doctors/presentation/pages/doctor_detail_page.dart';
+import 'package:flutter_application_4/features/appointments/presentation/pages/confirm_appointment_page.dart';
 
 const specialty = Specialty(
   id: 'skin',
@@ -197,6 +198,33 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Continue opens confirmation and back preserves selected time', (
+    tester,
+  ) async {
+    await showPage(tester);
+    await tapVisible(tester, find.byKey(const ValueKey('slot-morning-5')));
+    await tapVisible(tester, find.byKey(const ValueKey('continue-time')));
+    final information = tester
+        .widget<ConfirmAppointmentPage>(find.byType(ConfirmAppointmentPage))
+        .information;
+    expect(information.specialtyName, specialty.name);
+    expect(information.selection.doctor.id, 'demo-morning');
+    expect(information.selection.date, DateTime(2026, 10, 9));
+    expect(information.selection.slot.id, 'morning-5');
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    await reveal(tester, find.byType(AppointmentTimeSlotGrid));
+    expect(
+      tester
+          .widget<AppointmentTimeSlotGrid>(find.byType(AppointmentTimeSlotGrid))
+          .selectedId,
+      'morning-5',
+    );
+    await tapVisible(tester, find.byKey(const ValueKey('continue-time')));
+    expect(find.byType(ConfirmAppointmentPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Empty doctors stays empty', (tester) async {
     await showPage(tester, doctors: []);
