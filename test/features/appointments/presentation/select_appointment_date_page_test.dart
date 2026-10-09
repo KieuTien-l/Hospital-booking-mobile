@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_4/core/themes/app_theme.dart';
 import 'package:flutter_application_4/features/appointments/presentation/models/appointment_calendar_demo_data.dart';
 import 'package:flutter_application_4/features/appointments/presentation/pages/select_appointment_date_page.dart';
+import 'package:flutter_application_4/features/appointments/presentation/pages/select_appointment_time_page.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_calendar_legend.dart';
 import 'package:flutter_application_4/features/appointments/presentation/widgets/appointment_calendar_day.dart';
 import 'package:flutter_application_4/features/specialties/domain/entities/specialty.dart';
@@ -15,6 +16,45 @@ const specialty = Specialty(
 );
 
 void main() {
+  testWidgets(
+    'Continue passes specialty/date and back preserves calendar selection',
+    (tester) async {
+      final date = DateTime(2026, 10, 9);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: SelectAppointmentDatePage(
+            specialty: specialty,
+            onHome: () {},
+            today: DateTime(2026, 10, 8),
+            availableDates: {date},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final button = find.byKey(const ValueKey('continue-date'));
+      expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+      await tester.tap(find.byKey(ValueKey(date)));
+      await tester.pump();
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      final page = tester.widget<SelectAppointmentTimePage>(
+        find.byType(SelectAppointmentTimePage),
+      );
+      expect(page.specialty, specialty);
+      expect(page.initialDate, date);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Ngày đã chọn: 09/10/2026'), findsOneWidget);
+      expect(
+        tester
+            .widget<AppointmentCalendarDay>(find.byKey(ValueKey(date)))
+            .isSelected,
+        isTrue,
+      );
+    },
+  );
   Future<void> showPage(
     WidgetTester tester, {
     DateTime? today,

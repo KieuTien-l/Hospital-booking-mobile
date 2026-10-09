@@ -6,6 +6,7 @@ import '../../../specialties/domain/entities/specialty.dart';
 import '../models/appointment_calendar_demo_data.dart';
 import '../widgets/appointment_calendar.dart';
 import '../widgets/appointment_calendar_legend.dart';
+import 'select_appointment_time_page.dart';
 
 class SelectAppointmentDatePage extends StatefulWidget {
   const SelectAppointmentDatePage({
@@ -172,6 +173,29 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        key: const ValueKey('continue-date'),
+                        onPressed: _selected == null
+                            ? null
+                            : () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  settings: RouteSettings(
+                                    arguments: ModalRoute.of(context)
+                                        ?.settings
+                                        .arguments,
+                                  ),
+                                  builder: (_) => SelectAppointmentTimePage(
+                                    specialty: widget.specialty,
+                                    initialDate: _selected!,
+                                  ),
+                                ),
+                              ),
+                        child: const Text('TIẾP TỤC'),
+                      ),
+                    ),
                   ],
                 ),
               ),
