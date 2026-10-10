@@ -7,6 +7,7 @@ import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/domain/repositories/doctor_repository.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
 import '../../../profile/presentation/widgets/health_records_date_filter.dart';
+import '../../../specialties/domain/repositories/specialty_repository.dart';
 import '../../domain/entities/appointment.dart';
 import '../controllers/appointment_controller.dart';
 import '../models/appointment_history_ui_model.dart';
@@ -49,7 +50,9 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
   bool _filterOpen = false;
   String? _loadedPatientId;
   final Map<String, Doctor> _doctors = {};
+  final Map<String, String> _specialtyNames = {};
   final Set<String> _requestedDoctorIds = {};
+  bool _requestedSpecialtyNames = false;
   List<AppointmentHistoryUiModel> _liveItems = const [];
 
   bool get _usesLiveData =>
@@ -112,6 +115,7 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
     if (!_usesLiveData || controller == null) return;
     final appointments = controller.appointments;
     _requestDoctorLabels(appointments);
+    _requestSpecialtyLabels(appointments);
     _liveItems = List.unmodifiable([
       for (final appointment in appointments) _toUiModel(appointment),
     ]);
@@ -122,11 +126,10 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
     final doctorName = doctor == null
         ? 'Bác sĩ ${appointment.doctorId}'
         : 'BS. ${doctor.fullName}';
+    final specialtyId = appointment.specialtyId?.trim() ?? '';
     final specialtyName = doctor?.specialtyName?.trim().isNotEmpty == true
         ? doctor!.specialtyName!
-        : appointment.specialtyId?.trim().isNotEmpty == true
-        ? 'Chuyên khoa ${appointment.specialtyId}'
-        : 'Chuyên khoa chưa cập nhật';
+        : _specialtyNames[specialtyId] ?? 'Chuyên khoa chưa cập nhật';
     return AppointmentHistoryUiModel(
       appointment: appointment,
       patientName: widget.patientName?.trim().isNotEmpty == true
@@ -156,6 +159,35 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
             }
           }
           if (changed) setState(() {});
+        })
+        .catchError((_) {});
+  }
+
+  void _requestSpecialtyLabels(Iterable<Appointment> appointments) {
+    if (_requestedSpecialtyNames ||
+        !appointments.any(
+          (appointment) => appointment.specialtyId?.trim().isNotEmpty == true,
+        )) {
+      return;
+    }
+    final repository = context.read<SpecialtyRepository?>();
+    if (repository == null) return;
+    _requestedSpecialtyNames = true;
+    repository
+        .watchSpecialties()
+        .first
+        .then((specialties) {
+          if (!mounted) return;
+          final names = {
+            for (final specialty in specialties)
+              if (specialty.name.trim().isNotEmpty)
+                specialty.id: specialty.name.trim(),
+          };
+          if (names.isEmpty) return;
+          _specialtyNames
+            ..clear()
+            ..addAll(names);
+          setState(() {});
         })
         .catchError((_) {});
   }

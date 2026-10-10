@@ -88,6 +88,20 @@ void main() {
       expect(specialty.hinhAnh, contains('tim-mach'));
       expect(specialty.isActive, isTrue);
     });
+
+    test('reads legacy Vietnamese Firestore fields', () {
+      final specialty = SpecialtyModel.fromMap(const {
+        'TenChuyenKhoa': 'Khoa Nội Tim mạch',
+        'MoTa': 'Khám và điều trị bệnh lý tim mạch',
+        'HinhAnh': 'Noi_Tim_Mach.png',
+        'TrangThai': 'ACTIVE',
+      }, documentId: 'cardiology');
+
+      expect(specialty.name, 'Khoa Nội Tim mạch');
+      expect(specialty.description, 'Khám và điều trị bệnh lý tim mạch');
+      expect(specialty.imageUrl, 'Noi_Tim_Mach.png');
+      expect(specialty.isActive, isTrue);
+    });
   });
 
   group('DoctorModel', () {

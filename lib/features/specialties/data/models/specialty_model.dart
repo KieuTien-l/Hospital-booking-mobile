@@ -33,7 +33,7 @@ class SpecialtyModel extends Specialty {
     Map<String, dynamic> json, {
     String? documentId,
   }) {
-    final status = readStringForKeys(json, const ['status']);
+    final status = readStringForKeys(json, const ['status', 'TrangThai']);
     final isActive = status.isNotEmpty
         ? !const {
             'INACTIVE',
@@ -45,13 +45,13 @@ class SpecialtyModel extends Specialty {
 
     return SpecialtyModel(
       id: documentId ?? readString(json['id']),
-      name: readString(json['name']),
-      description: readString(json['description']),
+      name: readStringForKeys(json, const ['name', 'TenChuyenKhoa']),
+      description: readStringForKeys(json, const ['description', 'MoTa']),
       isActive: isActive,
       status: status.isEmpty ? (isActive ? 'ACTIVE' : 'INACTIVE') : status,
-      imageUrl: readOptionalString(json['imageUrl']),
-      createdAt: readDateTime(json['createdAt']),
-      updatedAt: readDateTime(json['updatedAt']),
+      imageUrl: readOptionalString(json['imageUrl'] ?? json['HinhAnh']),
+      createdAt: readDateTime(json['createdAt'] ?? json['NgayTao']),
+      updatedAt: readDateTime(json['updatedAt'] ?? json['NgayCapNhat']),
     );
   }
 
