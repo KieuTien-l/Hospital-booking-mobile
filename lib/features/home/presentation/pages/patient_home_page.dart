@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../appointments/presentation/models/appointment_history_demo_data.dart';
-import '../../../appointments/presentation/pages/appointment_history_page.dart';
+import '../../../appointments/presentation/pages/patient_appointments_page.dart';
 import '../../../appointments/presentation/pages/select_appointment_date_page.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -75,12 +74,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
     if (title == 'Lịch đặt khám' || title == 'Lịch sử đặt khám') {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => AppointmentHistoryPage(
-            items: AppointmentHistoryDemoData.items,
-            isDemo: true,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const PatientAppointmentsPage()),
       );
       return;
     }
