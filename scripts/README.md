@@ -107,3 +107,15 @@ active specialty for each selected date.
 ```powershell
 npm run audit-booking --prefix scripts -- --start-date=2026-10-20 --days=7
 ```
+
+## Add one sample Health Record
+
+This resolves the patient profile from its account email, then writes one
+idempotent sample document in `HO_SO_SUC_KHOE`. It never creates a patient or
+doctor profile. The document is labelled `TEST_HEALTH_RECORD` and can be run
+again without duplicating records.
+
+```powershell
+npm run seed-health-record:dry-run --prefix scripts -- --email=patient@example.com
+npm run seed-health-record:apply --prefix scripts -- --email=patient@example.com
+```
