@@ -12,6 +12,8 @@ class HealthRecordModel extends HealthRecord {
     super.notes,
     super.prescription,
     super.attachments,
+    super.recordType,
+    super.documentCategory,
     super.createdAt,
     super.updatedAt,
   });
@@ -30,6 +32,10 @@ class HealthRecordModel extends HealthRecord {
       notes: readOptionalString(data['notes']),
       prescription: readOptionalString(data['prescription']),
       attachments: _readAttachments(data['attachments']),
+      recordType: _recordType(readOptionalString(data['recordType'])),
+      documentCategory: _documentCategory(
+        readOptionalString(data['documentCategory']),
+      ),
       createdAt: readDateTime(data['createdAt']),
       updatedAt: readDateTime(data['updatedAt']),
     );
@@ -41,6 +47,33 @@ class HealthRecordModel extends HealthRecord {
         .map(readOptionalString)
         .whereType<String>()
         .toList(growable: false);
+  }
+
+  static String _recordType(String? value) {
+    switch (value?.trim().toUpperCase()) {
+      case HealthRecordType.inpatient:
+        return HealthRecordType.inpatient;
+      case HealthRecordType.checkup:
+        return HealthRecordType.checkup;
+      case HealthRecordType.outpatient:
+      default:
+        // Existing documents were created before this field was introduced.
+        // They represent ordinary visits, so keep them visible in "Khám bệnh".
+        return HealthRecordType.outpatient;
+    }
+  }
+
+  static String? _documentCategory(String? value) {
+    switch (value?.trim().toUpperCase()) {
+      case HealthRecordDocumentCategory.prescription:
+        return HealthRecordDocumentCategory.prescription;
+      case HealthRecordDocumentCategory.order:
+        return HealthRecordDocumentCategory.order;
+      case HealthRecordDocumentCategory.certificate:
+        return HealthRecordDocumentCategory.certificate;
+      default:
+        return null;
+    }
   }
 }
 

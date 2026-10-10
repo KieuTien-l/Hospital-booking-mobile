@@ -72,7 +72,9 @@ void main() {
           ChangeNotifierProvider.value(value: profileController),
           ChangeNotifierProvider.value(value: healthRecordController),
         ],
-        child: const MaterialApp(home: HealthRecordsPage()),
+        child: MaterialApp(
+          home: HealthRecordsPage(initialDate: DateTime(2026, 10, 10)),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -102,14 +104,15 @@ void main() {
     expect(find.text('Chẩn đoán: Tăng huyết áp cần theo dõi'), findsOneWidget);
     expect(find.text('Đơn thuốc: Amlodipine 5mg'), findsOneWidget);
     expect(find.text('Ghi chú: Tái khám sau 30 ngày'), findsOneWidget);
+    expect(find.text('Tất cả'), findsOneWidget);
   });
 
-  testWidgets('displays the Health Record empty state when no records exist', (
+  testWidgets('displays the KieuTien empty state when no records exist', (
     tester,
   ) async {
     await openPage(tester, _HealthRecordRepository());
 
-    expect(find.text('Chưa có hồ sơ sức khỏe nào.'), findsOneWidget);
+    expect(find.text('Không có kết quả!'), findsOneWidget);
   });
 
   testWidgets('displays an error and allows retry when Health Record fails', (
@@ -124,5 +127,30 @@ void main() {
 
     expect(find.text('Không thể tải dữ liệu sức khỏe'), findsOneWidget);
     expect(find.text('Thử lại'), findsOneWidget);
+  });
+
+  testWidgets('filters live records by the KieuTien visit-type tab', (
+    tester,
+  ) async {
+    await openPage(
+      tester,
+      _HealthRecordRepository(
+        records: [
+          HealthRecord(
+            id: 'record-inpatient',
+            patientId: patient.id,
+            doctorId: 'doctor-1',
+            recordDate: DateTime(2026, 10, 9, 9, 30),
+            diagnosis: 'Theo dõi sau nhập viện',
+            recordType: HealthRecordType.inpatient,
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Không có kết quả!'), findsOneWidget);
+    await tester.tap(find.text('Nhập viện'));
+    await tester.pumpAndSettle();
+    expect(find.text('Chẩn đoán: Theo dõi sau nhập viện'), findsOneWidget);
   });
 }

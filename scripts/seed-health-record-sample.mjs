@@ -71,6 +71,8 @@ const record = {
   prescription: 'Amlodipine 5mg, uống 1 viên mỗi ngày sau ăn sáng.',
   notes: 'Theo dõi huyết áp tại nhà và tái khám sau 30 ngày.',
   attachments: [],
+  recordType: 'OUTPATIENT',
+  documentCategory: 'PRESCRIPTION',
   source: 'TEST_HEALTH_RECORD',
   createdAt: now,
   updatedAt: now,
