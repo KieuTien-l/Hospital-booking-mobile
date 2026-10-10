@@ -1,6 +1,7 @@
 import '../../domain/entities/appointment.dart';
 
 enum AppointmentHistoryTab {
+  pending('Chờ xác nhận'),
   paid('Đã thanh toán'),
   received('Đã tiếp nhận'),
   completed('Đã khám'),
@@ -29,11 +30,11 @@ class AppointmentHistoryUiModel {
   final bool isPaid;
 
   AppointmentHistoryTab? get tab => switch (appointment.status) {
+    AppointmentStatus.pending => AppointmentHistoryTab.pending,
     AppointmentStatus.completed => AppointmentHistoryTab.completed,
     AppointmentStatus.cancelled => AppointmentHistoryTab.cancelled,
     AppointmentStatus.confirmed =>
       isPaid ? AppointmentHistoryTab.paid : AppointmentHistoryTab.received,
-    AppointmentStatus.pending => isPaid ? AppointmentHistoryTab.paid : null,
     AppointmentStatus.noShow || AppointmentStatus.unknown => null,
   };
 }

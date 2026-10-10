@@ -57,7 +57,6 @@ void main() {
 
   test('Business statuses keep their values and unsupported values are not relabeled', () {
     for (final status in [
-      AppointmentStatus.pending,
       AppointmentStatus.noShow,
       AppointmentStatus.unknown,
     ]) {
@@ -77,6 +76,20 @@ void main() {
       expect(item.tab, isNull);
       expect(item.appointment.status, status);
     }
+    final pending = AppointmentHistoryUiModel(
+      appointment: const Appointment(
+        id: 'pending',
+        patientId: 'p',
+        doctorId: 'd',
+        workScheduleId: 'w',
+        timeSlotId: 't',
+        status: AppointmentStatus.pending,
+      ),
+      patientName: '',
+      doctorName: '',
+      specialtyName: '',
+    );
+    expect(pending.tab, AppointmentHistoryTab.pending);
     expect(
       AppointmentHistoryDemoData.items.first.tab,
       AppointmentHistoryTab.paid,
@@ -87,13 +100,24 @@ void main() {
     tester,
   ) async {
     await open(tester);
-    for (var i = 0; i < AppointmentHistoryTab.values.length; i++) {
-      final tab = AppointmentHistoryTab.values[i];
+    const expectedIds = {
+      AppointmentHistoryTab.paid: 'DEMO-AP001',
+      AppointmentHistoryTab.received: 'DEMO-AP002',
+      AppointmentHistoryTab.completed: 'DEMO-AP003',
+      AppointmentHistoryTab.cancelled: 'DEMO-AP004',
+    };
+    for (final tab in AppointmentHistoryTab.values) {
       await tester.ensureVisible(find.widgetWithText(ChoiceChip, tab.label));
       await tester.tap(find.widgetWithText(ChoiceChip, tab.label));
       await tester.pumpAndSettle();
-      expect(find.byType(AppointmentHistoryCard), findsOneWidget);
-      expect(find.text('DEMO-AP00${i + 1}'), findsOneWidget);
+      final expectedId = expectedIds[tab];
+      if (expectedId == null) {
+        expect(find.byType(AppointmentHistoryCard), findsNothing);
+        expect(find.text('Không có dữ liệu'), findsOneWidget);
+      } else {
+        expect(find.byType(AppointmentHistoryCard), findsOneWidget);
+        expect(find.text(expectedId), findsOneWidget);
+      }
     }
     await tester.tap(find.text('DEMO-AP004'));
     await tester.pumpAndSettle();

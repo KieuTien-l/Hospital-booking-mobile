@@ -21,6 +21,7 @@ class PatientBookingHistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppointmentHistoryPage(
     patientId: patient.id,
+    patientName: patient.fullName,
     items: items,
     isDemo: isDemo,
     initialDate: initialDate,

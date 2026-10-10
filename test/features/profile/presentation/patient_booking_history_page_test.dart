@@ -23,6 +23,12 @@ void main() {
       tester
           .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Đã thanh toán'))
           .selected,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Chờ xác nhận'))
+          .selected,
       isTrue,
     );
     for (final status in ['Đã tiếp nhận', 'Đã khám', 'Đã hủy']) {
