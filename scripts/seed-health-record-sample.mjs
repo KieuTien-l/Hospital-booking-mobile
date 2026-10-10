@@ -60,42 +60,79 @@ if (!patient.exists) {
 }
 
 const doctor = await activeDoctor(firestore);
-const recordId = `test_health_record_${patient.id}`;
 const now = Timestamp.fromDate(new Date());
-const recordDate = Timestamp.fromDate(new Date('2026-10-10T09:30:00+07:00'));
-const record = {
-  patientId: patient.id,
-  doctorId: doctor.id,
-  recordDate,
-  diagnosis: 'Tăng huyết áp cần theo dõi',
-  prescription: 'Amlodipine 5mg, uống 1 viên mỗi ngày sau ăn sáng.',
-  notes: 'Theo dõi huyết áp tại nhà và tái khám sau 30 ngày.',
-  attachments: [],
-  recordType: 'OUTPATIENT',
-  documentCategory: 'PRESCRIPTION',
-  source: 'TEST_HEALTH_RECORD',
-  createdAt: now,
-  updatedAt: now,
-};
+const records = [
+  sampleRecord('test_health_record', '2026-10-10T09:30:00+07:00', {
+    diagnosis: 'Tăng huyết áp cần theo dõi',
+    prescription: 'Amlodipine 5mg, uống 1 viên mỗi ngày sau ăn sáng.',
+    notes: 'Theo dõi huyết áp tại nhà và tái khám sau 30 ngày.',
+    recordType: 'OUTPATIENT',
+    documentCategory: 'PRESCRIPTION',
+  }),
+  sampleRecord('test_health_record_order', '2026-10-05T14:00:00+07:00', {
+    diagnosis: 'Rối loạn mỡ máu, cần xét nghiệm theo dõi',
+    notes: 'Đã chỉ định xét nghiệm mỡ máu và chức năng gan.',
+    attachments: ['phieu-chi-dinh-xet-nghiem-mo-mau.pdf'],
+    recordType: 'OUTPATIENT',
+    documentCategory: 'ORDER',
+  }),
+  sampleRecord('test_health_record_inpatient', '2026-09-25T08:30:00+07:00', {
+    diagnosis: 'Theo dõi sau nhập viện do tăng huyết áp',
+    prescription: 'Amlodipine 5mg, uống 1 viên mỗi ngày sau ăn sáng.',
+    notes: 'Huyết áp ổn định. Tiếp tục dùng thuốc và tái khám đúng hẹn.',
+    recordType: 'INPATIENT',
+  }),
+  sampleRecord('test_health_record_checkup', '2026-09-12T08:00:00+07:00', {
+    diagnosis: 'Khám sức khỏe định kỳ',
+    notes: 'Các chỉ số cơ bản trong giới hạn cho phép.',
+    attachments: ['giay-chung-nhan-suc-khoe.pdf'],
+    recordType: 'CHECKUP',
+    documentCategory: 'CERTIFICATE',
+  }),
+];
 
 if (apply) {
-  await firestore.collection('HO_SO_SUC_KHOE').doc(recordId).set(record, {
-    merge: true,
-  });
+  const batch = firestore.batch();
+  for (const record of records) {
+    batch.set(
+      firestore.collection('HO_SO_SUC_KHOE').doc(record.id),
+      record.data,
+      { merge: true },
+    );
+  }
+  await batch.commit();
 }
 
 console.table([
   { item: 'Project', value: projectId },
   { item: 'Patient profile found', value: patient.exists ? 'yes' : 'no' },
-  { item: 'Sample record', value: apply ? 'added or updated' : 'ready to add' },
+  { item: 'Sample records', value: records.length },
   { item: 'Doctor found', value: doctor.exists ? 'yes' : 'no' },
   { item: 'Collection', value: 'HO_SO_SUC_KHOE' },
 ]);
 console.log(
   apply
-      ? 'One sample Health Record was added or updated.'
-      : 'Dry run completed. Add --apply to write the sample Health Record.',
+      ? 'Sample Health Records were added or updated.'
+      : 'Dry run completed. Add --apply to write the sample Health Records.',
 );
+
+function sampleRecord(idPrefix, recordDate, details) {
+  return {
+    id: `${idPrefix}_${patient.id}`,
+    data: {
+      patientId: patient.id,
+      doctorId: doctor.id,
+      recordDate: Timestamp.fromDate(new Date(recordDate)),
+      prescription: null,
+      notes: null,
+      attachments: [],
+      source: 'TEST_HEALTH_RECORD',
+      createdAt: now,
+      updatedAt: now,
+      ...details,
+    },
+  };
+}
 
 async function activeDoctor(database) {
   const preferred = await database
