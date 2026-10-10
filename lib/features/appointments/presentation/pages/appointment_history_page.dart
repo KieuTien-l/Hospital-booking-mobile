@@ -316,7 +316,6 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
         ? context.watch<AppointmentController?>()
         : null;
     _syncLiveItems(controller);
-    _loadLiveAppointments();
     final state = _usesLiveData
         ? (controller?.appointmentsStatus ?? ViewState.empty)
         : widget.viewState;
