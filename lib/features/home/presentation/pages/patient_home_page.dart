@@ -9,6 +9,8 @@ import '../../../profile/presentation/controllers/patient_profile_controller.dar
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/pages/select_patient_profile_page.dart';
 import '../../../profile/presentation/models/patient_profile_demo_data.dart';
+import '../../../profile/presentation/models/patient_profiles_demo_data.dart';
+import '../../../profile/presentation/pages/patient_profiles_page.dart';
 import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
@@ -32,6 +34,18 @@ class _PatientHomePageState extends State<PatientHomePage> {
   String _query = '';
 
   void _open(String title, [String? content]) {
+    if (title == 'Hồ sơ sức khỏe') {
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PatientProfilesPage(
+            profiles: PatientProfilesDemoData.profiles,
+            isDemo: true,
+          ),
+        ),
+      );
+      return;
+    }
     if (title == 'Đặt khám') {
       FocusScope.of(context).unfocus();
       final navigator = Navigator.of(context);
