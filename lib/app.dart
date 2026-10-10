@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'features/health_records/data/datasources/health_record_firebase_datasource.dart';
 import 'features/health_records/data/repositories/health_record_repository_impl.dart';
 import 'features/health_records/domain/repositories/health_record_repository.dart';
 import 'features/health_records/presentation/controllers/health_record_controller.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'features/results/data/datasources/test_result_firebase_datasource.dart';
 import 'features/results/data/repositories/test_result_repository_impl.dart';
 import 'features/results/domain/repositories/test_result_repository.dart';
@@ -14,7 +17,6 @@ import 'features/feedbacks/data/repositories/feedback_repository_impl.dart';
 import 'features/feedbacks/domain/repositories/feedback_repository.dart';
 import 'features/feedbacks/presentation/controllers/feedback_controller.dart';
 
-import 'core/routes/auth_gate.dart';
 import 'core/themes/app_theme.dart';
 import 'features/appointments/data/datasources/appointment_firebase_datasource.dart';
 import 'features/appointments/data/repositories/appointment_repository_impl.dart';
@@ -95,22 +97,31 @@ class App extends StatelessWidget {
               NotificationRepositoryImpl(NotificationFirebaseDatasource()),
         ),
         Provider<TestResultRepository>(
-          create: (_) => TestResultRepositoryImpl(TestResultFirebaseDatasource(FirebaseFirestore.instance)),
+          create: (_) => TestResultRepositoryImpl(
+            TestResultFirebaseDatasource(FirebaseFirestore.instance),
+          ),
         ),
         Provider<FeedbackRepository>(
-          create: (_) => FeedbackRepositoryImpl(FeedbackFirebaseDatasource(FirebaseFirestore.instance)),
+          create: (_) => FeedbackRepositoryImpl(
+            FeedbackFirebaseDatasource(FirebaseFirestore.instance),
+          ),
         ),
         ChangeNotifierProvider(
-          create: (context) => TestResultController(context.read<TestResultRepository>()),
+          create: (context) =>
+              TestResultController(context.read<TestResultRepository>()),
         ),
         ChangeNotifierProvider(
-          create: (context) => FeedbackController(context.read<FeedbackRepository>()),
+          create: (context) =>
+              FeedbackController(context.read<FeedbackRepository>()),
         ),
         Provider<HealthRecordRepository>(
-          create: (_) => HealthRecordRepositoryImpl(HealthRecordFirebaseDatasource(FirebaseFirestore.instance)),
+          create: (_) => HealthRecordRepositoryImpl(
+            HealthRecordFirebaseDatasource(FirebaseFirestore.instance),
+          ),
         ),
         ChangeNotifierProvider(
-          create: (context) => HealthRecordController(context.read<HealthRecordRepository>()),
+          create: (context) =>
+              HealthRecordController(context.read<HealthRecordRepository>()),
         ),
         Provider<BookingRepository>(
           create: (context) => BookingRepositoryImpl(
