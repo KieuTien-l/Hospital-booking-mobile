@@ -112,9 +112,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('confirm-booking-review')));
       await tester.pumpAndSettle();
       expect(
-        find.text(
-          'Giao diện xác nhận đã hoàn thành. Chức năng đặt khám sẽ được tích hợp sau.',
-        ),
+        find.text('Thông tin thanh toán'),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);

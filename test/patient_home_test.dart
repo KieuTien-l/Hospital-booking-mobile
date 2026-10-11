@@ -42,6 +42,32 @@ class _HomeAuthRepository extends Fake implements AuthRepository {
 }
 
 void main() {
+  testWidgets('Payment history opens from Home and Back returns', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+        child: const MaterialApp(home: PatientHomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Thanh toán\nviện phí'));
+    await tester.pumpAndSettle();
+    expect(find.text('Thanh toán viện phí'), findsOneWidget);
+    expect(find.text('DEMO-TT001'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Clinical profiles open from Home and Back returns to Home', (
     tester,
   ) async {

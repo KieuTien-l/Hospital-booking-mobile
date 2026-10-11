@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../appointments/presentation/pages/select_appointment_date_page.dart';
 import '../../../appointments/presentation/pages/appointment_history_page.dart';
 import '../../../appointments/presentation/models/appointment_history_demo_data.dart';
+import '../../../appointments/presentation/models/payment_demo_data.dart';
+import '../../../appointments/presentation/pages/payment_history_page.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
@@ -37,6 +39,12 @@ class _PatientHomePageState extends State<PatientHomePage> {
   String _query = '';
 
   void _open(String title, [String? content]) {
+    if (title == 'Thanh toán viện phí') {
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => PaymentHistoryPage(
+        transactions: PaymentDemoData.transactions, isDemo: true)));
+      return;
+    }
     if (title == 'Kết quả cận lâm sàng') {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(
