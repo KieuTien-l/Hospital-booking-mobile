@@ -10,6 +10,7 @@ import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/create_patient_profile_page.dart';
 import '../../../profile/presentation/pages/edit_profile_page.dart';
+import '../../../profile/presentation/pages/patient_clinical_results_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/pages/select_patient_profile_page.dart';
 import '../../../profile/presentation/models/patient_profile_demo_data.dart';
@@ -82,6 +83,33 @@ class _PatientHomePageState extends State<PatientHomePage> {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(
         MaterialPageRoute(builder: (_) => const HealthRecordsPage()),
+      );
+      return;
+    }
+    if (title == 'Kết quả cận lâm sàng') {
+      FocusScope.of(context).unfocus();
+      final profileController = context.read<PatientProfileController?>();
+      if (profileController?.isLoading == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đang tải hồ sơ bệnh nhân...')),
+        );
+        return;
+      }
+      final patient = profileController?.patient;
+      if (patient == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Vui lòng cập nhật hồ sơ bệnh nhân để xem kết quả cận lâm sàng.',
+            ),
+          ),
+        );
+        return;
+      }
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PatientClinicalResultsPage(patient: patient),
+        ),
       );
       return;
     }
