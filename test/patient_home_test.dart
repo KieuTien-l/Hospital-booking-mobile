@@ -42,6 +42,38 @@ class _HomeAuthRepository extends Fake implements AuthRepository {
 }
 
 void main() {
+  testWidgets('Clinical profiles open from Home and Back returns to Home', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+        child: const MaterialApp(home: PatientHomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kết quả\ncận lâm sàng'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kết quả cận lâm sàng'), findsOneWidget);
+    expect(find.text('Liên kết hồ sơ'), findsNothing);
+    await tester.tap(find.text('NGUYỄN VĂN AN'));
+    await tester.pumpAndSettle();
+    expect(find.text('Chọn chức năng'), findsOneWidget);
+    expect(find.text('HỒ SƠ SỨC KHỎE'), findsNothing);
+    await tester.tap(find.byTooltip('Đóng'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Appointment history opens from Home and returns with Back', (
     tester,
   ) async {

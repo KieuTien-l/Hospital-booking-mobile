@@ -13,6 +13,7 @@ import '../../../profile/presentation/pages/select_patient_profile_page.dart';
 import '../../../profile/presentation/models/patient_profile_demo_data.dart';
 import '../../../profile/presentation/models/patient_profiles_demo_data.dart';
 import '../../../profile/presentation/pages/patient_profiles_page.dart';
+import '../../../profile/presentation/pages/patient_clinical_profiles_page.dart';
 import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import '../widgets/quick_functions_section.dart';
@@ -36,6 +37,18 @@ class _PatientHomePageState extends State<PatientHomePage> {
   String _query = '';
 
   void _open(String title, [String? content]) {
+    if (title == 'Kết quả cận lâm sàng') {
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PatientClinicalProfilesPage(
+            profiles: PatientProfilesDemoData.profiles,
+            isDemo: true,
+          ),
+        ),
+      );
+      return;
+    }
     if (title == 'Lịch đặt khám' || title == 'Lịch sử đặt khám') {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(MaterialPageRoute(
