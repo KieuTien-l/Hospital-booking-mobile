@@ -9,6 +9,7 @@ abstract final class FeedbackDemoData {
       dateLabel: '10/10/2026 (minh họa)',
       status: FeedbackStatus.processing,
       rating: 4,
+      isDemo: true,
     ),
     FeedbackUiModel(
       title: 'Đề xuất bổ sung hướng dẫn sử dụng',
@@ -17,6 +18,7 @@ abstract final class FeedbackDemoData {
       dateLabel: '09/10/2026 (minh họa)',
       status: FeedbackStatus.answered,
       response: 'Cảm ơn bạn đã đóng góp ý kiến. Chúng tôi sẽ xem xét đề xuất để cải thiện trải nghiệm sử dụng ứng dụng.',
+      isDemo: true,
     ),
   ];
 }

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../../../feedbacks/domain/entities/feedback_info.dart';
+import '../../../feedbacks/presentation/controllers/feedback_controller.dart';
+import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../models/feedback_ui_model.dart';
 import '../widgets/feedback_form.dart';
 import '../widgets/feedback_history_card.dart';
@@ -17,7 +21,6 @@ class CustomerFeedbackPage extends StatefulWidget {
 class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs = TabController(length: 2, vsync: this);
-  late final List<FeedbackUiModel> _history = List.of(widget.history);
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _content = TextEditingController();
@@ -25,6 +28,13 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
   FeedbackStatus? _filter;
   int? _rating;
   bool _submitting = false;
+  String? _loadedPatientId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
+  }
   @override
   void dispose() {
     _tabs.dispose();
@@ -33,22 +43,90 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
     super.dispose();
   }
 
+  void _loadHistory() {
+    final patient = context.read<PatientProfileController?>()?.patient;
+    final controller = context.read<FeedbackController?>();
+    if (patient == null || controller == null || _loadedPatientId == patient.id) {
+      return;
+    }
+    _loadedPatientId = patient.id;
+    controller.loadFeedbacks(patient.id);
+  }
+
+  FeedbackCategory _categoryFrom(String? value) {
+    return FeedbackCategory.values.firstWhere(
+      (category) => category.name == value || category.label == value,
+      orElse: () => FeedbackCategory.suggestion,
+    );
+  }
+
+  FeedbackUiModel _toUiModel(FeedbackInfo feedback) {
+    final createdAt = feedback.createdAt;
+    final dateLabel = createdAt == null
+        ? 'Vừa gửi'
+        : '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
+    return FeedbackUiModel(
+      title: feedback.title?.trim().isNotEmpty == true
+          ? feedback.title!.trim()
+          : 'Phản hồi của bạn',
+      content: feedback.content,
+      category: _categoryFrom(feedback.category),
+      dateLabel: dateLabel,
+      status: FeedbackStatus.pending,
+      rating: feedback.rating.round(),
+    );
+  }
+
   Future<void> _submit() async {
     if (_submitting || !_formKey.currentState!.validate()) return;
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _submitting = true;
-      _history.insert(
-        0,
-        FeedbackUiModel(
-          title: _title.text.trim(),
-          content: _content.text.trim(),
-          category: _category!,
-          rating: _rating,
-          dateLabel: 'Phiên demo hiện tại',
-          status: FeedbackStatus.pending,
+    final patient = context.read<PatientProfileController?>()?.patient;
+    final controller = context.read<FeedbackController?>();
+    if (patient == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng cập nhật hồ sơ bệnh nhân trước khi gửi phản hồi.'),
         ),
       );
+      return;
+    }
+    if (controller == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chức năng phản hồi chưa sẵn sàng.')),
+      );
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _submitting = true);
+    final saved = await controller.submitFeedback(
+      FeedbackInfo(
+        id: '',
+        patientId: patient.id,
+        title: _title.text.trim(),
+        category: _category!.name,
+        content: _content.text.trim(),
+        rating: _rating!.toDouble(),
+      ),
+    );
+    if (!mounted) return;
+    if (!saved) {
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            controller.errorMessage ?? 'Không thể gửi phản hồi. Vui lòng thử lại.',
+          ),
+        ),
+      );
+      return;
+    }
+    await controller.loadFeedbacks(patient.id);
+    if (!mounted) return;
+    _title.clear();
+    _content.clear();
+    setState(() {
+      _submitting = false;
+      _category = null;
+      _rating = null;
     });
     final showHistory = await showDialog<bool>(
       context: context,
@@ -57,9 +135,9 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
           Icons.check_circle_outline,
           color: AppColors.textOnPrimary,
         ),
-        title: const Text('Phản hồi mẫu đã được ghi nhận trong phiên demo'),
+        title: const Text('Phản hồi đã được gửi'),
         content: const Text(
-          'Đây là thao tác mô phỏng giao diện. Phản hồi chưa được gửi đến hệ thống.',
+          'Cảm ơn bạn đã chia sẻ ý kiến. Phản hồi đã được lưu và đang chờ tiếp nhận.',
         ),
         actions: [
           TextButton(
@@ -68,14 +146,13 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Xem lịch sử mẫu'),
+            child: const Text('Xem lịch sử'),
           ),
         ],
       ),
     );
     if (!mounted) return;
     setState(() {
-      _submitting = false;
       if (showHistory == true) _filter = null;
     });
     if (showHistory == true) _tabs.animateTo(1);
@@ -83,7 +160,13 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
 
   @override
   Widget build(BuildContext context) {
-    final history = _history
+    final patient = context.watch<PatientProfileController?>()?.patient;
+    final controller = context.watch<FeedbackController?>();
+    if (patient != null && _loadedPatientId != patient.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
+    }
+    final persistedHistory = controller?.feedbacks.map(_toUiModel) ?? const [];
+    final history = [...widget.history, ...persistedHistory]
         .where((item) => _filter == null || item.status == _filter)
         .toList();
     return Theme(
@@ -137,9 +220,7 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
                       key: const PageStorageKey('feedback-history'),
                       padding: const EdgeInsets.all(16),
                       children: [
-                        const Text(
-                          'Lịch sử mẫu • Chỉ lưu trong phiên demo, chưa gửi đến hệ thống.',
-                        ),
+                        const Text('Các phản hồi bạn đã gửi đến HealWay.'),
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
@@ -159,6 +240,20 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
                           ],
                         ),
                         const SizedBox(height: 16),
+                        if (controller?.isLoading == true)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 16),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                        if (controller?.isError == true)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Text(
+                              controller?.errorMessage ??
+                                  'Không thể tải lịch sử phản hồi.',
+                              style: const TextStyle(color: AppColors.error),
+                            ),
+                          ),
                         if (history.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(24),
@@ -180,7 +275,7 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
                                 ),
                                 const SizedBox(height: 12),
                                 const Text(
-                                  'Những phản hồi bạn đã gửi sẽ được hiển thị tại đây khi hệ thống được kết nối.',
+                                  'Những phản hồi bạn đã gửi sẽ được hiển thị tại đây.',
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 16),

@@ -6,6 +6,9 @@ class FeedbackController extends ViewStateController {
   FeedbackController(this._repository);
 
   final FeedbackRepository _repository;
+  List<FeedbackInfo> _feedbacks = const [];
+
+  List<FeedbackInfo> get feedbacks => _feedbacks;
 
   String? validateFeedback(FeedbackInfo feedback) {
     if (feedback.content.trim().isEmpty) {
@@ -33,6 +36,19 @@ class FeedbackController extends ViewStateController {
     } catch (error) {
       if (isCurrent(token)) setState(ViewState.error, error);
       return false;
+    }
+  }
+
+  Future<void> loadFeedbacks(String patientId) async {
+    _feedbacks = const [];
+    final token = beginRequest();
+    try {
+      final values = await _repository.getFeedbacksByPatient(patientId);
+      if (!isCurrent(token)) return;
+      _feedbacks = List.unmodifiable(values);
+      setState(values.isEmpty ? ViewState.empty : ViewState.success);
+    } catch (error) {
+      if (isCurrent(token)) setState(ViewState.error, error);
     }
   }
 }

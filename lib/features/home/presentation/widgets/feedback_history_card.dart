@@ -40,7 +40,9 @@ class FeedbackHistoryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${feedback.status.label} (Demo)',
+                    feedback.isDemo
+                        ? '${feedback.status.label} (Demo)'
+                        : feedback.status.label,
                     style: const TextStyle(color: AppColors.textOnPrimary),
                   ),
                 ],

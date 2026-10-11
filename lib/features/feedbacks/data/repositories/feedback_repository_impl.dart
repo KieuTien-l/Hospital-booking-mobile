@@ -9,5 +9,9 @@ class FeedbackRepositoryImpl implements FeedbackRepository {
   @override
   Future<void> submitFeedback(FeedbackInfo feedback) =>
       _datasource.submitFeedback(feedback);
+
+  @override
+  Future<List<FeedbackInfo>> getFeedbacksByPatient(String patientId) =>
+      _datasource.getFeedbacksByPatient(patientId);
 }
 

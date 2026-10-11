@@ -27,6 +27,7 @@ class FeedbackUiModel {
     required this.status,
     this.rating,
     this.response,
+    this.isDemo = false,
   });
   final String title;
   final String content;
@@ -35,4 +36,5 @@ class FeedbackUiModel {
   final FeedbackStatus status;
   final int? rating;
   final String? response;
+  final bool isDemo;
 }

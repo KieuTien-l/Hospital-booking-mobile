@@ -51,7 +51,7 @@ class FeedbackForm extends StatelessWidget {
                     'Chia sẻ trải nghiệm, góp ý hoặc những vấn đề bạn gặp phải để HealWay ngày càng hoàn thiện hơn.',
                   ),
                   SizedBox(height: 10),
-                  Text('Chế độ demo • Phản hồi chưa được gửi đến hệ thống.'),
+                  Text('Phản hồi sẽ được gửi trực tiếp đến hệ thống HealWay.'),
                 ],
               ),
             ),

@@ -4,6 +4,8 @@ class FeedbackInfo {
     required this.patientId,
     required this.content,
     required this.rating,
+    this.title,
+    this.category,
     this.createdAt,
   });
 
@@ -11,6 +13,8 @@ class FeedbackInfo {
   final String patientId;
   final String content;
   final double rating;
+  final String? title;
+  final String? category;
   final DateTime? createdAt;
 }
 

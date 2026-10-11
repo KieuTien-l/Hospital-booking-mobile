@@ -52,7 +52,7 @@ Future<void> tapFeedback(WidgetTester tester, String label) async {
 }
 
 void main() {
-  testWidgets('Validation blocks submission and draft survives tabs and demo', (
+  testWidgets('Validation blocks submission and draft survives tabs', (
     tester,
   ) async {
     await showFeedback(tester);
@@ -60,7 +60,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('feedback-submit')));
     await tester.pumpAndSettle();
     expect(
-      find.text('Phản hồi mẫu đã được ghi nhận trong phiên demo'),
+      find.text('Phản hồi đã được gửi'),
       findsNothing,
     );
     await tapFeedback(tester, 'Góp ý');
@@ -89,19 +89,20 @@ void main() {
     );
     await tapFeedback(tester, 'Gửi phản hồi');
     expect(
-      find.text('Phản hồi mẫu đã được ghi nhận trong phiên demo'),
+      find.text('Vui lòng cập nhật hồ sơ bệnh nhân trước khi gửi phản hồi.'),
       findsOneWidget,
     );
-    await tapFeedback(tester, 'Xem lịch sử mẫu');
-    await tapFeedback(tester, 'Góp ý mới');
+    await tapFeedback(tester, 'Lịch sử');
+    await tapFeedback(tester, 'Góp ý giao diện đặt khám');
     expect(find.text('Chi tiết phản hồi'), findsOneWidget);
-    expect(find.text('Nội dung góp ý đủ dài để gửi demo.'), findsOneWidget);
+    expect(
+      find.text('Mong muốn giao diện chọn ngày khám dễ quan sát hơn.'),
+      findsOneWidget,
+    );
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(
-      find.text(
-        'Lịch sử mẫu • Chỉ lưu trong phiên demo, chưa gửi đến hệ thống.',
-      ),
+      find.text('Các phản hồi bạn đã gửi đến HealWay.'),
       findsOneWidget,
     );
     expect(find.text('Liên kết hồ sơ'), findsNothing);

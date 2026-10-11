@@ -26,7 +26,11 @@ class FeedbackDetailPage extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                const Text('Dữ liệu minh họa • Không phải phản hồi thực tế.'),
+                Text(
+                  feedback.isDemo
+                      ? 'Dữ liệu minh họa • Không phải phản hồi thực tế.'
+                      : 'Phản hồi đã được gửi đến hệ thống HealWay.',
+                ),
                 const SizedBox(height: 16),
                 Text(
                   feedback.title,
@@ -36,7 +40,11 @@ class FeedbackDetailPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(feedback.category.label),
                 Text(feedback.dateLabel),
-                Text('${feedback.status.label} (Demo)'),
+                Text(
+                  feedback.isDemo
+                      ? '${feedback.status.label} (Demo)'
+                      : feedback.status.label,
+                ),
                 if (feedback.rating != null)
                   Text(
                     'Đánh giá: ${feedback.rating}/5 sao — ${FeedbackRating.labels[feedback.rating! - 1]}',
@@ -59,8 +67,10 @@ class FeedbackDetailPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Phản hồi từ HealWay (minh họa)',
+                          Text(
+                            feedback.isDemo
+                                ? 'Phản hồi từ HealWay (minh họa)'
+                                : 'Phản hồi từ HealWay',
                             style: TextStyle(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 12),

@@ -9,6 +9,8 @@ class FeedbackModel extends FeedbackInfo {
     required super.patientId,
     required super.content,
     required super.rating,
+    super.title,
+    super.category,
     super.createdAt,
   });
 
@@ -24,6 +26,8 @@ class FeedbackModel extends FeedbackInfo {
       patientId: readReferenceId(data['patientId']),
       content: readString(data['content']),
       rating: readDouble(data['rating'], fallback: 5),
+      title: readString(data['title'], fallback: ''),
+      category: readString(data['category'], fallback: ''),
       createdAt: readDateTime(data['createdAt']),
     );
   }
@@ -33,6 +37,9 @@ class FeedbackModel extends FeedbackInfo {
       'patientId': patientId,
       'content': content,
       'rating': rating,
+      if (title != null && title!.trim().isNotEmpty) 'title': title,
+      if (category != null && category!.trim().isNotEmpty)
+        'category': category,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

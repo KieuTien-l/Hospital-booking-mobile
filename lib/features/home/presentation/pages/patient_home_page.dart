@@ -21,7 +21,6 @@ import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import 'usage_guide_page.dart';
 import 'customer_feedback_page.dart';
-import '../models/feedback_demo_data.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
 import '../widgets/other_functions_section.dart';
@@ -56,7 +55,9 @@ class _PatientHomePageState extends State<PatientHomePage> {
   void _open(String title, [String? content]) {
     if (title == 'Lắng nghe khách hàng') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const CustomerFeedbackPage(history: FeedbackDemoData.history)));
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const CustomerFeedbackPage()),
+      );
       return;
     }
     if (title == 'Hướng dẫn sử dụng') {
