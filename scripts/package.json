@@ -17,6 +17,8 @@
     "seed-notifications:apply": "node seed-test-notifications.mjs --apply",
     "seed-health-record:dry-run": "node seed-health-record-sample.mjs",
     "seed-health-record:apply": "node seed-health-record-sample.mjs --apply",
+    "seed-test-results:dry-run": "node seed-test-results-sample.mjs",
+    "seed-test-results:apply": "node seed-test-results-sample.mjs --apply",
     "seed-multispecialty:dry-run": "node seed-multispecialty-booking-data.mjs",
     "seed-multispecialty:apply": "node seed-multispecialty-booking-data.mjs --apply",
     "audit-booking": "node audit-booking-data.mjs"

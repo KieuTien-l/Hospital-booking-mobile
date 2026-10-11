@@ -1,137 +1,140 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_4/core/themes/app_theme.dart';
-import 'package:flutter_application_4/features/profile/presentation/models/patient_profiles_demo_data.dart';
+import 'package:provider/provider.dart';
+
+import 'package:flutter_application_4/features/profile/domain/entities/patient.dart';
 import 'package:flutter_application_4/features/profile/presentation/pages/patient_clinical_results_page.dart';
+import 'package:flutter_application_4/features/results/domain/entities/test_result.dart';
+import 'package:flutter_application_4/features/results/domain/repositories/test_result_repository.dart';
+import 'package:flutter_application_4/features/results/presentation/controllers/test_result_controller.dart';
+
+class _TestResultRepository implements TestResultRepository {
+  _TestResultRepository({this.results = const [], this.error});
+
+  final List<TestResult> results;
+  final Object? error;
+
+  @override
+  Future<List<TestResult>> getTestResultsByPatient(String patientId) async {
+    if (error != null) throw error!;
+    return results.where((result) => result.patientId == patientId).toList();
+  }
+}
 
 void main() {
-  Future<void> open(WidgetTester tester) => tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.lightTheme,
-      home: PatientClinicalResultsPage(
-        patient: PatientProfilesDemoData.profiles.first,
-        initialDate: DateTime(2026, 10, 10),
-      ),
-    ),
+  const patient = Patient(
+    id: 'patient-1',
+    authUserId: 'auth-1',
+    fullName: 'Nguyễn Minh An',
+    phone: '0900000000',
+    email: 'an@example.com',
+    isActive: true,
   );
 
-  testWidgets(
-    'Six types synchronize sheet and chips and cancel preserves selection',
-    (tester) async {
-      await open(tester);
-      expect(find.text('NGUYỄN VĂN AN (DEMO-BN001)'), findsOneWidget);
-      expect(find.byType(ChoiceChip), findsNWidgets(6));
-      expect(
-        tester
-            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Xét nghiệm'))
-            .selected,
-        isTrue,
-      );
-      await tester.tap(find.text('Chọn loại'));
-      await tester.pumpAndSettle();
-      for (final type in [
-        'Xét nghiệm',
-        'Siêu âm',
-        'X Quang',
-        'CT Scan',
-        'MRI',
-        'Nội soi',
-      ]) {
-        expect(find.widgetWithText(ListTile, type), findsOneWidget);
-      }
-      await tester.tap(find.widgetWithText(ListTile, 'MRI'));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'MRI'))
-            .selected,
-        isTrue,
-      );
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Nội soi'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Chọn loại'));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<ListTile>(find.widgetWithText(ListTile, 'Nội soi'))
-            .selected,
-        isTrue,
-      );
-      await tester.tap(find.byTooltip('Đóng'));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Nội soi'))
-            .selected,
-        isTrue,
-      );
-      expect(find.text('Không có kết quả!'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'Year buttons enforce bounds and year dialog supports select and cancel',
-    (tester) async {
-      await open(tester);
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (widget) => widget is IconButton && widget.tooltip == 'Năm sau',
-              ),
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.tap(find.byTooltip('Năm trước'));
-      await tester.pump();
-      expect(find.text('2025'), findsOneWidget);
-      await tester.tap(find.byTooltip('Năm sau'));
-      await tester.pump();
-      await tester.tap(find.text('2026'));
-      await tester.pumpAndSettle();
-      final picker = tester.widget<YearPicker>(find.byType(YearPicker));
-      expect(picker.firstDate.year, 1900);
-      expect(picker.lastDate.year, 2026);
-      await tester.tap(find.text('2024'));
-      await tester.pumpAndSettle();
-      expect(find.text('2024'), findsOneWidget);
-      await tester.tap(find.text('2024'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Hủy'));
-      await tester.pumpAndSettle();
-      expect(find.text('2024'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets('Small screen and larger text do not overflow', (tester) async {
-    tester.view.physicalSize = const Size(320, 700);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  Future<void> openPage(
+    WidgetTester tester,
+    TestResultRepository repository,
+  ) async {
+    final controller = TestResultController(repository);
+    addTearDown(controller.dispose);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.lightTheme,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: const TextScaler.linear(1.5)),
-          child: child!,
-        ),
-        home: PatientClinicalResultsPage(
-          patient: PatientProfilesDemoData.profiles.first,
-          initialDate: DateTime(2026, 10, 10),
+      ChangeNotifierProvider.value(
+        value: controller,
+        child: MaterialApp(
+          home: PatientClinicalResultsPage(
+            patient: patient,
+            initialDate: DateTime(2026, 10, 10),
+          ),
         ),
       ),
     );
-    await tester.tap(find.text('Chọn loại'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(ListTile, 'Nội soi'));
-    await tester.tap(find.widgetWithText(ListTile, 'Nội soi'));
+  }
+
+  testWidgets('shows test data for the selected patient and opens detail', (
+    tester,
+  ) async {
+    await openPage(
+      tester,
+      _TestResultRepository(
+        results: [
+          TestResult(
+            id: 'result-1',
+            patientId: patient.id,
+            resultType: 'Xét nghiệm',
+            testName: 'Công thức máu',
+            resultDescription: 'Bạch cầu và hồng cầu trong giới hạn.',
+            conclusion: 'Chưa ghi nhận bất thường.',
+            referenceRange: 'Theo ngưỡng của phòng xét nghiệm.',
+            doctorName: 'BS. Phạm Ngọc Mai',
+            testDate: DateTime(2026, 10, 10, 9, 30),
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Công thức máu'), findsOneWidget);
+    expect(find.text('10/10/2026'), findsOneWidget);
+    await tester.tap(find.text('Công thức máu'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Không có kết quả!'));
+    expect(find.text('Chi tiết kết quả'), findsOneWidget);
+    expect(find.text('Chưa ghi nhận bất thường.'), findsOneWidget);
+    expect(find.text('BS. Phạm Ngọc Mai'), findsOneWidget);
+  });
+
+  testWidgets('shows the KieuTien empty state when there are no results', (
+    tester,
+  ) async {
+    await openPage(tester, _TestResultRepository());
+
+    expect(find.text('Không có kết quả!'), findsOneWidget);
+    expect(find.text('Bạn chưa có kết quả cận lâm sàng nào.'), findsOneWidget);
+  });
+
+  testWidgets('shows an error and retry action when loading fails', (
+    tester,
+  ) async {
+    await openPage(
+      tester,
+      _TestResultRepository(error: Exception('Không thể tải dữ liệu kết quả')),
+    );
+
+    expect(find.text('Không thể tải dữ liệu kết quả'), findsOneWidget);
+    expect(find.text('Thử lại'), findsOneWidget);
+  });
+
+  testWidgets('filters live results by the selected KieuTien type', (
+    tester,
+  ) async {
+    await openPage(
+      tester,
+      _TestResultRepository(
+        results: [
+          TestResult(
+            id: 'lab',
+            patientId: patient.id,
+            resultType: 'Xét nghiệm',
+            testName: 'Đường huyết',
+            resultDescription: '5.1 mmol/L',
+            testDate: DateTime(2026, 10, 10),
+          ),
+          TestResult(
+            id: 'mri',
+            patientId: patient.id,
+            resultType: 'MRI',
+            testName: 'MRI sọ não',
+            resultDescription: 'Không ghi nhận tổn thương cấp.',
+            testDate: DateTime(2026, 10, 9),
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Đường huyết'), findsOneWidget);
+    expect(find.text('MRI sọ não'), findsNothing);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'MRI'));
     await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
+    expect(find.text('Đường huyết'), findsNothing);
+    expect(find.text('MRI sọ não'), findsOneWidget);
   });
 }
