@@ -13,6 +13,7 @@ import 'booking_success_page.dart';
 typedef BookingReviewSubmitter = Future<String?> Function(
   List<AppointmentConfirmationResult> items,
 );
+import 'payment_information_page.dart';
 
 class BookingReviewPage extends StatefulWidget {
   const BookingReviewPage({
@@ -75,8 +76,13 @@ class _BookingReviewPageState extends State<BookingReviewPage> {
       if (widget.onConfirmBooking != null) {
         widget.onConfirmBooking!(List.unmodifiable(widget.items));
       } else {
-        _message(
-          'Giao diện xác nhận đã hoàn thành. Chức năng đặt khám sẽ được tích hợp sau.',
+        Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => PaymentInformationPage(
+              items: List.unmodifiable(widget.items),
+              isDemo: true,
+            ),
+          ),
         );
       }
       return;
