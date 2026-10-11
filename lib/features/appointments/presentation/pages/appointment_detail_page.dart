@@ -59,43 +59,10 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   }
 
   Future<String?> _askForCancellationReason() async {
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
+    return showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Xác nhận hủy lịch'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Lý do hủy (bắt buộc)',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Quay lại'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isEmpty) return;
-              Navigator.of(dialogContext).pop(value);
-            },
-            child: const Text('Hủy lịch'),
-          ),
-        ],
-      ),
+      builder: (_) => const _CancellationReasonDialog(),
     );
-    controller.dispose();
-    return reason;
   }
 
   void _showMessage(String message) => ScaffoldMessenger.of(context)
@@ -262,4 +229,62 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
     AppointmentStatus.noShow => 'Vắng mặt',
     AppointmentStatus.unknown => 'Chưa xác định',
   };
+}
+
+/// Owns the text controller for the whole dialog route.  The route can remain
+/// mounted briefly while its closing animation runs, so disposing a controller
+/// immediately after [showDialog] returns causes TextField to use a disposed
+/// controller during that animation.
+class _CancellationReasonDialog extends StatefulWidget {
+  const _CancellationReasonDialog();
+
+  @override
+  State<_CancellationReasonDialog> createState() =>
+      _CancellationReasonDialogState();
+}
+
+class _CancellationReasonDialogState extends State<_CancellationReasonDialog> {
+  final _reasonController = TextEditingController();
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final reason = _reasonController.text.trim();
+    if (reason.isEmpty) return;
+    Navigator.of(context).pop(reason);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Xác nhận hủy lịch'),
+    content: TextField(
+      controller: _reasonController,
+      autofocus: true,
+      textCapitalization: TextCapitalization.sentences,
+      maxLines: 3,
+      decoration: const InputDecoration(
+        labelText: 'Lý do hủy (bắt buộc)',
+        border: OutlineInputBorder(),
+      ),
+      onSubmitted: (_) => _confirm(),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Quay lại'),
+      ),
+      FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.error,
+          foregroundColor: Colors.white,
+        ),
+        onPressed: _confirm,
+        child: const Text('Hủy lịch'),
+      ),
+    ],
+  );
 }

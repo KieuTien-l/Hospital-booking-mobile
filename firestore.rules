@@ -361,7 +361,11 @@ service cloud.firestore {
     }
 
     match /BENH_NHAN/{patientId} {
-      allow read: if isAdmin() || ownsPatient(patientId);
+      // Keep the query in PatientFirebaseDatasource valid: Firestore can
+      // prove a `where('authUserId', '==', request.auth.uid)` query only when
+      // this condition is expressed against the queried document itself.
+      allow read: if isAdmin() ||
+          (signedIn() && resource.data.authUserId == request.auth.uid);
       allow create: if isAdmin() ||
           (signedIn() && request.resource.data.authUserId == request.auth.uid);
       allow update: if isAdmin() ||
