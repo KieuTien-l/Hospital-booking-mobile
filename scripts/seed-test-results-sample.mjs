@@ -85,6 +85,20 @@ const results = [
     conclusion: 'Chưa thấy tổn thương phổi cấp trên phim.',
   }),
 ];
+const resultNotifications = results.map((result) => ({
+  id: `result_available_${result.id}`,
+  data: {
+    patientId: patient.id,
+    resultId: result.id,
+    title: 'Có kết quả cận lâm sàng mới',
+    content:
+      `Kết quả ${result.data.testName} đã có. ` +
+      'Bạn có thể xem chi tiết trong mục Kết quả cận lâm sàng.',
+    isRead: false,
+    createdAt: now,
+    source: 'TEST_RESULT',
+  },
+}));
 
 if (apply) {
   const batch = firestore.batch();
@@ -95,6 +109,13 @@ if (apply) {
       { merge: true },
     );
   }
+  for (const notification of resultNotifications) {
+    batch.set(
+      firestore.collection('notifications').doc(notification.id),
+      notification.data,
+      { merge: true },
+    );
+  }
   await batch.commit();
 }
 
@@ -102,6 +123,7 @@ console.table([
   { item: 'Project', value: projectId },
   { item: 'Patient profile', value: patient.id },
   { item: 'Sample results', value: results.length },
+  { item: 'Result notifications', value: resultNotifications.length },
   { item: 'Doctor', value: doctorName },
   { item: 'Collection', value: 'KET_QUA_CLS' },
 ]);

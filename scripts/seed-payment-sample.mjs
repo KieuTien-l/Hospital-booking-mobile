@@ -66,12 +66,20 @@ if (appointmentSnapshot.empty) {
 }
 
 const samplePayments = paymentSamples(patient.id, appointmentSnapshot.docs.map((doc) => doc.id));
+const paymentNotifications = samplePayments.map(paymentNotification);
 if (apply) {
   const batch = firestore.batch();
   for (const payment of samplePayments) {
     batch.set(
       firestore.collection('THANH_TOAN').doc(payment.id),
       payment.data,
+      { merge: true },
+    );
+  }
+  for (const notification of paymentNotifications) {
+    batch.set(
+      firestore.collection('notifications').doc(notification.id),
+      notification.data,
       { merge: true },
     );
   }
@@ -83,6 +91,7 @@ console.table([
   { item: 'Patient email', value: email },
   { item: 'Linked appointments', value: appointmentSnapshot.size },
   { item: 'Test payment records', value: samplePayments.length },
+  { item: 'Payment notifications', value: paymentNotifications.length },
   { item: 'Collection', value: 'THANH_TOAN' },
 ]);
 console.log(
@@ -139,6 +148,43 @@ function paymentSamples(patientId, appointmentIds) {
       ...(template.paidAt ? { paidAt: template.paidAt } : {}),
     },
   }));
+}
+
+function paymentNotification(payment) {
+  const { amount, paymentMethod, status } = payment.data;
+  const amountLabel = `${new Intl.NumberFormat('vi-VN').format(amount)}đ`;
+  const methodLabel = paymentMethod.replaceAll('_', ' ');
+  const messages = {
+    SUCCESS: {
+      title: 'Thanh toán thành công',
+      content: `Bạn đã thanh toán ${amountLabel} qua ${methodLabel}.`,
+    },
+    PENDING: {
+      title: 'Thanh toán đang chờ xử lý',
+      content: `Khoản thanh toán ${amountLabel} qua ${methodLabel} đang được xử lý.`,
+    },
+    FAILED: {
+      title: 'Thanh toán không thành công',
+      content: `Khoản thanh toán ${amountLabel} qua ${methodLabel} chưa thành công. Vui lòng thử lại.`,
+    },
+  };
+  const message = messages[status] ?? {
+    title: 'Cập nhật thanh toán',
+    content: `Khoản thanh toán ${amountLabel} có trạng thái ${status}.`,
+  };
+  return {
+    id: `payment_${payment.id}`,
+    data: {
+      patientId: payment.data.patientId,
+      paymentId: payment.id,
+      appointmentId: payment.data.appointmentId,
+      title: message.title,
+      content: message.content,
+      isRead: false,
+      createdAt: payment.data.updatedAt,
+      source: 'TEST_PAYMENT',
+    },
+  };
 }
 
 function argumentValue(name) {
