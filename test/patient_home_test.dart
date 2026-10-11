@@ -70,6 +70,31 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('Usage guide opens from Home and returns with Back', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+        child: const MaterialApp(home: PatientHomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hướng dẫn\nsử dụng'));
+    await tester.pumpAndSettle();
+    expect(find.text('Quy trình'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Payment history opens from Home and Back returns', (
     tester,
   ) async {
