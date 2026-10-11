@@ -18,6 +18,7 @@ import '../../../profile/presentation/pages/patient_profiles_page.dart';
 import '../../../profile/presentation/pages/patient_clinical_profiles_page.dart';
 import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
+import 'usage_guide_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
 import '../widgets/other_functions_section.dart';
@@ -39,6 +40,11 @@ class _PatientHomePageState extends State<PatientHomePage> {
   String _query = '';
 
   void _open(String title, [String? content]) {
+    if (title == 'Hướng dẫn sử dụng') {
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const UsageGuidePage()));
+      return;
+    }
     if (title == 'Thanh toán viện phí') {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => PaymentHistoryPage(
