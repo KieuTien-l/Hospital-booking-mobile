@@ -143,6 +143,41 @@ service cloud.firestore {
           appointment.data.createdAt == request.time;
     }
 
+    // A cancellation notification is valid only when its paired appointment
+    // has been cancelled by the same patient in the current transaction.
+    function canCreateOwnCancellationNotification() {
+      let appointment = getAfter(/databases/$(database)/documents/LICH_HEN/$(request.resource.data.appointmentId));
+      return request.resource.data.keys().hasAll([
+            'patientId',
+            'appointmentId',
+            'title',
+            'content',
+            'isRead',
+            'createdAt'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'patientId',
+            'appointmentId',
+            'title',
+            'content',
+            'isRead',
+            'createdAt'
+          ]) &&
+          request.resource.data.patientId is string &&
+          request.resource.data.appointmentId is string &&
+          request.resource.data.title == 'Hủy lịch thành công' &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() > 0 &&
+          request.resource.data.content.size() <= 300 &&
+          request.resource.data.isRead == false &&
+          request.resource.data.createdAt is timestamp &&
+          request.resource.data.createdAt == request.time &&
+          ownsPatient(request.resource.data.patientId) &&
+          appointment.data.patientId == request.resource.data.patientId &&
+          appointment.data.status == 'CANCELLED' &&
+          appointment.data.updatedAt == request.time;
+    }
+
     function canBookSlot(slotId) {
       let appointment = getAfter(/databases/$(database)/documents/LICH_HEN/$(request.resource.data.appointmentId));
       let newCount = request.resource.data.bookedCount;
@@ -458,7 +493,8 @@ service cloud.firestore {
       allow create: if isAdmin() ||
           (request.resource.data.doctorId is string &&
               isDoctor(request.resource.data.doctorId)) ||
-          canCreateOwnBookingNotification();
+          canCreateOwnBookingNotification() ||
+          canCreateOwnCancellationNotification();
       allow update: if isAdmin() ||
           (ownsPatient(resource.data.patientId) &&
               request.resource.data.patientId == resource.data.patientId &&

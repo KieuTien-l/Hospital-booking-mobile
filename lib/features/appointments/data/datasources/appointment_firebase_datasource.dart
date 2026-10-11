@@ -233,6 +233,7 @@ class AppointmentFirebaseDatasource {
     }
 
     final appointmentRef = _appointments.doc(normalizedId);
+    final notificationRef = _notifications.doc();
 
     return _firestore.runTransaction((transaction) async {
       final appSnapshot = await transaction.get(appointmentRef);
@@ -275,6 +276,15 @@ class AppointmentFirebaseDatasource {
         });
       }
 
+      transaction.set(notificationRef, {
+        'patientId': appointment.patientId,
+        'appointmentId': appointment.id,
+        'title': 'Hủy lịch thành công',
+        'content': _cancellationNotificationContent(appointment),
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
       return AppointmentModel(
         id: appointment.id,
         patientId: appointment.patientId,
@@ -299,6 +309,17 @@ class AppointmentFirebaseDatasource {
         updatedAt: DateTime.now(),
       );
     });
+  }
+
+  String _cancellationNotificationContent(Appointment appointment) {
+    final date = appointment.appointmentDate;
+    final dateLabel = date == null
+        ? ''
+        : ' ngày ${date.day.toString().padLeft(2, '0')}/'
+            '${date.month.toString().padLeft(2, '0')}/${date.year}';
+    final timeLabel = appointment.startTime?.trim() ?? '';
+    final scheduleLabel = timeLabel.isEmpty ? dateLabel : ' lúc $timeLabel$dateLabel';
+    return 'Lịch hẹn$scheduleLabel đã được hủy. Khung giờ đã được giải phóng.';
   }
 
   Future<Appointment> rescheduleAppointment({

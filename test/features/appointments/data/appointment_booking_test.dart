@@ -296,6 +296,13 @@ void main() {
     expect(slot['appointmentId'], saved.id);
     expect(slot['reservationCounts'], isEmpty);
     expect(appointment['status'], 'CANCELLED');
+    final cancellationNotification = store.documents.values.singleWhere(
+      (document) => document['title'] == 'Hủy lịch thành công',
+    );
+    expect(cancellationNotification['patientId'], 'patient-1');
+    expect(cancellationNotification['appointmentId'], saved.id);
+    expect(cancellationNotification['isRead'], false);
+    expect(cancellationNotification['content'], contains('đã được hủy'));
   });
 
   test(
