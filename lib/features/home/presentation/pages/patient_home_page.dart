@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../../appointments/presentation/pages/patient_appointments_page.dart';
 import '../../../appointments/presentation/pages/select_appointment_date_page.dart';
-import '../../../appointments/presentation/models/payment_demo_data.dart';
 import '../../../appointments/presentation/pages/payment_history_page.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -62,18 +61,15 @@ class _PatientHomePageState extends State<PatientHomePage> {
     }
     if (title == 'Hướng dẫn sử dụng') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const UsageGuidePage()));
+      Navigator.of(
+        context,
+      ).push<void>(MaterialPageRoute(builder: (_) => const UsageGuidePage()));
       return;
     }
     if (title == 'Thanh toán viện phí') {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => PaymentHistoryPage(
-            transactions: PaymentDemoData.transactions,
-            isDemo: true,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const PaymentHistoryPage()),
       );
       return;
     }

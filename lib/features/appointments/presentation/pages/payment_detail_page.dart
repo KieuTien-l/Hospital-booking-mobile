@@ -23,23 +23,22 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
     isDemo: payment.isDemo,
     children: [
       PaymentSummaryCard(payment: payment),
-      BookingReviewPatientCard(
-        information: payment.items.isEmpty
-            ? null
-            : payment.items.first.information,
-        expanded: _expanded,
-        onToggle: () => setState(() => _expanded = !_expanded),
-      ),
+      if (payment.items.isNotEmpty)
+        BookingReviewPatientCard(
+          information: payment.items.first.information,
+          expanded: _expanded,
+          onToggle: () => setState(() => _expanded = !_expanded),
+        ),
       for (final item in payment.items)
         AppointmentSummaryCard(information: item.information),
-      if (payment.status == PaymentStatus.success && payment.isDemo)
+      if (payment.status == PaymentStatus.success)
         FilledButton(
           onPressed: () => Navigator.of(context).push<void>(
             MaterialPageRoute(
               builder: (_) => PaymentReceiptPage(payment: payment),
             ),
           ),
-          child: const Text('Xem biên lai mẫu'),
+          child: Text(payment.isDemo ? 'Xem biên lai mẫu' : 'Xem biên lai'),
         ),
     ],
   );

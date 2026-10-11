@@ -10,14 +10,25 @@ class PaymentReceiptPage extends StatelessWidget {
   final PaymentUiModel payment;
   @override
   Widget build(BuildContext context) => PaymentPageLayout(
-    title: 'Biên lai mẫu',
+    title: payment.isDemo ? 'Biên lai mẫu' : 'Biên lai thanh toán',
     isDemo: payment.isDemo,
-    children: payment.isDemo && payment.status == PaymentStatus.success
+    children: payment.status == PaymentStatus.success
         ? [
-            const Text(
-              'MẪU MINH HỌA • KHÔNG CÓ GIÁ TRỊ THANH TOÁN',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
+            if (payment.isDemo)
+              const Text(
+                'MẪU MINH HỌA • KHÔNG CÓ GIÁ TRỊ THANH TOÁN',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              )
+            else
+              const Text(
+                'Biên lai điện tử theo dữ liệu thanh toán của bệnh viện.',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            if (payment.isTestData)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('DỮ LIỆU KIỂM THỬ • Không dùng để đối soát.'),
+              ),
             const SizedBox(height: 16),
             PaymentSummaryCard(payment: payment),
             if (payment.items.isNotEmpty)
@@ -29,9 +40,10 @@ class PaymentReceiptPage extends StatelessWidget {
               Text('Mã hồ sơ: ${payment.items.first.information.patient!.id}'),
             for (final item in payment.items)
               AppointmentSummaryCard(information: item.information),
-            const Text(
-              'Biên lai chính thức sẽ được cung cấp sau khi tích hợp hệ thống thanh toán.',
-            ),
+            if (payment.isDemo)
+              const Text(
+                'Biên lai chính thức sẽ được cung cấp sau khi tích hợp hệ thống thanh toán.',
+              ),
           ]
         : [const Text('Chưa có biên lai được xác nhận.')],
   );

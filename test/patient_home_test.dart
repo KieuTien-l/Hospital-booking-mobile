@@ -135,7 +135,7 @@ void main() {
     await tester.tap(find.text('Thanh toán\nviện phí'));
     await tester.pumpAndSettle();
     expect(find.text('Thanh toán viện phí'), findsOneWidget);
-    expect(find.text('DEMO-TT001'), findsOneWidget);
+    expect(find.text('Chưa có giao dịch thanh toán.'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(

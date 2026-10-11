@@ -16,6 +16,10 @@ import 'features/feedbacks/data/datasources/feedback_firebase_datasource.dart';
 import 'features/feedbacks/data/repositories/feedback_repository_impl.dart';
 import 'features/feedbacks/domain/repositories/feedback_repository.dart';
 import 'features/feedbacks/presentation/controllers/feedback_controller.dart';
+import 'features/payments/data/datasources/patient_payment_firebase_datasource.dart';
+import 'features/payments/data/repositories/patient_payment_repository_impl.dart';
+import 'features/payments/domain/repositories/patient_payment_repository.dart';
+import 'features/payments/presentation/controllers/patient_payment_controller.dart';
 
 import 'core/themes/app_theme.dart';
 import 'features/appointments/data/datasources/appointment_firebase_datasource.dart';
@@ -106,6 +110,11 @@ class App extends StatelessWidget {
             FeedbackFirebaseDatasource(FirebaseFirestore.instance),
           ),
         ),
+        Provider<PatientPaymentRepository>(
+          create: (_) => PatientPaymentRepositoryImpl(
+            PatientPaymentFirebaseDatasource(FirebaseFirestore.instance),
+          ),
+        ),
         ChangeNotifierProvider(
           create: (context) =>
               TestResultController(context.read<TestResultRepository>()),
@@ -113,6 +122,11 @@ class App extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) =>
               FeedbackController(context.read<FeedbackRepository>()),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => PatientPaymentController(
+            context.read<PatientPaymentRepository>(),
+          ),
         ),
         Provider<HealthRecordRepository>(
           create: (_) => HealthRecordRepositoryImpl(

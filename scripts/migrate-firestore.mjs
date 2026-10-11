@@ -509,6 +509,7 @@ function mapChatMessage(data) {
 function mapPayment(data) {
   const changes = {};
   copy(data, changes, 'transactionCode', ['MaGiaoDich']);
+  copy(data, changes, 'patientId', ['MaBN'], referenceId);
   copy(data, changes, 'appointmentId', ['MaLH'], referenceId);
   copy(data, changes, 'createdAt', ['NgayTao']);
   copy(data, changes, 'paymentMethod', ['PhuongThuc']);

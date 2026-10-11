@@ -415,6 +415,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /THANH_TOAN/{paymentId} {
+      allow read: if isAdmin() || ownsPatient(resource.data.patientId);
+      allow create, update, delete: if isAdmin();
+    }
+
     match /HO_SO_SUC_KHOE/{recordId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
           isDoctor(resource.data.doctorId);
