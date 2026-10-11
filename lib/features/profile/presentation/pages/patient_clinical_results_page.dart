@@ -62,7 +62,7 @@ class _PatientClinicalResultsPageState
 
   void _loadResults() {
     if (!mounted) return;
-    context.read<TestResultController>().loadResults(widget.patient.id);
+    context.read<TestResultController?>()?.loadResults(widget.patient.id);
   }
 
   void _selectType(int index) {
@@ -204,8 +204,13 @@ class _PatientClinicalResultsPageState
                     ),
                   ),
                   Expanded(
-                    child: Consumer<TestResultController>(
-                      builder: (context, controller, _) {
+                    child: Builder(
+                      builder: (context) {
+                        final controller = context
+                            .watch<TestResultController?>();
+                        if (controller == null) {
+                          return const _EmptyResults(hasAnyResult: false);
+                        }
                         if (controller.isLoading) {
                           return const AppLoadingWidget(
                             message: 'Đang tải kết quả cận lâm sàng...',
