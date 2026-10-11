@@ -43,6 +43,9 @@ class MemoryAuthRepository implements AuthRepository {
   }) async => account(UserRole.patient);
 
   @override
+  Future<void> sendPasswordResetEmail({required String email}) async {}
+
+  @override
   Future<void> logout() async {
     user = null;
     events.add(null);

@@ -77,7 +77,7 @@ class _ConfirmAppointmentPageState extends State<ConfirmAppointmentPage> {
                   AppointmentConfirmationActions(
                     information: widget.information,
                     onAddSpecialty: () => _message(
-                      'Chức năng thêm chuyên khoa chưa được hỗ trợ.',
+                      'Mỗi lần xác nhận hiện đặt một chuyên khoa. Hãy hoàn tất hoặc quay lại để chọn chuyên khoa khác.',
                     ),
                     onContinue:
                         _healthInsurance == null || _privateInsurance == null

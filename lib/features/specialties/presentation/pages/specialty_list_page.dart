@@ -41,15 +41,9 @@ class _SpecialtyListPageState extends State<SpecialtyListPage> {
       widget.onSpecialtySelected!(specialty);
       return;
     }
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            'Đã chọn ${specialty.name}. Bước chọn bác sĩ đang được hoàn thiện.',
-          ),
-        ),
-      );
+    // The page is also usable as a standalone picker. Its caller can await
+    // the selected specialty instead of receiving a dead-end placeholder.
+    Navigator.of(context).pop(specialty);
   }
 
   @override

@@ -106,6 +106,17 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Keeps the signed-in session intact while requesting Firebase's reset
+  /// email. The page owns its short-lived submit/loading UI state.
+  Future<String?> sendPasswordResetEmail(String email) async {
+    try {
+      await _authRepo.sendPasswordResetEmail(email: email);
+      return null;
+    } catch (error) {
+      return _messageFrom(error);
+    }
+  }
+
   Future<void> logout() async {
     _status = AuthStatus.loading;
     notifyListeners();

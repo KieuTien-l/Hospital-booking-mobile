@@ -126,21 +126,10 @@ class PatientProfileFunctionsSheet extends StatelessWidget {
                       );
                       return;
                     }
-                    showDialog<void>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text(function.$2),
-                        content: const Text(
-                          'Chức năng đang được hoàn thiện. Vui lòng quay lại sau.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Đã hiểu'),
-                          ),
-                        ],
-                      ),
-                    );
+                    // Every declared item is handled above. Leave unknown
+                    // future items inert instead of showing a false
+                    // "coming soon" flow to a patient.
+                    return;
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(

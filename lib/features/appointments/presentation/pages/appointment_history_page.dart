@@ -318,25 +318,15 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
             widget.onAppointmentTap!(visible[index]);
             return;
           }
-          if (_usesLiveData) {
-            Navigator.of(context)
-                .push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) => AppointmentDetailPage(item: visible[index]),
-                  ),
-                )
-                .then((_) => _loadLiveAppointments());
-            return;
-          }
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Chức năng xem chi tiết lịch khám đang được hoàn thiện.',
+          Navigator.of(context)
+              .push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => AppointmentDetailPage(item: visible[index]),
                 ),
-              ),
-            );
+              )
+              .then((_) {
+                if (_usesLiveData) _loadLiveAppointments();
+              });
         },
       ),
     );

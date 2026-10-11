@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../pages/patient_support_page.dart';
 
 class HelpSupportCard extends StatelessWidget {
   const HelpSupportCard({super.key});
@@ -31,22 +32,12 @@ class HelpSupportCard extends StatelessWidget {
           const SizedBox(height: 10),
           const Text('Liên hệ bộ phận hỗ trợ của HealWay để được hướng dẫn.'),
           const SizedBox(height: 8),
-          const Text(
-            'Thông tin liên hệ đang được cập nhật',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
           TextButton.icon(
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Liên hệ HealWay'),
-                content: const Text('Thông tin liên hệ đang được cập nhật'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Đã hiểu'),
-                  ),
-                ],
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => const PatientSupportPage(
+                  kind: PatientSupportKind.contact,
+                ),
               ),
             ),
             icon: const Icon(Icons.contact_support_outlined),

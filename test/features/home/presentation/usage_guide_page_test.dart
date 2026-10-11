@@ -124,13 +124,14 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
-  testWidgets('Contact shows placeholder and FAQ fits large text', (
+  testWidgets('Contact opens support and FAQ fits large text', (
     tester,
   ) async {
     await showHelp(tester, scale: 1.5);
     await tapHelp(tester, 'Liên hệ');
-    expect(find.text('Liên hệ HealWay'), findsOneWidget);
-    await tapHelp(tester, 'Đã hiểu');
+    expect(find.text('Kênh hỗ trợ trong HealWay'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tapHelp(tester, 'Câu hỏi thường gặp');
     await tapHelp(tester, 'Thanh toán');
     await tapHelp(tester, UsageGuideDemoData.faqs.last.question);

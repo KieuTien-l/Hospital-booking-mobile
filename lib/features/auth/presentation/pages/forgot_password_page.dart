@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../controllers/auth_controller.dart';
 import '../validators/auth_validators.dart';
 import 'login_page.dart';
 
@@ -15,6 +17,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   static const _blue = Color(0xFF0060EF);
   static const _navy = Color(0xFF143D70);
   final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  var _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
   void _backToLogin() {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -31,6 +41,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       children: [
         _label('Email'),
         TextFormField(
+          controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           autocorrect: false,
           enableSuggestions: false,
@@ -53,11 +64,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
+    setState(() => _isSubmitting = true);
+    final error = await context.read<AuthController>().sendPasswordResetEmail(
+      _emailController.text.trim(),
+    );
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
     _showMessage(
-      'Chức năng gửi liên kết đặt lại mật khẩu chưa được kết nối Firebase.',
+      error ??
+          'Nếu email đã đăng ký, liên kết đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.',
     );
   }
 
@@ -239,7 +257,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                             ),
                                           ),
                                           child: ElevatedButton(
-                                            onPressed: _submit,
+                                            onPressed: _isSubmitting
+                                                ? null
+                                                : _submit,
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
                                                   Colors.transparent,
@@ -253,14 +273,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                               ),
                                               elevation: 0,
                                             ),
-                                            child: Text(
-                                              'Gửi liên kết đặt lại',
-                                              style: TextStyle(
-                                                fontFamily: 'BeVietnamPro',
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
+                                            child: _isSubmitting
+                                                ? const SizedBox(
+                                                    width: 22,
+                                                    height: 22,
+                                                    child: CircularProgressIndicator(
+                                                      color: Colors.white,
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Text(
+                                                    'Gửi liên kết đặt lại',
+                                                    style: TextStyle(
+                                                      fontFamily: 'BeVietnamPro',
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
                                           ),
                                         ),
                                       ],

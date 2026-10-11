@@ -209,7 +209,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Functions tab shares navigation and Home placeholder actions', (
+  testWidgets('Functions tab shares navigation and booking actions', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(412, 915);
@@ -289,6 +289,29 @@ void main() {
       0,
     );
     expect(find.byTooltip('Tìm kiếm'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Chatbot is a usable support page from the Functions tab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+        child: const MaterialApp(home: PatientHomePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.widgetWithIcon(NavigationDestination, Icons.layers_outlined),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hỏi - đáp'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hỏi đáp HealWay'), findsOneWidget);
+    expect(find.text('Câu hỏi thường gặp'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

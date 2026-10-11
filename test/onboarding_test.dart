@@ -48,6 +48,9 @@ class UnusedAuthRepository implements AuthRepository {
   Future<UserEntity?> getCurrentUser() async => null;
 
   @override
+  Future<void> sendPasswordResetEmail({required String email}) async {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

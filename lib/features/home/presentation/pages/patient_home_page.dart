@@ -6,6 +6,7 @@ import '../../../appointments/presentation/pages/select_appointment_date_page.da
 import '../../../appointments/presentation/pages/payment_history_page.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../auth/presentation/pages/forgot_password_page.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
@@ -20,6 +21,7 @@ import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import 'usage_guide_page.dart';
 import 'customer_feedback_page.dart';
+import 'patient_support_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
 import '../widgets/other_functions_section.dart';
@@ -59,6 +61,15 @@ class _PatientHomePageState extends State<PatientHomePage> {
       );
       return;
     }
+    if (title == 'Hỏi - đáp (Chatbot)') {
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.chatbot),
+        ),
+      );
+      return;
+    }
     if (title == 'Hướng dẫn sử dụng') {
       FocusScope.of(context).unfocus();
       Navigator.of(
@@ -86,6 +97,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
           builder: (_) => profileController?.patient == null
               ? const CreatePatientProfilePage()
               : const EditProfilePage(),
+        ),
+      );
+      return;
+    }
+    if (title == 'Đổi mật khẩu') {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+      );
+      return;
+    }
+    if (title == 'Cài đặt') {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.settings),
+        ),
+      );
+      return;
+    }
+    if (title == 'Chính sách & điều khoản') {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.policy),
+        ),
+      );
+      return;
+    }
+    if (title == 'Hướng dẫn khách hàng') {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const UsageGuidePage()),
+      );
+      return;
+    }
+    if (title == 'Liên hệ' || title == 'Liên hệ / Hỗ trợ') {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.contact),
+        ),
+      );
+      return;
+    }
+    if (title == 'Bảng giá dịch vụ kỹ thuật') {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.servicePrices),
         ),
       );
       return;
@@ -207,8 +262,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
               ),
               const SizedBox(height: 16),
               Text(
-                content ??
-                    'Chức năng đang được hoàn thiện. Vui lòng quay lại sau.',
+                content ?? 'Chưa có nội dung hướng dẫn cho mục này.',
                 style: const TextStyle(fontSize: 16, height: 1.6),
               ),
               const SizedBox(height: 24),

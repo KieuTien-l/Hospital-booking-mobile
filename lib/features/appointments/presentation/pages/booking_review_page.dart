@@ -169,7 +169,9 @@ class _BookingReviewPageState extends State<BookingReviewPage> {
           total: bookingReviewTotalLabel(widget.items),
           onAddSpecialty:
               widget.onAddSpecialty ??
-              () => _message('Chức năng thêm chuyên khoa chưa được hỗ trợ.'),
+              () => _message(
+                'Mỗi lần xác nhận hiện đặt một chuyên khoa. Hãy hoàn tất hoặc quay lại để chọn chuyên khoa khác.',
+              ),
           onConfirm: widget.items.any(bookingReviewItemIsValid)
               ? _submitting
                     ? null

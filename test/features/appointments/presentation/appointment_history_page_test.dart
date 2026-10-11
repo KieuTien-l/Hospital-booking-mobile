@@ -96,7 +96,7 @@ void main() {
     );
   });
 
-  testWidgets('Tabs filter demo cards and tap does not enter booking flow', (
+  testWidgets('Tabs filter cards and tap opens appointment detail', (
     tester,
   ) async {
     await open(tester);
@@ -121,10 +121,8 @@ void main() {
     }
     await tester.tap(find.text('DEMO-AP004'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Chức năng xem chi tiết lịch khám đang được hoàn thiện.'),
-      findsOneWidget,
-    );
+    expect(find.text('Chi tiết lịch hẹn'), findsOneWidget);
+    expect(find.text('DEMO-AP004'), findsOneWidget);
     expect(find.text('Chọn hồ sơ'), findsNothing);
     expect(tester.takeException(), isNull);
   });

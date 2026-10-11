@@ -16,5 +16,8 @@ abstract class AuthRepository {
     required String phone,
   });
 
+  /// Sends Firebase's password-reset email to an already registered account.
+  Future<void> sendPasswordResetEmail({required String email});
+
   Future<void> logout();
 }

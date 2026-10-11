@@ -126,6 +126,18 @@ class AuthFirebaseDatasource {
 
   Future<void> logout() => _auth.signOut();
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (error) {
+      throw AuthException(_passwordResetMessage(error));
+    } catch (_) {
+      throw const AuthException(
+        'Không thể gửi liên kết đặt lại mật khẩu. Vui lòng thử lại.',
+      );
+    }
+  }
+
   Future<UserModel> _getUserProfile(User firebaseUser) async {
     try {
       final idToken = await firebaseUser.getIdToken();
@@ -172,6 +184,23 @@ class AuthFirebaseDatasource {
         return 'The email address is invalid.';
       default:
         return 'Unable to register. Please try again.';
+    }
+  }
+
+  String _passwordResetMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'invalid-email':
+        return 'Email không hợp lệ.';
+      case 'user-not-found':
+        // Firebase can intentionally hide whether an email exists. The
+        // neutral message is safer for both cases.
+        return 'Nếu email đã đăng ký, liên kết đặt lại mật khẩu sẽ được gửi.';
+      case 'too-many-requests':
+        return 'Bạn đã yêu cầu quá nhiều lần. Vui lòng chờ một lúc rồi thử lại.';
+      case 'network-request-failed':
+        return 'Không thể kết nối Internet. Vui lòng kiểm tra mạng rồi thử lại.';
+      default:
+        return 'Không thể gửi liên kết đặt lại mật khẩu. Vui lòng thử lại.';
     }
   }
 }
