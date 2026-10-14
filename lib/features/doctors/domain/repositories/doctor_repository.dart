@@ -6,5 +6,8 @@ abstract class DoctorRepository {
 
   Future<Doctor?> getDoctorById(String doctorId);
 
+  /// Finds the active doctor profile for a Firebase Authentication user.
+  Future<Doctor?> getDoctorByUserId(String userId);
+
   Future<List<Doctor>> getDoctorsBySpecialty(String specialtyId);
 }

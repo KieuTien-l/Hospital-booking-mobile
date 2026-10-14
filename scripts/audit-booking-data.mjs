@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 const projectId = 'bookinghospitalapp';
 const startDate = argumentValue('--start-date') ?? '2026-10-20';
 const days = Number(argumentValue('--days') ?? '7');
+const strict = process.argv.slice(2).includes('--strict');
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 
 if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
@@ -33,13 +34,16 @@ if (getApps().length === 0) {
 }
 
 const firestore = getFirestore();
-const [specialtiesSnapshot, doctorsSnapshot, patientsSnapshot, schedulesSnapshot,
-  appointmentsSnapshot, notificationsSnapshot] = await Promise.all([
+const [accountsSnapshot, specialtiesSnapshot, doctorsSnapshot, patientsSnapshot,
+  schedulesSnapshot, appointmentsSnapshot, paymentsSnapshot,
+  notificationsSnapshot] = await Promise.all([
+  firestore.collection('TAI_KHOAN').get(),
   firestore.collection('CHUYEN_KHOA').get(),
   firestore.collection('BAC_SI').get(),
   firestore.collection('BENH_NHAN').get(),
   firestore.collection('LICH_LAM_VIEC').get(),
   firestore.collection('LICH_HEN').get(),
+  firestore.collection('THANH_TOAN').get(),
   firestore.collection('notifications').get(),
 ]);
 // CA_KHAM is the largest collection after seeding. Read it in bounded pages
@@ -50,16 +54,23 @@ const slotsSnapshot = {
 
 const specialties = documentMap(specialtiesSnapshot);
 const doctors = documentMap(doctorsSnapshot);
+const accounts = documentMap(accountsSnapshot);
 const patients = documentMap(patientsSnapshot);
 const schedules = documentMap(schedulesSnapshot);
 const slots = documentMap(slotsSnapshot);
 const appointments = documentMap(appointmentsSnapshot);
+const payments = documentMap(paymentsSnapshot);
 const notifications = documentMap(notificationsSnapshot);
 const dates = Array.from({ length: days }, (_, index) =>
   addVietnamDays(startDate, index),
 );
 
 const findings = {
+  patientProfilesWithMissingIdentity: [],
+  patientProfilesWithoutAccount: [],
+  patientAccountsWithoutProfile: [],
+  duplicatePatientProfiles: [],
+  doctorProfilesWithoutAccountLink: [],
   doctorsWithoutActiveSpecialty: [],
   schedulesWithInvalidDoctor: [],
   schedulesWithInvalidDate: [],
@@ -70,9 +81,49 @@ const findings = {
   slotsWithReservationMismatch: [],
   appointmentsWithInvalidReferences: [],
   appointmentsWithScheduleMismatch: [],
+  paymentsWithInvalidPatient: [],
+  paymentsWithInvalidAppointment: [],
+  paymentsWithPatientMismatch: [],
+  paymentsWithInvalidAmount: [],
+  paymentsWithInvalidStatus: [],
+  successfulPaymentsWithoutPaidAt: [],
   notificationsWithInvalidPatient: [],
   notificationsWithInvalidAppointment: [],
 };
+
+const patientProfileIdsByAuthUserId = new Map();
+const doctorAccountIdsByLegacyKey = new Map();
+for (const [accountId, account] of accounts) {
+  if (stringValue(account.role).toLowerCase() !== 'doctor') continue;
+  const accountKey = stringValue(account.accountKey);
+  if (accountKey === '') continue;
+  const accountIds = doctorAccountIdsByLegacyKey.get(accountKey) ?? [];
+  accountIds.push(accountId);
+  doctorAccountIdsByLegacyKey.set(accountKey, accountIds);
+}
+for (const [patientId, patient] of patients) {
+  const authUserId = stringValue(patient.authUserId);
+  if (authUserId === '' || stringValue(patient.fullName) === '') {
+    findings.patientProfilesWithMissingIdentity.push(patientId);
+  }
+  if (authUserId !== '') {
+    if (!accounts.has(authUserId)) {
+      findings.patientProfilesWithoutAccount.push(patientId);
+    }
+    const ids = patientProfileIdsByAuthUserId.get(authUserId) ?? [];
+    ids.push(patientId);
+    patientProfileIdsByAuthUserId.set(authUserId, ids);
+  }
+}
+for (const [accountId, account] of accounts) {
+  if (stringValue(account.role).toLowerCase() !== 'patient') continue;
+  if (!patientProfileIdsByAuthUserId.has(accountId)) {
+    findings.patientAccountsWithoutProfile.push(accountId);
+  }
+}
+for (const [authUserId, patientIds] of patientProfileIdsByAuthUserId) {
+  if (patientIds.length > 1) findings.duplicatePatientProfiles.push(authUserId);
+}
 
 const activeSpecialtyIds = new Set(
   [...specialties.entries()]
@@ -84,6 +135,18 @@ const activeDoctors = new Map(
 );
 
 for (const [doctorId, doctor] of activeDoctors) {
+  const doctorUserId = stringValue(doctor.userId);
+  const linkedAccount = accounts.get(doctorUserId);
+  const isLinkedByAuthUid =
+      linkedAccount && stringValue(linkedAccount.role).toLowerCase() === 'doctor';
+  const legacyAccountIds = doctorAccountIdsByLegacyKey.get(doctorUserId) ?? [];
+  // Historical imports can retain more than one account record with the same
+  // accountKey. A doctor is still resolvable whenever at least one doctor
+  // account has that key; requiring exactly one would falsely flag valid
+  // dashboard logins.
+  if (!isLinkedByAuthUid && legacyAccountIds.length === 0) {
+    findings.doctorProfilesWithoutAccountLink.push(doctorId);
+  }
   if (
     typeof doctor.specialtyId !== 'string' ||
     !activeSpecialtyIds.has(doctor.specialtyId)
@@ -156,6 +219,43 @@ for (const [appointmentId, appointment] of appointments) {
   }
 }
 
+const validPaymentStatuses = new Set([
+  'PENDING',
+  'SUCCESS',
+  // Existing records and the client both use these as successful aliases.
+  'PAID',
+  'COMPLETED',
+  'FAILED',
+  'FAIL',
+  'REFUNDED',
+  'CANCELLED',
+  'CANCELED',
+]);
+const successfulPaymentStatuses = new Set(['SUCCESS', 'PAID', 'COMPLETED']);
+for (const [paymentId, payment] of payments) {
+  const patient = patients.get(payment.patientId);
+  if (!patient) findings.paymentsWithInvalidPatient.push(paymentId);
+  if (!Number.isInteger(payment.amount) || payment.amount <= 0) {
+    findings.paymentsWithInvalidAmount.push(paymentId);
+  }
+  const status = stringValue(payment.status).toUpperCase();
+  if (!validPaymentStatuses.has(status)) {
+    findings.paymentsWithInvalidStatus.push(paymentId);
+  }
+  if (successfulPaymentStatuses.has(status) && !toDate(payment.paidAt)) {
+    findings.successfulPaymentsWithoutPaidAt.push(paymentId);
+  }
+  const appointmentId = stringValue(payment.appointmentId);
+  if (appointmentId !== '') {
+    const appointment = appointments.get(appointmentId);
+    if (!appointment) {
+      findings.paymentsWithInvalidAppointment.push(paymentId);
+    } else if (appointment.patientId !== payment.patientId) {
+      findings.paymentsWithPatientMismatch.push(paymentId);
+    }
+  }
+}
+
 for (const [notificationId, notification] of notifications) {
   if (!patients.has(notification.patientId)) {
     findings.notificationsWithInvalidPatient.push(notificationId);
@@ -220,13 +320,18 @@ console.table([
   { item: 'Active specialties', value: activeSpecialtyIds.size },
   { item: 'Active doctors', value: activeDoctors.size },
   { item: 'Patients', value: patients.size },
+  { item: 'Accounts', value: accounts.size },
   { item: 'Work schedules', value: schedules.size },
   { item: 'Time slots', value: slots.size },
   { item: 'Appointments', value: appointments.size },
+  { item: 'Payments', value: payments.size },
   { item: 'Notifications', value: notifications.size },
 ]);
 console.table(findingRows);
 console.log(JSON.stringify({ coverage }, null, 2));
+if (strict && findingRows.some((row) => row.count > 0)) {
+  process.exitCode = 2;
+}
 
 function argumentValue(name) {
   const argument = process.argv
@@ -257,7 +362,13 @@ async function readCollectionInPages(collectionName, pageSize = 250) {
 }
 
 function isActive(value) {
-  return value.isActive !== false && value.status !== 'INACTIVE';
+  const status = stringValue(value.status).toUpperCase();
+  return value.isActive !== false &&
+      !new Set(['INACTIVE', 'DISABLED', 'FALSE', '0']).has(status);
+}
+
+function stringValue(value) {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function dataName(data, fallback) {

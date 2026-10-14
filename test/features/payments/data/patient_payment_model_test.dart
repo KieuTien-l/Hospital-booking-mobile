@@ -24,14 +24,16 @@ void main() {
     expect(payment.createdAt, DateTime(2026, 10, 11, 9, 30));
   });
 
-  test('recognizes the legacy patient field during migration', () {
+  test('does not read legacy payment fields after migration', () {
     final payment = PatientPaymentModel.fromMap({
       'MaBN': 'patient-legacy',
+      'paymentDate': '2026-10-11T09:30:00.000',
       'amount': 180000,
       'paymentMethod': 'VNPAY',
       'status': 'PENDING',
     }, id: 'payment-legacy');
 
-    expect(payment.patientId, 'patient-legacy');
+    expect(payment.patientId, isEmpty);
+    expect(payment.paidAt, isNull);
   });
 }

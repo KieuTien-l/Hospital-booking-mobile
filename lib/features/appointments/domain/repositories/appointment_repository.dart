@@ -4,6 +4,9 @@ import '../entities/appointment.dart';
 abstract class AppointmentRepository {
   Stream<List<Appointment>> watchAppointmentsByPatient(String patientId);
 
+  /// Streams appointments for the currently authenticated doctor profile.
+  Stream<List<Appointment>> watchAppointmentsByDoctor(String doctorId);
+
   Future<Appointment> getAppointmentById(String appointmentId);
 
   /// Atomically creates an appointment and reserves its time slot.

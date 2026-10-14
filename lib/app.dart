@@ -42,6 +42,7 @@ import 'features/doctors/domain/repositories/doctor_repository.dart';
 import 'features/doctors/domain/repositories/time_slot_repository.dart';
 import 'features/doctors/domain/repositories/work_schedule_repository.dart';
 import 'features/doctors/presentation/controllers/doctor_controller.dart';
+import 'features/doctors/presentation/controllers/doctor_dashboard_controller.dart';
 import 'features/doctors/presentation/controllers/schedule_controller.dart';
 import 'features/onboarding/data/datasources/app_preferences.dart';
 import 'features/onboarding/data/repositories/onboarding_repository_impl.dart';
@@ -159,6 +160,13 @@ class App extends StatelessWidget {
           create: (context) => ScheduleController(
             workScheduleRepository: context.read<WorkScheduleRepository>(),
             timeSlotRepository: context.read<TimeSlotRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => DoctorDashboardController(
+            doctorRepository: context.read<DoctorRepository>(),
+            workScheduleRepository: context.read<WorkScheduleRepository>(),
+            appointmentRepository: context.read<AppointmentRepository>(),
           ),
         ),
         ChangeNotifierProvider(

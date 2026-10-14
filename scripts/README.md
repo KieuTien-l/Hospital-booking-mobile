@@ -48,9 +48,13 @@ npm run cleanup:apply --prefix scripts
 
 ## Repair Auth users missing Firestore profiles
 
-Some Firebase Auth users may not have matching `TAI_KHOAN` and `BENH_NHAN`
-documents. This tool creates only the missing documents, using the Auth UID as
-the document ID and the `patient` role. Existing documents are never changed.
+Some patient Firebase Auth users may not have matching `TAI_KHOAN` and
+`BENH_NHAN` documents. This tool creates a missing account and profile using
+the Auth UID only when an Auth user has no account; when an account already
+exists, it processes only `role: patient` and skips doctor/admin accounts. For
+a single existing profile, it fills only empty identity fields from Firebase
+Auth; populated data is never overwritten and duplicate profiles are reported
+without modification.
 
 ```powershell
 npm run repair-auth:dry-run --prefix scripts
@@ -101,12 +105,30 @@ npm run seed-multispecialty:apply --prefix scripts -- --start-date=2026-10-20 --
 ## Audit booking data
 
 This is read-only. It checks document relationships and capacity/status
-consistency, then reports the number of doctors with available slots in every
-active specialty for each selected date.
+consistency, patient-account/profile integrity, payment ownership and payment
+states, then reports the number of doctors with available slots in every active
+specialty for each selected date.
 
 ```powershell
 npm run audit-booking --prefix scripts -- --start-date=2026-10-20 --days=7
 ```
+
+For CI or acceptance testing, add `--strict`. The audit remains read-only and
+returns exit code 2 if any finding is detected:
+
+```powershell
+npm run audit-backend:strict --prefix scripts -- --start-date=2026-10-20 --days=7
+```
+
+## Repair Patient data
+
+`repair-auth-profiles` now covers both failure modes: a Firebase Auth user
+without `TAI_KHOAN`, and an existing patient account without a matching
+`BENH_NHAN.authUserId`. Existing doctor and admin accounts are explicitly
+skipped. It also fills only empty patient identity fields (`fullName`, `email`,
+`phone`, `isActive`, `status`) from Firebase Auth; it does not overwrite
+populated profile data or alter duplicate profiles. Review the duplicate count
+from the dry run manually before applying.
 
 ## Add Health Record samples
 

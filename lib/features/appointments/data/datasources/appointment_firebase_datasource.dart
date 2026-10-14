@@ -49,6 +49,28 @@ class AppointmentFirebaseDatasource {
         });
   }
 
+  /// Streams appointments assigned to the authenticated doctor's profile.
+  /// Firestore rules authorize this query only for that exact doctor id.
+  Stream<List<Appointment>> watchAppointmentsByDoctor(String doctorId) {
+    final normalizedId = doctorId.trim();
+    if (normalizedId.isEmpty) return Stream.value(const []);
+
+    return _appointments
+        .where('doctorId', isEqualTo: normalizedId)
+        .snapshots()
+        .map((snapshot) {
+          final appointments = snapshot.docs
+              .map(AppointmentModel.fromFirestore)
+              .toList();
+          appointments.sort((a, b) {
+            final aDate = a.appointmentDate ?? a.bookedAt ?? a.createdAt;
+            final bDate = b.appointmentDate ?? b.bookedAt ?? b.createdAt;
+            return (bDate ?? DateTime(0)).compareTo(aDate ?? DateTime(0));
+          });
+          return List.unmodifiable(appointments);
+        });
+  }
+
   Future<Appointment> getAppointmentById(String appointmentId) async {
     final normalizedId = appointmentId.trim();
     if (normalizedId.isEmpty) {
