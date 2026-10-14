@@ -23,7 +23,8 @@
     "seed-payments:apply": "node seed-payment-sample.mjs --apply",
     "seed-multispecialty:dry-run": "node seed-multispecialty-booking-data.mjs",
     "seed-multispecialty:apply": "node seed-multispecialty-booking-data.mjs --apply",
-    "audit-booking": "node audit-booking-data.mjs"
+    "audit-booking": "node audit-booking-data.mjs",
+    "audit-backend:strict": "node audit-booking-data.mjs --strict"
   },
   "dependencies": {
     "firebase-admin": "^13.8.0"

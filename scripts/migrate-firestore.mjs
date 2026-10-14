@@ -190,6 +190,8 @@ const legacyFieldMappings = new Map([
       legacy('PhuongThuc', 'paymentMethod'),
       legacy('SoTien', 'amount'),
       legacy('ThoiGianThanhToan', 'paidAt'),
+      // Earlier app builds wrote an English but non-canonical field name.
+      legacy('paymentDate', 'paidAt'),
       legacy('TrangThai', 'status'),
     ],
   ],
@@ -515,8 +517,17 @@ function mapPayment(data) {
   copy(data, changes, 'paymentMethod', ['PhuongThuc']);
   copy(data, changes, 'amount', ['SoTien']);
   copy(data, changes, 'paidAt', ['ThoiGianThanhToan']);
+  if (isSuccessfulPayment(data.status ?? data.TrangThai)) {
+    copy(data, changes, 'paidAt', ['paymentDate']);
+  }
   copy(data, changes, 'status', ['TrangThai']);
   return changes;
+}
+
+function isSuccessfulPayment(value) {
+  return ['SUCCESS', 'PAID', 'COMPLETED'].includes(
+    String(value ?? '').trim().toUpperCase(),
+  );
 }
 
 function mapNotification(data) {

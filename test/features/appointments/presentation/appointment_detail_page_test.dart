@@ -45,7 +45,7 @@ void main() {
       bookAppointmentUseCase: BookAppointment(repository),
     );
     addTearDown(controller.dispose);
-    const appointment = Appointment(
+    final appointment = Appointment(
       id: 'appointment-1',
       patientId: 'patient-1',
       doctorId: 'doctor-1',
@@ -61,7 +61,7 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: controller,
-        child: const MaterialApp(
+        child: MaterialApp(
           home: AppointmentDetailPage(
             item: AppointmentHistoryUiModel(
               appointment: appointment,

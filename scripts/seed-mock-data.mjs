@@ -114,8 +114,8 @@ async function seedMockData() {
 
   // --- 7. THANH_TOAN (Extra) ---
   const payments = [
-    { id: 'mock_tt_1', appointmentId: 'mock_lh_2', patientId: 'mock_bn_2', amount: 250000, paymentMethod: 'MOMO', status: 'SUCCESS', paymentDate: now },
-    { id: 'mock_tt_2', appointmentId: 'mock_lh_1', patientId: 'mock_bn_1', amount: 180000, paymentMethod: 'VNPAY', status: 'PENDING', paymentDate: now }
+    { id: 'mock_tt_1', appointmentId: 'mock_lh_2', patientId: 'mock_bn_2', amount: 250000, paymentMethod: 'MOMO', status: 'SUCCESS', paidAt: now },
+    { id: 'mock_tt_2', appointmentId: 'mock_lh_1', patientId: 'mock_bn_1', amount: 180000, paymentMethod: 'VNPAY', status: 'PENDING' }
   ];
 
   // --- 8. THONG_BAO (Extra) ---

@@ -35,37 +35,50 @@ const [users, accountSnapshot, patientSnapshot] = await Promise.all([
   firestore.collection('BENH_NHAN').get(),
 ]);
 
-const accountIds = new Set(accountSnapshot.docs.map((document) => document.id));
-const patientAuthUserIds = new Set(
-  patientSnapshot.docs
-      .map((document) => document.data().authUserId)
-      .filter((value) => typeof value === 'string' && value.length > 0),
+const accounts = new Map(
+  accountSnapshot.docs.map((document) => [document.id, document.data()]),
 );
+const patientsByAuthUserId = new Map();
+for (const document of patientSnapshot.docs) {
+  const authUserId = normalizeString(document.data().authUserId);
+  if (authUserId === '') continue;
+  const profiles = patientsByAuthUserId.get(authUserId) ?? [];
+  profiles.push({ id: document.id, data: document.data() });
+  patientsByAuthUserId.set(authUserId, profiles);
+}
 const pendingAccounts = [];
 const pendingPatients = [];
+const pendingPatientUpdates = [];
+const duplicatePatientProfileUserIds = [];
+let nonPatientAuthUsersSkipped = 0;
 
 for (const user of users) {
-  if (accountIds.has(user.uid)) continue;
-
   const active = !user.disabled;
   const fullName = user.displayName?.trim() ?? '';
   const email = user.email?.trim() ?? '';
   const phone = user.phoneNumber?.trim() ?? '';
 
-  pendingAccounts.push({
-    reference: firestore.collection('TAI_KHOAN').doc(user.uid),
-    data: {
-      email,
-      fullName,
-      phone,
-      role: 'patient',
-      isActive: active,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    },
-  });
+  const account = accounts.get(user.uid);
+  if (!account) {
+    pendingAccounts.push({
+      reference: firestore.collection('TAI_KHOAN').doc(user.uid),
+      data: {
+        email,
+        fullName,
+        phone,
+        role: 'patient',
+        isActive: active,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    });
+  } else if (normalizeRole(account.role) !== 'patient') {
+    nonPatientAuthUsersSkipped += 1;
+    continue;
+  }
 
-  if (!patientAuthUserIds.has(user.uid)) {
+  const profiles = patientsByAuthUserId.get(user.uid) ?? [];
+  if (profiles.length === 0) {
     pendingPatients.push({
       reference: firestore.collection('BENH_NHAN').doc(user.uid),
       data: {
@@ -79,11 +92,29 @@ for (const user of users) {
         updatedAt: FieldValue.serverTimestamp(),
       },
     });
+  } else if (profiles.length === 1) {
+    const profile = profiles[0];
+    const changes = missingPatientFields({
+      profile: profile.data,
+      active,
+      fullName,
+      email,
+      phone,
+    });
+    if (Object.keys(changes).length > 0) {
+      pendingPatientUpdates.push({
+        reference: firestore.collection('BENH_NHAN').doc(profile.id),
+        data: { ...changes, updatedAt: FieldValue.serverTimestamp() },
+      });
+    }
+  } else {
+    duplicatePatientProfileUserIds.push(user.uid);
   }
 }
 
 if (apply) {
   await createInBatches([...pendingAccounts, ...pendingPatients]);
+  await updateInBatches(pendingPatientUpdates);
 }
 
 console.table([
@@ -99,11 +130,23 @@ console.table([
     item: 'BENH_NHAN documents to create',
     count: pendingPatients.length,
   },
+  {
+    item: 'BENH_NHAN documents to complete safely',
+    count: pendingPatientUpdates.length,
+  },
+  {
+    item: 'Auth users with duplicate patient profiles (not changed)',
+    count: duplicatePatientProfileUserIds.length,
+  },
+  {
+    item: 'Non-patient Auth users skipped',
+    count: nonPatientAuthUsersSkipped,
+  },
 ]);
 console.log(
   apply
-    ? 'Profile repair completed. Only missing documents were created.'
-    : 'Dry run completed. No Firestore document was changed. Run again with --apply to create the missing profiles.',
+    ? 'Profile repair completed. Missing profiles were created and only empty patient fields were completed.'
+    : 'Dry run completed. No Firestore document was changed. Run again with --apply to create missing profiles and complete empty patient fields.',
 );
 
 async function listAllUsers() {
@@ -128,4 +171,41 @@ async function createInBatches(documents) {
     }
     await batch.commit();
   }
+}
+
+async function updateInBatches(documents) {
+  const batchSize = 400;
+  for (let start = 0; start < documents.length; start += batchSize) {
+    const batch = firestore.batch();
+    for (const { reference, data } of documents.slice(start, start + batchSize)) {
+      batch.update(reference, data);
+    }
+    await batch.commit();
+  }
+}
+
+function missingPatientFields({ profile, active, fullName, email, phone }) {
+  const changes = {};
+  if (normalizeString(profile.fullName) === '' && fullName !== '') {
+    changes.fullName = fullName;
+  }
+  if (normalizeString(profile.email) === '' && email !== '') {
+    changes.email = email;
+  }
+  if (normalizeString(profile.phone) === '' && phone !== '') {
+    changes.phone = phone;
+  }
+  if (typeof profile.isActive !== 'boolean') changes.isActive = active;
+  if (normalizeString(profile.status) === '') {
+    changes.status = active ? 'ACTIVE' : 'INACTIVE';
+  }
+  return changes;
+}
+
+function normalizeString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeRole(value) {
+  return normalizeString(value).toLowerCase();
 }

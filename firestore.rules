@@ -37,11 +37,16 @@ service cloud.firestore {
     }
 
     function isDoctor(doctorId) {
-      return hasActiveRole('doctor') &&
-          get(/databases/$(database)/documents/BAC_SI/$(doctorId))
-              .data.userId == request.auth.uid &&
-          get(/databases/$(database)/documents/BAC_SI/$(doctorId))
-              .data.status == 'ACTIVE';
+      let doctor = get(/databases/$(database)/documents/BAC_SI/$(doctorId));
+      let account = get(/databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid));
+      return signedIn() &&
+          account.data.isActive == true &&
+          account.data.role == 'doctor' &&
+          doctor.data.status == 'ACTIVE' &&
+          (doctor.data.userId == request.auth.uid ||
+              (account.data.keys().hasAll(['accountKey']) &&
+                  account.data.accountKey is string &&
+                  doctor.data.userId == account.data.accountKey));
     }
 
     function validAppointmentCreateShape() {

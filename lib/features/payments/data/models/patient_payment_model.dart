@@ -29,14 +29,17 @@ class PatientPaymentModel extends PatientPayment {
     required String id,
   }) => PatientPaymentModel(
     id: id,
-    patientId: readReferenceIdForKeys(data, const ['patientId', 'MaBN']),
+    // Data migration writes only the canonical English schema. Keeping a
+    // legacy fallback here would silently mask an incomplete migration and
+    // would make the payment access rule impossible to reason about.
+    patientId: readReferenceId(data['patientId']),
     appointmentId: readOptionalString(data['appointmentId']),
     amount: readInt(data['amount']),
     paymentMethod: readString(data['paymentMethod'], fallback: 'BANK_TRANSFER'),
     status: readString(data['status'], fallback: 'PENDING'),
     transactionCode: readOptionalString(data['transactionCode']),
     createdAt: readDateTime(data['createdAt']),
-    paidAt: readDateTime(data['paidAt'] ?? data['paymentDate']),
+    paidAt: readDateTime(data['paidAt']),
     isTestData: readBool(data['isTestData']),
   );
 }

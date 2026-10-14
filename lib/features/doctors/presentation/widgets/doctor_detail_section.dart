@@ -8,10 +8,16 @@ class DoctorDetailSection extends StatelessWidget {
     required this.title,
     required this.child,
     this.initiallyExpanded = false,
+    this.icon,
+    this.subtitle,
+    this.titleColor,
   });
   final String title;
   final Widget child;
   final bool initiallyExpanded;
+  final IconData? icon;
+  final String? subtitle;
+  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -26,11 +32,24 @@ class DoctorDetailSection extends StatelessWidget {
       shape: const Border(),
       collapsedShape: const Border(),
       iconColor: AppColors.textOnPrimary,
+      leading: icon == null ? null : Icon(icon, color: AppColors.textOnPrimary),
+      subtitle: subtitle == null
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 4),
+              child: Text(
+                subtitle!,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+            ),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w700,
-          color: AppColors.textOnPrimary,
+          color: titleColor ?? AppColors.textOnPrimary,
         ),
       ),
       children: [SizedBox(width: double.infinity, child: child)],
