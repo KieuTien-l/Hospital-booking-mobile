@@ -44,7 +44,7 @@ const [accountsSnapshot, specialtiesSnapshot, doctorsSnapshot, patientsSnapshot,
   firestore.collection('LICH_LAM_VIEC').get(),
   firestore.collection('LICH_HEN').get(),
   firestore.collection('THANH_TOAN').get(),
-  firestore.collection('notifications').get(),
+  firestore.collection('THONG_BAO').get(),
 ]);
 // CA_KHAM is the largest collection after seeding. Read it in bounded pages
 // so the diagnostic works within Firestore response limits.

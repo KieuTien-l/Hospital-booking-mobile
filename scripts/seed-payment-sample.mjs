@@ -78,7 +78,7 @@ if (apply) {
   }
   for (const notification of paymentNotifications) {
     batch.set(
-      firestore.collection('notifications').doc(notification.id),
+      firestore.collection('THONG_BAO').doc(notification.id),
       notification.data,
       { merge: true },
     );

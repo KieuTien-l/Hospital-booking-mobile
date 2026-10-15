@@ -211,6 +211,14 @@ class _PatientClinicalResultsPageState
                         if (controller == null) {
                           return const _EmptyResults(hasAnyResult: false);
                         }
+                        // The controller is shared with PACS. Keep a previous
+                        // linked profile's results off-screen until this
+                        // patient's query has started.
+                        if (controller.patientId != widget.patient.id) {
+                          return const AppLoadingWidget(
+                            message: 'Đang tải kết quả cận lâm sàng...',
+                          );
+                        }
                         if (controller.isLoading) {
                           return const AppLoadingWidget(
                             message: 'Đang tải kết quả cận lâm sàng...',

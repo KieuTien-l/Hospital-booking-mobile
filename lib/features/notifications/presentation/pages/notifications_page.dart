@@ -48,9 +48,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
     _loadedPatientId = patientId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _loadedPatientId == patientId) {
-        context
-            .read<NotificationController>()
-            .loadNotificationsForPatient(patientId);
+        context.read<NotificationController>().loadNotificationsForPatient(
+          patientId,
+        );
       }
     });
   }
@@ -69,7 +69,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
 
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => NotificationDetailPage(item: notificationItem)),
+      MaterialPageRoute(
+        builder: (_) => NotificationDetailPage(item: notificationItem),
+      ),
     );
   }
 
@@ -91,12 +93,19 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (controller == null) {
       return const _NotificationPreview();
     }
-    final patientId = context
-        .watch<PatientProfileController?>()
-        ?.patient
-        ?.id;
+    final profile = context.watch<PatientProfileController?>();
+    final patientId = profile?.patient?.id;
     _loadNotificationsFor(patientId);
-    final items = controller.notifications;
+    // The controller is shared across the app lifetime. Ignore in-memory
+    // items from another profile until this patient's stream is active.
+    final hasCurrentPatient =
+        profile == null ||
+        (patientId != null && controller.patientId == patientId);
+    final isWaitingForPatient =
+        profile?.isLoading == true || (patientId != null && !hasCurrentPatient);
+    final items = hasCurrentPatient
+        ? controller.notifications
+        : const <AppNotification>[];
     final visible = items
         .where((item) => !_unreadOnly || !item.isRead)
         .toList();
@@ -159,7 +168,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             Expanded(
               child: ColoredBox(
                 color: const Color(0xFFF6F7F9),
-                child: controller.isLoading
+                child: isWaitingForPatient || controller.isLoading
                     ? const AppLoadingWidget(message: 'Đang tải thông báo...')
                     : controller.errorMessage != null
                     ? AppErrorWidget(
@@ -271,7 +280,9 @@ class _NotificationPreviewState extends State<_NotificationPreview> {
 
   @override
   Widget build(BuildContext context) {
-    final visible = _items.where((item) => !_unreadOnly || !item.isRead).toList();
+    final visible = _items
+        .where((item) => !_unreadOnly || !item.isRead)
+        .toList();
     return ColoredBox(
       color: Colors.white,
       child: Column(

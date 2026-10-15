@@ -32,9 +32,15 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
   ];
   static const _categories = <_HealthRecordCategory>[
     _HealthRecordCategory('Tất cả'),
-    _HealthRecordCategory('Đơn thuốc', HealthRecordDocumentCategory.prescription),
+    _HealthRecordCategory(
+      'Đơn thuốc',
+      HealthRecordDocumentCategory.prescription,
+    ),
     _HealthRecordCategory('Phiếu chỉ định', HealthRecordDocumentCategory.order),
-    _HealthRecordCategory('Chứng nhận', HealthRecordDocumentCategory.certificate),
+    _HealthRecordCategory(
+      'Chứng nhận',
+      HealthRecordDocumentCategory.certificate,
+    ),
   ];
 
   int _tab = 0;
@@ -49,7 +55,8 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
     super.initState();
     // Health Record dates follow the project's patient-facing timezone.
     final now =
-        widget.initialDate ?? DateTime.now().toUtc().add(const Duration(hours: 7));
+        widget.initialDate ??
+        DateTime.now().toUtc().add(const Duration(hours: 7));
     _today = DateTime(now.year, now.month, now.day);
     _to = _today;
     final lastDay = DateTime(now.year - 1, now.month + 1, 0).day;
@@ -64,7 +71,8 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
   }
 
   String? _currentPatientId() =>
-      widget.patient?.id ?? context.read<PatientProfileController?>()?.patient?.id;
+      widget.patient?.id ??
+      context.read<PatientProfileController?>()?.patient?.id;
 
   void _loadRecordsFor(String? patientId) {
     final controller = context.read<HealthRecordController?>();
@@ -140,7 +148,8 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
 
     return Theme(
       data: Theme.of(context).copyWith(
-        textTheme: Theme.of(context).textTheme.apply(fontFamily: 'BeVietnamPro'),
+        textTheme: Theme.of(context).textTheme
+            .apply(fontFamily: 'BeVietnamPro'),
       ),
       child: Scaffold(
         backgroundColor: AppColors.primarySoft,
@@ -157,7 +166,10 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -232,7 +244,10 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
                     borderRadius: BorderRadius.circular(12),
                     onTap: () => setState(() => _tab = index),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         color: _tab == index
                             ? AppColors.primarySoft
@@ -244,14 +259,15 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
                           Text(
                             _tabs[index].label,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: _tab == index
-                                  ? AppColors.textOnPrimary
-                                  : AppColors.textSecondary,
-                              fontWeight: _tab == index
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: _tab == index
+                                      ? AppColors.textOnPrimary
+                                      : AppColors.textSecondary,
+                                  fontWeight: _tab == index
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                ),
                           ),
                           const SizedBox(height: 8),
                           Container(
@@ -310,6 +326,14 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
   Widget _buildRecords(Patient patient, double availableHeight) {
     final controller = context.watch<HealthRecordController?>();
     if (controller == null) return _emptyPanel(_emptyMessage, availableHeight);
+    // A single controller serves both the signed-in profile and linked
+    // profiles. Hide stale values until the selected patient's fetch starts.
+    if (controller.patientId != patient.id) {
+      return const SizedBox(
+        height: 260,
+        child: AppLoadingWidget(message: 'Đang tải hồ sơ sức khỏe...'),
+      );
+    }
     if (controller.isLoading) {
       return const SizedBox(
         height: 260,
@@ -334,7 +358,8 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       itemCount: records.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _HealthRecordCard(record: records[index]),
+      itemBuilder: (context, index) =>
+          _HealthRecordCard(record: records[index]),
     );
   }
 
@@ -345,7 +370,11 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
         const CircleAvatar(
           radius: 52,
           backgroundColor: AppColors.background,
-          child: Icon(Icons.find_in_page_outlined, size: 62, color: AppColors.disabled),
+          child: Icon(
+            Icons.find_in_page_outlined,
+            size: 62,
+            color: AppColors.disabled,
+          ),
         ),
         const SizedBox(height: 20),
         Text(
@@ -359,10 +388,8 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
-            height: 1.6,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: AppColors.textSecondary, height: 1.6),
         ),
       ],
     ),
@@ -412,14 +439,20 @@ class _HealthRecordCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'Đơn thuốc: ${record.prescription}',
-              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
           if (record.notes?.trim().isNotEmpty ?? false) ...[
             const SizedBox(height: 6),
             Text(
               'Ghi chú: ${record.notes}',
-              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ],

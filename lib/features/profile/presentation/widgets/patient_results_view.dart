@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../../../../core/widgets/view_state_widgets.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
+import '../../../results/domain/entities/test_result.dart';
+import '../../../results/presentation/controllers/test_result_controller.dart';
 import '../../domain/entities/patient.dart';
 import 'clinical_results_year_filter.dart';
+import '../pages/test_result_detail_page.dart';
 
-/// Presentation-only filters; clinical results await data integration.
+/// Shared live-results view used by patient-facing result categories such as
+/// PACS.  The page intentionally reads the same canonical `KET_QUA_CLS`
+/// records as the clinical-results page, then limits them to the requested
+/// category in the client. This avoids a composite Firestore index while
+/// keeping family-member profiles isolated by `patientId`.
 class PatientResultsView extends StatefulWidget {
   const PatientResultsView({
     super.key,
@@ -38,6 +47,7 @@ class _PatientResultsViewState extends State<PatientResultsView> {
   late final int _currentYear;
   late int _year;
   late final List<GlobalKey> _typeKeys;
+  String? _loadedPatientId;
 
   @override
   void initState() {
@@ -48,6 +58,26 @@ class _PatientResultsViewState extends State<PatientResultsView> {
         DateTime.now().toUtc().add(const Duration(hours: 7));
     _currentYear = today.year;
     _year = _currentYear;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadResults());
+  }
+
+  @override
+  void didUpdateWidget(covariant PatientResultsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patient.id != widget.patient.id) {
+      _loadedPatientId = null;
+      _loadResults();
+    }
+  }
+
+  void _loadResults() {
+    if (!mounted || _loadedPatientId == widget.patient.id) return;
+    _loadedPatientId = widget.patient.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _loadedPatientId == widget.patient.id) {
+        context.read<TestResultController?>()?.loadResults(widget.patient.id);
+      }
+    });
   }
 
   void _selectType(int index) {
@@ -238,46 +268,7 @@ class _PatientResultsViewState extends State<PatientResultsView> {
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            28,
-                            constraints.maxHeight * .16,
-                            28,
-                            48,
-                          ),
-                          child: Column(
-                            children: [
-                              const CircleAvatar(
-                                radius: 52,
-                                backgroundColor: AppColors.background,
-                                child: Icon(
-                                  Icons.find_in_page_outlined,
-                                  size: 62,
-                                  color: AppColors.disabled,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                widget.emptyTitle,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textSecondary,
-                                    ),
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                widget.emptyMessage,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      height: 1.6,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildResults(constraints.maxHeight),
                       ],
                     ),
                   ),
@@ -285,6 +276,185 @@ class _PatientResultsViewState extends State<PatientResultsView> {
               ),
             ),
           ),
+        ),
+      ),
+    ),
+  );
+
+  List<TestResult> _filteredResults(List<TestResult> results) => results
+      .where((result) => result.testDate.year == _year)
+      .where((result) => _matchesSelectedType(result.resultType))
+      .toList(growable: false);
+
+  bool _matchesSelectedType(String source) {
+    final value = source.trim().toLowerCase();
+    final selectedType = _types[_type];
+    return switch (selectedType) {
+      'X Quang' =>
+        value.contains('x quang') ||
+            value.contains('x-quang') ||
+            value.contains('xray') ||
+            value.contains('x-ray'),
+      'CT Scan' =>
+        value.contains('ct scan') ||
+            RegExp(r'(^|[^a-z])ct([^a-z]|$)').hasMatch(value),
+      'MRI' => value.contains('mri'),
+      _ => value == selectedType.trim().toLowerCase(),
+    };
+  }
+
+  Widget _buildResults(double availableHeight) {
+    final controller = context.watch<TestResultController?>();
+    if (controller == null) return _emptyPanel(availableHeight);
+    // TestResultController is shared by the result and PACS routes. Do not
+    // show a previous profile's in-memory values while the new query is being
+    // scheduled after this frame.
+    if (controller.patientId != widget.patient.id) {
+      return const SizedBox(
+        height: 260,
+        child: AppLoadingWidget(message: 'Đang tải hình ảnh chụp...'),
+      );
+    }
+    if (controller.isLoading) {
+      return const SizedBox(
+        height: 260,
+        child: AppLoadingWidget(message: 'Đang tải hình ảnh chụp...'),
+      );
+    }
+    if (controller.isError) {
+      return SizedBox(
+        height: 320,
+        child: AppErrorWidget(
+          message: controller.errorMessage ?? 'Không thể tải hình ảnh chụp.',
+          onRetry: () => controller.loadResults(widget.patient.id),
+        ),
+      );
+    }
+
+    final results = _filteredResults(controller.results);
+    if (results.isEmpty) return _emptyPanel(availableHeight);
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      itemCount: results.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _ImagingResultCard(
+        result: results[index],
+        onTap: () => Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => TestResultDetailPage(
+              patient: widget.patient,
+              result: results[index],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyPanel(double availableHeight) => Padding(
+    padding: EdgeInsets.fromLTRB(28, availableHeight * .16, 28, 48),
+    child: Column(
+      children: [
+        const CircleAvatar(
+          radius: 52,
+          backgroundColor: AppColors.background,
+          child: Icon(
+            Icons.find_in_page_outlined,
+            size: 62,
+            color: AppColors.disabled,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          widget.emptyTitle,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          widget.emptyMessage,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: AppColors.textSecondary, height: 1.6),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ImagingResultCard extends StatelessWidget {
+  const _ImagingResultCard({required this.result, required this.onTap});
+
+  final TestResult result;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(16),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CircleAvatar(
+              backgroundColor: AppColors.primarySoft,
+              child: Icon(Icons.image_outlined, color: AppColors.primaryDark),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    result.testName.isEmpty
+                        ? 'Hình ảnh chụp chưa có tên'
+                        : result.testName,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    result.resultType,
+                    style: const TextStyle(
+                      color: AppColors.textOnPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    result.resultDescription.isEmpty
+                        ? 'Chưa có mô tả hình ảnh.'
+                        : result.resultDescription,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${result.testDate.day.toString().padLeft(2, '0')}/${result.testDate.month.toString().padLeft(2, '0')}/${result.testDate.year}',
+                    style: const TextStyle(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
         ),
       ),
     ),

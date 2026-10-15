@@ -134,7 +134,9 @@ void main() {
       await tester.tap(find.text('Thêm chuyên khoa'));
       await tester.pumpAndSettle();
       expect(
-        find.text('Chức năng thêm chuyên khoa chưa được hỗ trợ.'),
+        find.text(
+          'Mỗi lần xác nhận hiện đặt một chuyên khoa. Hãy hoàn tất hoặc quay lại để chọn chuyên khoa khác.',
+        ),
         findsOneWidget,
       );
       expect(await enabled(tester), isTrue);

@@ -5,11 +5,15 @@ import '../../domain/repositories/test_result_repository.dart';
 class TestResultController extends ViewStateController {
   TestResultController(this._repository);
   final TestResultRepository _repository;
-  
+
   List<TestResult> _results = const [];
+  String? _patientId;
+
   List<TestResult> get results => _results;
+  String? get patientId => _patientId;
 
   Future<void> loadResults(String patientId) async {
+    _patientId = patientId;
     _results = const [];
     final token = beginRequest();
     try {
@@ -22,4 +26,3 @@ class TestResultController extends ViewStateController {
     }
   }
 }
-

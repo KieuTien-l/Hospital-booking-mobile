@@ -14,14 +14,20 @@ class NotificationController extends ChangeNotifier {
   List<AppNotification> _notifications = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String? _patientId;
+  var _subscriptionRequest = 0;
 
   List<AppNotification> get notifications => _notifications;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  String? get patientId => _patientId;
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   void loadNotificationsForPatient(String patientId) {
+    final request = ++_subscriptionRequest;
+    _patientId = patientId;
+    _notifications = [];
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -31,11 +37,13 @@ class NotificationController extends ChangeNotifier {
         .getNotificationsForPatient(patientId)
         .listen(
           (notifications) {
+            if (request != _subscriptionRequest) return;
             _notifications = notifications;
             _isLoading = false;
             notifyListeners();
           },
           onError: (error) {
+            if (request != _subscriptionRequest) return;
             _errorMessage = error.toString();
             _isLoading = false;
             notifyListeners();
@@ -63,6 +71,7 @@ class NotificationController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _subscriptionRequest++;
     _subscription?.cancel();
     super.dispose();
   }

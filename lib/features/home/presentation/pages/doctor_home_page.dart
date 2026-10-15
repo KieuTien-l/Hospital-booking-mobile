@@ -70,10 +70,17 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
     final name = auth.currentUser?.fullName.trim() ?? '';
     final textTheme = Theme.of(context).textTheme;
     final dashboardState = dashboard?.status ?? ViewState.initial;
-    final hasResolvedData = dashboardState == ViewState.success ||
-        dashboardState == ViewState.empty;
-    final dashboardLoading = dashboardState == ViewState.loading;
-    final dashboardError = dashboardState == ViewState.error;
+    final appointmentStreamLoading =
+        dashboardState == ViewState.success &&
+        dashboard?.appointmentsLoaded == false;
+    final dashboardLoading =
+        dashboardState == ViewState.loading || appointmentStreamLoading;
+    final dashboardError =
+        dashboardState == ViewState.error || dashboard?.appointmentError != null;
+    final hasResolvedData =
+        (dashboardState == ViewState.success || dashboardState == ViewState.empty) &&
+        !dashboardLoading &&
+        !dashboardError;
     final appointmentState = dashboard == null
         ? DoctorAppointmentsDisplayState.empty
         : dashboardLoading
@@ -344,6 +351,7 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                 selectedDate: _selectedDate,
                 state: appointmentState,
                 schedules: dashboard?.workSchedules ?? const [],
+                appointments: dashboard?.appointments ?? const [],
               ),
               const SizedBox(height: 18),
               Container(
