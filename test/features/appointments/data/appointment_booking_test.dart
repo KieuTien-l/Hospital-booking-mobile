@@ -166,12 +166,20 @@ MemoryFirestore bookingStore() => MemoryFirestore()
     },
   });
 
-Appointment request({int peopleCount = 1}) => Appointment(
+Appointment request({
+  int peopleCount = 1,
+  DateTime? appointmentDate,
+  String? startTime,
+  String? endTime,
+}) => Appointment(
   id: '',
   patientId: 'patient-1',
   doctorId: 'doctor-1',
   workScheduleId: 'schedule-1',
   timeSlotId: 'slot-1',
+  appointmentDate: appointmentDate,
+  startTime: startTime,
+  endTime: endTime,
   reason: 'Checkup',
   peopleCount: peopleCount,
 );
@@ -201,6 +209,7 @@ void main() {
         expect(slot['bookedCount'], 1 + count);
         expect(slot['status'], count == 2 ? 'BOOKED' : 'AVAILABLE');
         expect(slot['appointmentId'], saved.id);
+        expect(slot['reservationCounts'], {saved.id: count});
         final notifications = store.documents.entries
             .where((entry) => entry.key.startsWith('THONG_BAO/'))
             .map((entry) => entry.value)
@@ -251,6 +260,52 @@ void main() {
       expect(store.documents['CA_KHAM/slot-1'], before);
     });
   }
+
+  test(
+    'Rejects a booking date that does not match its Firebase schedule',
+    () async {
+      final store = bookingStore();
+      final repository = AppointmentRepositoryImpl(
+        AppointmentFirebaseDatasource(firestore: store.asFirestore()),
+      );
+
+      await expectLater(
+        repository.createAppointment(
+          request(appointmentDate: DateTime(2026, 10, 6)),
+        ),
+        throwsA(isA<BookingException>()),
+      );
+
+      expect(
+        store.documents.keys.where((key) => key.startsWith('LICH_HEN/')),
+        isEmpty,
+      );
+      expect(store.documents['CA_KHAM/slot-1']!['bookedCount'], 1);
+    },
+  );
+
+  test(
+    'Rejects a booking time that does not match its Firebase slot',
+    () async {
+      final store = bookingStore();
+      final repository = AppointmentRepositoryImpl(
+        AppointmentFirebaseDatasource(firestore: store.asFirestore()),
+      );
+
+      await expectLater(
+        repository.createAppointment(
+          request(startTime: '09:00', endTime: '09:30'),
+        ),
+        throwsA(isA<BookingException>()),
+      );
+
+      expect(
+        store.documents.keys.where((key) => key.startsWith('LICH_HEN/')),
+        isEmpty,
+      );
+      expect(store.documents['CA_KHAM/slot-1']!['bookedCount'], 1);
+    },
+  );
 
   test(
     'Profile update preserves fields outside the editable payload',

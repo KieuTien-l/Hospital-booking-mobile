@@ -97,9 +97,14 @@ service cloud.firestore {
           request.resource.data.status == 'PENDING';
     }
 
-    function canCreateAppointment() {
+    // A new appointment must be paired with the matching slot reservation in
+    // one transaction. Client validation improves the UX, but these checks
+    // make the date, time and capacity constraints authoritative in Firebase.
+    function canCreateAppointment(appointmentId) {
       let slot = get(/databases/$(database)/documents/CA_KHAM/$(request.resource.data.timeSlotId));
       let schedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId));
+      let slotAfter = getAfter(/databases/$(database)/documents/CA_KHAM/$(request.resource.data.timeSlotId));
+      let newCount = slot.data.bookedCount + request.resource.data.peopleCount;
       return validAppointmentCreateShape() &&
           ownsPatient(request.resource.data.patientId) &&
           slot.data.status == 'AVAILABLE' &&
@@ -110,7 +115,17 @@ service cloud.firestore {
           slot.data.workScheduleId == request.resource.data.workScheduleId &&
           slot.data.doctorId == request.resource.data.doctorId &&
           schedule.data.status == 'ACTIVE' &&
-          schedule.data.doctorId == request.resource.data.doctorId;
+          schedule.data.doctorId == request.resource.data.doctorId &&
+          request.resource.data.appointmentDate == schedule.data.workDate &&
+          request.resource.data.startTime == slot.data.startTime &&
+          request.resource.data.endTime == slot.data.endTime &&
+          slotAfter.data.bookedCount == newCount &&
+          slotAfter.data.appointmentId == appointmentId &&
+          slotAfter.data.reservationCounts is map &&
+          slotAfter.data.reservationCounts[appointmentId] ==
+              request.resource.data.peopleCount &&
+          ((newCount < slot.data.capacity && slotAfter.data.status == 'AVAILABLE') ||
+              (newCount == slot.data.capacity && slotAfter.data.status == 'BOOKED'));
     }
 
     // A patient may create exactly one unread confirmation notification only
@@ -452,7 +467,7 @@ service cloud.firestore {
     match /LICH_HEN/{appointmentId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
           isDoctor(resource.data.doctorId);
-      allow create: if canCreateAppointment();
+      allow create: if canCreateAppointment(appointmentId);
       allow update: if isAdmin() || canDoctorUpdateAppointment() ||
           canUpdateOwnAppointment() || canCancelOwnAppointment(appointmentId) ||
           canRescheduleOwnAppointment(appointmentId);
