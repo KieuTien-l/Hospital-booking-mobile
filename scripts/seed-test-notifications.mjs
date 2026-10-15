@@ -60,7 +60,7 @@ if (apply) {
   const batch = firestore.batch();
   for (const notification of notifications) {
     batch.set(
-      firestore.collection('notifications').doc(notification.id),
+      firestore.collection('THONG_BAO').doc(notification.id),
       {
         patientId,
         title: notification.title,
@@ -78,7 +78,7 @@ if (apply) {
 console.table([
   { item: 'Project', value: projectId },
   { item: 'Patient', value: patientId },
-  { item: 'Collection', value: 'notifications' },
+  { item: 'Collection', value: 'THONG_BAO' },
   { item: 'Test notifications', value: notifications.length },
   { item: 'Unread notifications', value: 1 },
 ]);

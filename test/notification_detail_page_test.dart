@@ -23,6 +23,8 @@ class _FakeNotificationRepository implements NotificationRepository {
     _updates.add(_items);
   }
 
+  void emitError(Object error) => _updates.addError(error);
+
   @override
   Future<void> markAsRead(String notificationId) async {
     emit(
@@ -96,6 +98,54 @@ void main() {
       findsOneWidget,
     );
   });
+
+  test(
+    'clears the previous patient notification state before a profile switch',
+    () async {
+      final repository = _FakeNotificationRepository();
+      final controller = NotificationController(repository);
+      addTearDown(() async {
+        controller.dispose();
+        await repository.dispose();
+      });
+
+      controller.loadNotificationsForPatient('patient-1');
+      repository.emit([
+        AppNotification(
+          id: 'old-notification',
+          patientId: 'patient-1',
+          title: 'Thông báo cũ',
+          content: 'Không được hiện ở hồ sơ mới.',
+          createdAt: DateTime(2026, 10, 10),
+        ),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.notifications, hasLength(1));
+
+      controller.loadNotificationsForPatient('patient-2');
+
+      expect(controller.patientId, 'patient-2');
+      expect(controller.isLoading, isTrue);
+      expect(controller.notifications, isEmpty);
+    },
+  );
+
+  test('exposes a notification-stream error for the retry UI', () async {
+    final repository = _FakeNotificationRepository();
+    final controller = NotificationController(repository);
+    addTearDown(() async {
+      controller.dispose();
+      await repository.dispose();
+    });
+
+    controller.loadNotificationsForPatient('patient-1');
+    repository.emitError(StateError('Không thể tải thông báo'));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.isLoading, isFalse);
+    expect(controller.errorMessage, contains('Không thể tải thông báo'));
+  });
+
   testWidgets('Long details scroll without overflow on small screen', (
     tester,
   ) async {

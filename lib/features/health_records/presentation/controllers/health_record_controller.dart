@@ -5,11 +5,15 @@ import '../../domain/repositories/health_record_repository.dart';
 class HealthRecordController extends ViewStateController {
   HealthRecordController(this._repository);
   final HealthRecordRepository _repository;
-  
+
   List<HealthRecord> _records = const [];
+  String? _patientId;
+
   List<HealthRecord> get records => _records;
+  String? get patientId => _patientId;
 
   Future<void> loadRecords(String patientId) async {
+    _patientId = patientId;
     _records = const [];
     final token = beginRequest();
     try {
@@ -22,4 +26,3 @@ class HealthRecordController extends ViewStateController {
     }
   }
 }
-

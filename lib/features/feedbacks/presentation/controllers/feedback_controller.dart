@@ -1,4 +1,5 @@
 import '../../../../core/state/view_state.dart';
+import '../../domain/errors/feedback_history_connection_exception.dart';
 import '../../domain/entities/feedback_info.dart';
 import '../../domain/repositories/feedback_repository.dart';
 
@@ -7,8 +8,19 @@ class FeedbackController extends ViewStateController {
 
   final FeedbackRepository _repository;
   List<FeedbackInfo> _feedbacks = const [];
+  String? _patientId;
+  bool _historyUnavailable = false;
 
   List<FeedbackInfo> get feedbacks => _feedbacks;
+  String? get patientId => _patientId;
+  bool get isHistoryUnavailable => _historyUnavailable;
+
+  void _selectPatient(String patientId) {
+    if (_patientId == patientId) return;
+    _patientId = patientId;
+    _feedbacks = const [];
+    _historyUnavailable = false;
+  }
 
   String? validateFeedback(FeedbackInfo feedback) {
     if (feedback.content.trim().isEmpty) {
@@ -21,6 +33,7 @@ class FeedbackController extends ViewStateController {
   }
 
   Future<bool> submitFeedback(FeedbackInfo feedback) async {
+    _selectPatient(feedback.patientId);
     final validationError = validateFeedback(feedback);
     if (validationError != null) {
       setState(ViewState.error, Exception(validationError));
@@ -40,7 +53,8 @@ class FeedbackController extends ViewStateController {
   }
 
   Future<void> loadFeedbacks(String patientId) async {
-    _feedbacks = const [];
+    _selectPatient(patientId);
+    _historyUnavailable = false;
     final token = beginRequest();
     try {
       final values = await _repository.getFeedbacksByPatient(patientId);
@@ -48,7 +62,12 @@ class FeedbackController extends ViewStateController {
       _feedbacks = List.unmodifiable(values);
       setState(values.isEmpty ? ViewState.empty : ViewState.success);
     } catch (error) {
-      if (isCurrent(token)) setState(ViewState.error, error);
+      if (isCurrent(token)) {
+        // Do not present cached feedback as if it were a current server result.
+        _feedbacks = const [];
+        _historyUnavailable = error is FeedbackHistoryConnectionException;
+        setState(ViewState.error, error);
+      }
     }
   }
 }

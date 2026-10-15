@@ -23,7 +23,7 @@ class AppointmentFirebaseDatasource {
   CollectionReference<Map<String, dynamic>> get _doctors =>
       _firestore.collection(DoctorModel.collectionName);
   CollectionReference<Map<String, dynamic>> get _notifications =>
-      _firestore.collection('notifications');
+      _firestore.collection('THONG_BAO');
   CollectionReference<Map<String, dynamic>> get _patients =>
       _firestore.collection(PatientModel.collectionName);
 

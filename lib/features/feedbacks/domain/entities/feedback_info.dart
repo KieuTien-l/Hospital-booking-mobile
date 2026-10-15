@@ -12,9 +12,9 @@ class FeedbackInfo {
   final String id;
   final String patientId;
   final String content;
+
   final double rating;
   final String? title;
   final String? category;
   final DateTime? createdAt;
 }
-

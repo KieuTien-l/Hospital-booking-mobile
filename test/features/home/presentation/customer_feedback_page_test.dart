@@ -59,10 +59,7 @@ void main() {
     await reveal(tester, find.byKey(const ValueKey('feedback-submit')));
     await tester.tap(find.byKey(const ValueKey('feedback-submit')));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Phản hồi đã được gửi'),
-      findsNothing,
-    );
+    expect(find.text('Phản hồi đã được gửi'), findsNothing);
     await tapFeedback(tester, 'Góp ý');
     await reveal(tester, find.byTooltip('4 sao: Hài lòng'));
     await tester.tap(find.byTooltip('4 sao: Hài lòng'));
@@ -101,13 +98,35 @@ void main() {
     );
     await tester.pageBack();
     await tester.pumpAndSettle();
-    expect(
-      find.text('Các phản hồi bạn đã gửi đến HealWay.'),
-      findsOneWidget,
-    );
+    expect(find.text('Các phản hồi bạn đã gửi đến HealWay.'), findsOneWidget);
     expect(find.text('Liên kết hồ sơ'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('Rating is required before feedback can be submitted', (
+    tester,
+  ) async {
+    await showFeedback(tester);
+    await tapFeedback(tester, 'Góp ý');
+    await reveal(tester, find.byKey(const ValueKey('feedback-title')));
+    await tester.enterText(
+      find.byKey(const ValueKey('feedback-title')),
+      'Nhắc chọn số sao',
+    );
+    await reveal(tester, find.byKey(const ValueKey('feedback-content')));
+    await tester.enterText(
+      find.byKey(const ValueKey('feedback-content')),
+      'Nội dung đã đầy đủ nhưng chưa chọn mức độ hài lòng.',
+    );
+
+    await tapFeedback(tester, 'Gửi phản hồi');
+
+    expect(find.text('Vui lòng chọn mức độ hài lòng.'), findsOneWidget);
+    expect(
+      find.text('Vui lòng cập nhật hồ sơ bệnh nhân trước khi gửi phản hồi.'),
+      findsNothing,
+    );
+  });
+
   testWidgets('Filters show empty state and detail retains history tab', (
     tester,
   ) async {

@@ -1,17 +1,31 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
+import '../../../appointments/domain/entities/appointment.dart';
 import '../../../doctors/domain/entities/work_schedule.dart';
 
 enum DoctorAppointmentsDisplayState { loading, empty, error, data }
 
-/// Presentation states only; no doctor appointment source is connected yet.
+class _ScheduleAppointmentCounts {
+  const _ScheduleAppointmentCounts({
+    required this.booked,
+    required this.completed,
+    required this.waiting,
+  });
+
+  final int booked;
+  final int completed;
+  final int waiting;
+}
+
+/// Presents only appointments already verified for the signed-in doctor.
 class DoctorTodayAppointmentsSection extends StatelessWidget {
   const DoctorTodayAppointmentsSection({
     super.key,
     this.state = DoctorAppointmentsDisplayState.empty,
     this.selectedDate,
     this.schedules = const [],
+    this.appointments = const [],
   });
   final DoctorAppointmentsDisplayState state;
   final DateTime? selectedDate;
@@ -19,10 +33,39 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
   /// Only pass schedules verified to belong to the authenticated doctor.
   final List<WorkSchedule> schedules;
 
+  /// Only pass appointments verified to belong to the authenticated doctor.
+  final List<Appointment> appointments;
+
   static String _dateLabel(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
-  void _showDetails(BuildContext context, WorkSchedule schedule) {
+  _ScheduleAppointmentCounts _countsFor(WorkSchedule schedule) {
+    final values = appointments
+        .where((appointment) => appointment.workScheduleId == schedule.id)
+        .toList(growable: false);
+    int peopleWhere(bool Function(Appointment) matches) => values
+        .where(matches)
+        .fold(0, (total, appointment) => total + appointment.peopleCount);
+    return _ScheduleAppointmentCounts(
+      booked: peopleWhere(
+        (appointment) => appointment.status != AppointmentStatus.cancelled,
+      ),
+      completed: peopleWhere(
+        (appointment) => appointment.status == AppointmentStatus.completed,
+      ),
+      waiting: peopleWhere(
+        (appointment) =>
+            appointment.status == AppointmentStatus.pending ||
+            appointment.status == AppointmentStatus.confirmed,
+      ),
+    );
+  }
+
+  void _showDetails(
+    BuildContext context,
+    WorkSchedule schedule,
+    _ScheduleAppointmentCounts counts,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -54,19 +97,15 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                 'Trạng thái: ${schedule.status.trim().isEmpty ? 'Chưa có dữ liệu' : schedule.status}',
               ),
               const SizedBox(height: 20),
-              for (final label in const [
-                'Bệnh nhân đã đặt',
-                'Bệnh nhân đã khám',
-                'Bệnh nhân đang chờ',
+              for (final value in [
+                ('Bệnh nhân đã đặt', counts.booked),
+                ('Bệnh nhân đã khám', counts.completed),
+                ('Bệnh nhân đang chờ', counts.waiting),
               ])
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Text('$label: Chưa có dữ liệu'),
+                  child: Text('${value.$1}: ${value.$2}'),
                 ),
-              const Text(
-                'Thống kê tổng hợp sẽ hiển thị khi nguồn dữ liệu và cách tính được xác minh.',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
               const SizedBox(height: 20),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -116,53 +155,10 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
         if (state == DoctorAppointmentsDisplayState.data &&
             visibleSchedules.isNotEmpty)
           for (final schedule in visibleSchedules)
-            Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(
-                        Icons.schedule_rounded,
-                        color: AppColors.textOnPrimary,
-                      ),
-                      title: Text(
-                        'Lịch ${schedule.id}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${schedule.startTime ?? '—'} – ${schedule.endTime ?? '—'}',
-                      ),
-                      onTap: () => _showDetails(context, schedule),
-                    ),
-                    const Divider(height: 28),
-                    const Text(
-                      'Đã đặt / Đã khám / Đang chờ',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '— / — / —',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textOnPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: () => _showDetails(context, schedule),
-                      child: const Text('Xem chi tiết ca khám'),
-                    ),
-                  ],
-                ),
-              ),
+            _ScheduleCard(
+              schedule: schedule,
+              counts: _countsFor(schedule),
+              onShowDetails: _showDetails,
             )
         else
           Card(
@@ -225,4 +221,71 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ScheduleCard extends StatelessWidget {
+  const _ScheduleCard({
+    required this.schedule,
+    required this.counts,
+    required this.onShowDetails,
+  });
+
+  final WorkSchedule schedule;
+  final _ScheduleAppointmentCounts counts;
+  final void Function(
+    BuildContext context,
+    WorkSchedule schedule,
+    _ScheduleAppointmentCounts counts,
+  )
+  onShowDetails;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(bottom: 12),
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(
+              Icons.schedule_rounded,
+              color: AppColors.textOnPrimary,
+            ),
+            title: Text(
+              'Lịch ${schedule.id}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            subtitle: Text(
+              '${schedule.startTime ?? '—'} – ${schedule.endTime ?? '—'}',
+            ),
+            onTap: () => onShowDetails(context, schedule, counts),
+          ),
+          const Divider(height: 28),
+          const Text(
+            'Đã đặt / Đã khám / Đang chờ',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${counts.booked} / ${counts.completed} / ${counts.waiting}',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textOnPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => onShowDetails(context, schedule, counts),
+            child: const Text('Xem chi tiết ca khám'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

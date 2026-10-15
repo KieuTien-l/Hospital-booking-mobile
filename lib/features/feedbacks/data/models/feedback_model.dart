@@ -18,9 +18,7 @@ class FeedbackModel extends FeedbackInfo {
 
   factory FeedbackModel.fromFirestore(DocumentSnapshot doc) {
     final raw = doc.data();
-    final data = raw is Map<String, dynamic>
-        ? raw
-        : <String, dynamic>{};
+    final data = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
     return FeedbackModel(
       id: doc.id,
       patientId: readReferenceId(data['patientId']),
@@ -38,10 +36,8 @@ class FeedbackModel extends FeedbackInfo {
       'content': content,
       'rating': rating,
       if (title != null && title!.trim().isNotEmpty) 'title': title,
-      if (category != null && category!.trim().isNotEmpty)
-        'category': category,
+      if (category != null && category!.trim().isNotEmpty) 'category': category,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
 }
-

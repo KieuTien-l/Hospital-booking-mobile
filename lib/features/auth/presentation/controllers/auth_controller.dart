@@ -21,6 +21,7 @@ class AuthController extends ChangeNotifier {
   AuthStatus _status = AuthStatus.initial;
   UserEntity? _currentUser;
   String? _errorMessage;
+  bool _restoringSession = false;
 
   AuthStatus get status => _status;
   UserEntity? get currentUser => _currentUser;
@@ -29,6 +30,8 @@ class AuthController extends ChangeNotifier {
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
   Future<void> _restoreSession() async {
+    if (_restoringSession) return;
+    _restoringSession = true;
     _status = AuthStatus.loading;
     notifyListeners();
 
@@ -42,6 +45,8 @@ class AuthController extends ChangeNotifier {
       _currentUser = null;
       _status = AuthStatus.error;
       _errorMessage = _messageFrom(error);
+    } finally {
+      _restoringSession = false;
     }
     notifyListeners();
   }
@@ -58,7 +63,7 @@ class AuthController extends ChangeNotifier {
     // Login and registration already load their profile explicitly. Ignoring
     // this duplicate event while loading prevents an old restore from
     // overwriting the final signed-out state after registration.
-    if (_status == AuthStatus.loading) return;
+    if (_status == AuthStatus.loading || _restoringSession) return;
     _restoreSession();
   }
 

@@ -202,7 +202,7 @@ void main() {
         expect(slot['status'], count == 2 ? 'BOOKED' : 'AVAILABLE');
         expect(slot['appointmentId'], saved.id);
         final notifications = store.documents.entries
-            .where((entry) => entry.key.startsWith('notifications/'))
+            .where((entry) => entry.key.startsWith('THONG_BAO/'))
             .map((entry) => entry.value)
             .toList();
         expect(notifications, hasLength(1));

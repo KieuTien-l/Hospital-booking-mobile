@@ -33,24 +33,37 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
+    _tabs.addListener(_handleTabChange);
   }
+
   @override
   void dispose() {
+    _tabs.removeListener(_handleTabChange);
     _tabs.dispose();
     _title.dispose();
     _content.dispose();
     super.dispose();
   }
 
-  void _loadHistory() {
+  void _handleTabChange() {
+    if (_tabs.indexIsChanging || _tabs.index != 1) return;
+    _loadHistory(force: true);
+  }
+
+  void _loadHistory({bool force = false}) {
     final patient = context.read<PatientProfileController?>()?.patient;
     final controller = context.read<FeedbackController?>();
-    if (patient == null || controller == null || _loadedPatientId == patient.id) {
+    if (patient == null ||
+        controller == null ||
+        (!force && _loadedPatientId == patient.id)) {
       return;
     }
     _loadedPatientId = patient.id;
     controller.loadFeedbacks(patient.id);
+  }
+
+  void _retryHistory() {
+    _loadHistory(force: true);
   }
 
   FeedbackCategory _categoryFrom(String? value) {
@@ -84,7 +97,9 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
     if (patient == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng cập nhật hồ sơ bệnh nhân trước khi gửi phản hồi.'),
+          content: Text(
+            'Vui lòng cập nhật hồ sơ bệnh nhân trước khi gửi phản hồi.',
+          ),
         ),
       );
       return;
@@ -113,7 +128,8 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            controller.errorMessage ?? 'Không thể gửi phản hồi. Vui lòng thử lại.',
+            controller.errorMessage ??
+                'Không thể gửi phản hồi. Vui lòng thử lại.',
           ),
         ),
       );
@@ -162,13 +178,20 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
   Widget build(BuildContext context) {
     final patient = context.watch<PatientProfileController?>()?.patient;
     final controller = context.watch<FeedbackController?>();
-    if (patient != null && _loadedPatientId != patient.id) {
+    if (patient != null && _tabs.index == 1 && _loadedPatientId != patient.id) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
     }
-    final persistedHistory = controller?.feedbacks.map(_toUiModel) ?? const [];
-    final history = [...widget.history, ...persistedHistory]
-        .where((item) => _filter == null || item.status == _filter)
-        .toList();
+    final hasCurrentHistory =
+        patient != null && controller?.patientId == patient.id;
+    final persistedHistory = hasCurrentHistory
+        ? controller!.feedbacks.map(_toUiModel)
+        : const <FeedbackUiModel>[];
+    final history = [
+      ...widget.history,
+      ...persistedHistory,
+    ].where((item) => _filter == null || item.status == _filter).toList();
+    final loadingHistory =
+        patient != null && controller != null && !hasCurrentHistory;
     return Theme(
       data: Theme.of(context).copyWith(
         textTheme: Theme.of(context).textTheme
@@ -240,21 +263,70 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
                           ],
                         ),
                         const SizedBox(height: 16),
-                        if (controller?.isLoading == true)
+                        if (loadingHistory || controller?.isLoading == true)
                           const Padding(
                             padding: EdgeInsets.only(bottom: 16),
                             child: Center(child: CircularProgressIndicator()),
                           ),
-                        if (controller?.isError == true)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Text(
-                              controller?.errorMessage ??
-                                  'Không thể tải lịch sử phản hồi.',
-                              style: const TextStyle(color: AppColors.error),
+                        if (!loadingHistory &&
+                            controller?.isHistoryUnavailable == true)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.cloud_off_outlined,
+                                  size: 44,
+                                  color: AppColors.textSecondary,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Mất kết nối. Vui lòng mở mạng rồi thử lại.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        if (history.isEmpty)
+                        if (!loadingHistory &&
+                            controller?.isHistoryUnavailable == true)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: OutlinedButton.icon(
+                              onPressed: _retryHistory,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Thử lại'),
+                            ),
+                          ),
+                        if (!loadingHistory &&
+                            controller?.isError == true &&
+                            controller?.isHistoryUnavailable != true)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  controller?.errorMessage ??
+                                      'Không thể tải lịch sử phản hồi.',
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                OutlinedButton.icon(
+                                  onPressed: _retryHistory,
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text('Thử lại'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (!loadingHistory &&
+                            controller?.isHistoryUnavailable != true &&
+                            history.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(24),
                             child: Column(

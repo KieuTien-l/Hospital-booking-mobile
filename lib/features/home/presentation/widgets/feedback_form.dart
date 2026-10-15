@@ -93,7 +93,32 @@ class FeedbackForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          FeedbackRating(value: rating, onChanged: onRatingChanged),
+          FormField<int>(
+            validator: (_) =>
+                rating == null ? 'Vui lòng chọn mức độ hài lòng.' : null,
+            builder: (field) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FeedbackRating(
+                  value: rating,
+                  onChanged: (value) {
+                    field.didChange(value);
+                    onRatingChanged(value);
+                  },
+                ),
+                if (field.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      field.errorText!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
           TextFormField(
             key: const ValueKey('feedback-title'),

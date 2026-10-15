@@ -4,7 +4,8 @@ import '../models/notification_model.dart';
 
 class NotificationFirebaseDatasource {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _collectionPath = 'notifications';
+  /// Firestore uses Vietnamese uppercase names for the domain collections.
+  final String _collectionPath = 'THONG_BAO';
 
   Stream<List<NotificationModel>> getNotificationsForPatient(String patientId) {
     return _firestore

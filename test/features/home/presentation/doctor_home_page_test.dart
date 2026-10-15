@@ -13,10 +13,11 @@ import 'package:flutter_application_4/features/auth/domain/entities/user_entity.
 import 'package:flutter_application_4/features/auth/domain/repositories/auth_repository.dart';
 import 'package:flutter_application_4/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter_application_4/features/auth/presentation/pages/login_page.dart';
+import 'package:flutter_application_4/features/appointments/domain/entities/appointment.dart';
+import 'package:flutter_application_4/features/doctors/domain/entities/work_schedule.dart';
 import 'package:flutter_application_4/features/home/presentation/pages/doctor_home_page.dart';
 import 'package:flutter_application_4/features/home/presentation/widgets/doctor_dashboard_stat_card.dart';
 import 'package:flutter_application_4/features/home/presentation/widgets/doctor_today_appointments_section.dart';
-import 'package:flutter_application_4/features/doctors/domain/entities/work_schedule.dart';
 
 class _AuthRepository implements AuthRepository {
   _AuthRepository(this.user);
@@ -417,7 +418,7 @@ void main() {
   );
 
   testWidgets(
-    'Verified schedules filter by date and show aggregate-only details',
+    'Verified schedules show only the selected date and real appointment counts',
     (tester) async {
       final date = DateTime(2026, 10, 14);
       await tester.pumpWidget(
@@ -441,6 +442,36 @@ void main() {
                   workDate: DateTime(2026, 10, 15),
                 ),
               ],
+              appointments: [
+                Appointment(
+                  id: 'pending',
+                  patientId: 'patient-1',
+                  doctorId: 'doctor-test',
+                  workScheduleId: 'schedule-test',
+                  timeSlotId: 'slot-pending',
+                  appointmentDate: date,
+                  peopleCount: 2,
+                  status: AppointmentStatus.pending,
+                ),
+                Appointment(
+                  id: 'completed',
+                  patientId: 'patient-2',
+                  doctorId: 'doctor-test',
+                  workScheduleId: 'schedule-test',
+                  timeSlotId: 'slot-completed',
+                  appointmentDate: date,
+                  status: AppointmentStatus.completed,
+                ),
+                Appointment(
+                  id: 'cancelled',
+                  patientId: 'patient-3',
+                  doctorId: 'doctor-test',
+                  workScheduleId: 'schedule-test',
+                  timeSlotId: 'slot-cancelled',
+                  appointmentDate: date,
+                  status: AppointmentStatus.cancelled,
+                ),
+              ],
             ),
           ),
         ),
@@ -449,7 +480,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Lịch other-day'), findsNothing);
       expect(find.text('Chi tiết lịch làm việc'), findsOneWidget);
-      expect(find.text('Bệnh nhân đã khám: Chưa có dữ liệu'), findsOneWidget);
+      expect(find.text('3 / 1 / 2'), findsOneWidget);
+      expect(find.text('Bệnh nhân đã khám: 1'), findsOneWidget);
       expect(find.text('Danh sách bệnh nhân'), findsNothing);
       expect(tester.takeException(), isNull);
     },

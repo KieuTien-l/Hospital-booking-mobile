@@ -307,7 +307,10 @@ void main() {
       find.widgetWithIcon(NavigationDestination, Icons.layers_outlined),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Hỏi - đáp'));
+    final chatbot = find.text('Hỏi - đáp');
+    await tester.scrollUntilVisible(chatbot, 150);
+    await tester.ensureVisible(chatbot);
+    await tester.tap(chatbot);
     await tester.pumpAndSettle();
 
     expect(find.text('Hỏi đáp HealWay'), findsOneWidget);

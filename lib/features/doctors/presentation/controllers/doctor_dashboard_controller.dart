@@ -30,6 +30,7 @@ class DoctorDashboardController extends ViewStateController {
   Doctor? _doctor;
   List<WorkSchedule> _workSchedules = const [];
   List<Appointment> _doctorAppointments = const [];
+  bool _appointmentsLoaded = false;
   String _authUserId = '';
   DateTime? _selectedDate;
   String? _appointmentError;
@@ -38,6 +39,7 @@ class DoctorDashboardController extends ViewStateController {
   Doctor? get doctor => _doctor;
   List<WorkSchedule> get workSchedules => _workSchedules;
   List<Appointment> get appointments => _doctorAppointments;
+  bool get appointmentsLoaded => _appointmentsLoaded;
   String? get appointmentError => _appointmentError;
   DateTime? get selectedDate => _selectedDate;
 
@@ -99,6 +101,7 @@ class DoctorDashboardController extends ViewStateController {
     if (normalizedUserId.isEmpty) {
       _doctor = null;
       _doctorAppointments = const [];
+      _appointmentsLoaded = false;
       await _appointmentSubscription?.cancel();
       _appointmentSubscription = null;
       if (isCurrent(request)) setState(ViewState.empty);
@@ -111,6 +114,7 @@ class DoctorDashboardController extends ViewStateController {
       if (doctor == null) {
         _doctor = null;
         _doctorAppointments = const [];
+        _appointmentsLoaded = false;
         await _appointmentSubscription?.cancel();
         _appointmentSubscription = null;
         setState(ViewState.empty);
@@ -128,12 +132,14 @@ class DoctorDashboardController extends ViewStateController {
       _workSchedules = List.unmodifiable(schedules);
       if (doctorChanged || _appointmentSubscription == null) {
         await _appointmentSubscription?.cancel();
+        _appointmentsLoaded = false;
         _appointmentSubscription = _appointments
             .watchAppointmentsByDoctor(doctor.id)
             .listen(
               (appointments) {
                 if (_disposed || _doctor?.id != doctor.id) return;
                 _doctorAppointments = List.unmodifiable(appointments);
+                _appointmentsLoaded = true;
                 _appointmentError = null;
                 notifyListeners();
               },

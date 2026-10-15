@@ -4,22 +4,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../../profile/data/models/patient_model.dart';
 import '../models/user_model.dart';
-import '../exceptions/api_exception.dart';
 import '../../domain/exceptions/auth_exception.dart';
-import 'auth_firestore_rest_datasource.dart';
 
 class AuthFirebaseDatasource {
-  AuthFirebaseDatasource({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-    AuthFirestoreRestDatasource? restDatasource,
-  }) : _auth = auth ?? FirebaseAuth.instance,
-       _firestore = firestore ?? FirebaseFirestore.instance,
-       _restDatasource = restDatasource ?? AuthFirestoreRestDatasource();
+  AuthFirebaseDatasource({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final AuthFirestoreRestDatasource _restDatasource;
 
   Stream<String?> get authStateChanges {
     return _auth.authStateChanges().map((user) => user?.uid);
@@ -140,18 +133,34 @@ class AuthFirebaseDatasource {
 
   Future<UserModel> _getUserProfile(User firebaseUser) async {
     try {
-      final idToken = await firebaseUser.getIdToken();
-      if (idToken == null || idToken.isEmpty) {
-        throw const AuthException('Unable to authenticate this account.');
+      // Keep account reads on the Firebase SDK channel. The earlier REST
+      // endpoint is rate-limited separately and can return HTTP 429 after
+      // repeated app restarts even though the user has authenticated.
+      final account = await _firestore
+          .collection('TAI_KHOAN')
+          .doc(firebaseUser.uid)
+          .get(const GetOptions(source: Source.server));
+      if (!account.exists) {
+        throw const AuthException('Không tìm thấy hồ sơ tài khoản.');
       }
-      return await _restDatasource.getUser(
-        userId: firebaseUser.uid,
-        idToken: idToken,
-      );
+      return UserModel.fromFirestore(account);
     } on AuthException {
       rethrow;
-    } on ApiException catch (error) {
-      throw AuthException(error.message);
+    } on FirebaseException catch (error) {
+      throw AuthException(_profileLoadMessage(error));
+    }
+  }
+
+  String _profileLoadMessage(FirebaseException error) {
+    switch (error.code) {
+      case 'unavailable':
+        return 'Không thể kết nối để tải hồ sơ tài khoản. Vui lòng kiểm tra mạng rồi thử lại.';
+      case 'permission-denied':
+        return 'Bạn không có quyền truy cập hồ sơ tài khoản.';
+      case 'resource-exhausted':
+        return 'Máy chủ đang bận. Vui lòng chờ một lát rồi thử lại.';
+      default:
+        return 'Không thể tải hồ sơ tài khoản. Vui lòng thử lại.';
     }
   }
 

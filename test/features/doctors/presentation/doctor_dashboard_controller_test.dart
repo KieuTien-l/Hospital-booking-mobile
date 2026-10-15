@@ -58,6 +58,7 @@ void main() {
 
     expect(controller.status, ViewState.success);
     expect(controller.workSchedules, hasLength(1));
+    expect(controller.appointmentsLoaded, isTrue);
     expect(controller.bookedCount, 3);
     expect(controller.completedCount, 1);
     expect(controller.waitingCount, 2);
