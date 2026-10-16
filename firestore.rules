@@ -508,7 +508,11 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    match /notifications/{notificationId} {
+    // NotificationFirebaseDatasource and appointment transactions use the
+    // Vietnamese uppercase collection name. Keeping the rule path identical
+    // to the client schema is required for the paired booking/cancellation
+    // transaction to be authorized.
+    match /THONG_BAO/{notificationId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId);
       allow create: if isAdmin() ||
           (request.resource.data.doctorId is string &&
