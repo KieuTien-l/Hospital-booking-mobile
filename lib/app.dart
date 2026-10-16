@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+
+import 'features/home/domain/repositories/doctor_workspace_repository.dart';
+import 'features/home/data/repositories/demo_doctor_workspace_repository.dart';
+import 'features/home/data/repositories/http_doctor_workspace_repository.dart';
 
 import 'core/themes/app_theme.dart';
 import 'features/appointments/data/datasources/appointment_firebase_datasource.dart';
@@ -43,6 +49,31 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<DoctorWorkspaceRepository>(
+          create: (_) =>
+              const bool.fromEnvironment(
+                'DOCTOR_DEMO',
+                defaultValue: !kReleaseMode,
+              )
+              ? const DemoDoctorWorkspaceRepository()
+              : HttpDoctorWorkspaceRepository(
+                  baseUrl: const String.fromEnvironment('DOCTOR_API_BASE_URL'),
+                  tokenProvider: (userId) async {
+                    final user = FirebaseAuth.instance.currentUser;
+                    return user?.uid == userId ? user!.getIdToken() : null;
+                  },
+                  onUnauthorized: (userId) async {
+                    if (FirebaseAuth.instance.currentUser?.uid == userId) {
+                      await FirebaseAuth.instance.signOut();
+                    }
+                  },
+                ),
+          dispose: (_, repository) {
+            if (repository is HttpDoctorWorkspaceRepository) {
+              repository.dispose();
+            }
+          },
+        ),
         Provider(
           create: (_) =>
               OnboardingController(OnboardingRepositoryImpl(AppPreferences())),

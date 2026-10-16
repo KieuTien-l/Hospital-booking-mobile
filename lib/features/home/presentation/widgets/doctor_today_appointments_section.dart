@@ -6,6 +6,8 @@ import '../../../doctors/domain/entities/time_slot.dart';
 import '../models/doctor_home_demo_data.dart';
 import '../models/doctor_slot_booking.dart';
 import '../pages/doctor_slot_details_page.dart';
+import '../models/doctor_slot_availability.dart';
+import '../controllers/doctor_workspace_controller.dart';
 
 enum DoctorAppointmentsDisplayState { loading, empty, error, data }
 
@@ -19,6 +21,8 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     this.demoCounts = const {},
     this.timeSlots = const [],
     this.bookings,
+    this.isDemo = false,
+    this.workspace,
   });
   final DoctorAppointmentsDisplayState state;
   final DateTime? selectedDate;
@@ -31,6 +35,9 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
   final Map<String, DoctorScheduleCounts> demoCounts;
   final List<TimeSlot> timeSlots;
   final List<DoctorSlotBooking>? bookings;
+  final bool isDemo;
+  final DoctorWorkspaceController? workspace;
+  bool get _demo => isDemo || demoCounts.isNotEmpty;
 
   static int? _minutes(String? time) {
     final parts = time?.split(':');
@@ -155,20 +162,15 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     WorkSchedule schedule,
     TimeSlot? slot,
   ) {
-    final full =
-        slot != null &&
-        (slot.status == TimeSlotStatus.booked ||
-            (slot.capacity != null &&
-                slot.bookedCount != null &&
-                slot.bookedCount! >= slot.capacity!));
-    final available = !full && slot != null && slot.isAvailable;
-    final label = full
-        ? 'Đã đặt hết'
-        : available
+    final availability = slot == null
+        ? DoctorSlotAvailability.unknown
+        : DoctorSlotAvailability.fromSlot(slot);
+    final available = availability == DoctorSlotAvailability.available;
+    final label = available
         ? null
         : slot == null
         ? 'Chưa có dữ liệu ca khám'
-        : 'Chưa có chỗ khả dụng';
+        : availability.label;
     final time =
         '${slot?.startTime ?? schedule.startTime ?? '—'} - '
         '${slot?.endTime ?? schedule.endTime ?? '—'}';
@@ -192,7 +194,8 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                   schedule: schedule,
                   slot: slot,
                   bookings: bookings,
-                  isDemo: demoCounts.containsKey(schedule.id),
+                  isDemo: _demo,
+                  workspace: workspace,
                 ),
               ),
             );
@@ -337,7 +340,7 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        if (demoCounts.isNotEmpty) ...[
+        if (_demo) ...[
           const Text(
             'Dữ liệu mẫu • Chỉ để xem giao diện',
             style: TextStyle(color: AppColors.textSecondary),
@@ -381,7 +384,7 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                         ? 'Đang tải lịch khám'
                         : error
                         ? 'Không thể tải lịch khám'
-                        : demoCounts.isNotEmpty &&
+                        : (_demo || workspace?.data != null) &&
                               selectedDate?.weekday == DateTime.sunday
                         ? 'Chủ nhật không có ca khám'
                         : selectedDate == null
@@ -397,10 +400,10 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                         ? 'Vui lòng chờ trong giây lát.'
                         : error
                         ? 'Lịch khám hiện chưa thể hiển thị. Vui lòng quay lại sau.'
-                        : demoCounts.isNotEmpty &&
+                        : (_demo || workspace?.data != null) &&
                               selectedDate?.weekday == DateTime.sunday
                         ? 'Vui lòng chọn ngày khác để xem các ca khám.'
-                        : demoCounts.isNotEmpty
+                        : _demo
                         ? 'Không có ca khám mẫu cho ngày đang chọn. Vui lòng chọn ngày khác.'
                         : 'Lịch và ca làm cho ngày đang chọn sẽ xuất hiện khi dữ liệu được kết nối.',
                     textAlign: TextAlign.center,
