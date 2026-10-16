@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/state/view_state.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../doctors/domain/entities/work_schedule.dart';
-import '../../../doctors/presentation/controllers/doctor_dashboard_controller.dart';
-import '../models/doctor_home_demo_data.dart';
-import '../models/doctor_slot_booking.dart';
+import '../../data/repositories/demo_doctor_workspace_repository.dart';
+import '../../domain/entities/doctor_workspace.dart';
+import '../../domain/repositories/doctor_workspace_repository.dart';
+import '../controllers/doctor_workspace_controller.dart';
 import '../widgets/doctor_dashboard_stat_card.dart';
 import '../widgets/doctor_today_appointments_section.dart';
 import '../widgets/patient_home_background.dart';
@@ -24,7 +23,59 @@ class DoctorHomePage extends StatefulWidget {
   State<DoctorHomePage> createState() => _DoctorHomePageState();
 }
 
-class _DoctorHomePageState extends State<DoctorHomePage> {
+class _DoctorHomePageState extends State<DoctorHomePage>
+    with WidgetsBindingObserver {
+  DoctorWorkspaceController? _workspace;
+  String? _accountId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _workspace?.resume();
+    } else {
+      _workspace?.pause();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final account =
+        context.watch<AuthController>().currentUser?.id ?? 'preview';
+    if (_accountId == account) return;
+    _workspace?.removeListener(_changed);
+    _workspace?.dispose();
+    _accountId = account;
+    final provided = context.read<DoctorWorkspaceRepository?>();
+    final repository =
+        provided ??
+        (widget.showDemoData ? const DemoDoctorWorkspaceRepository() : null);
+    _workspace =
+        repository == null || (!widget.showDemoData && repository.isDemo)
+        ? null
+        : DoctorWorkspaceController(repository: repository, userId: account);
+    _workspace?.load(_selectedDate);
+    _workspace?.addListener(_changed);
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _workspace?.removeListener(_changed);
+    _workspace?.dispose();
+    super.dispose();
+  }
+
   int _tab = 0;
   DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
   DateTime _stripStart = DateUtils.dateOnly(DateTime.now())
@@ -40,11 +91,13 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
         _stripStart = _selectedDate.subtract(const Duration(days: 2));
       }
     });
+    _workspace?.load(_selectedDate);
   }
 
   Future<void> _chooseDate() async {
     final date = await showDatePicker(
       context: context,
+      useRootNavigator: false,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100, 12, 31),
@@ -53,110 +106,12 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
     if (date != null && mounted) _selectDate(date, resetStrip: true);
   }
 
-  void _loadDashboardAfterBuild(
-    DoctorDashboardController? dashboard,
-    String authUserId,
-  ) {
-    if (dashboard == null ||
-        dashboard.matches(authUserId: authUserId, date: _selectedDate)) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        dashboard.load(authUserId: authUserId, selectedDate: _selectedDate);
-      }
-    });
-  }
-
-  Widget _home(
-    BuildContext context,
-    AuthController auth,
-    DoctorDashboardController? dashboard,
-  ) {
+  Widget _home(BuildContext context, AuthController auth) {
+    final workspace = _workspace;
+    final data = workspace?.data;
+    final totals = data?.totals ?? const DoctorBookingTotals();
     final name = auth.currentUser?.fullName.trim() ?? '';
     final textTheme = Theme.of(context).textTheme;
-    // Demo data is useful for a standalone preview, but it must never replace
-    // data from the authenticated doctor's dashboard in the actual app.
-    final useDemoData = dashboard == null && widget.showDemoData;
-    final demoSchedules = useDemoData
-        ? DoctorHomeDemoData.schedules(
-            DateUtils.dateOnly(DateTime.now()),
-            selectedDate: _selectedDate,
-          )
-        : const <WorkSchedule>[];
-    final demoBookings = useDemoData
-        ? DoctorHomeDemoData.bookings(demoSchedules)
-        : const <DoctorSlotBooking>[];
-    final demoCounts = useDemoData
-        ? DoctorHomeDemoData.counts(demoSchedules)
-        : const <String, DoctorScheduleCounts>{};
-    final selectedDemoCounts = demoSchedules
-        .where(
-          (schedule) => DateUtils.isSameDay(schedule.workDate, _selectedDate),
-        )
-        .map((schedule) => demoCounts[schedule.id]!);
-    final demoBooked = selectedDemoCounts.fold(
-      0,
-      (total, counts) => total + counts.booked,
-    );
-    final demoCompleted = selectedDemoCounts.fold(
-      0,
-      (total, counts) => total + counts.completed,
-    );
-    final dashboardState = dashboard?.status ?? ViewState.initial;
-    final appointmentStreamLoading =
-        dashboardState == ViewState.success &&
-        dashboard?.appointmentsLoaded == false;
-    final dashboardLoading =
-        dashboardState == ViewState.loading || appointmentStreamLoading;
-    final dashboardError =
-        dashboardState == ViewState.error ||
-        dashboard?.appointmentError != null;
-    final hasResolvedData =
-        (dashboardState == ViewState.success ||
-            dashboardState == ViewState.empty) &&
-        !dashboardLoading &&
-        !dashboardError;
-    final appointmentState = useDemoData
-        ? DoctorAppointmentsDisplayState.data
-        : dashboard == null
-        ? DoctorAppointmentsDisplayState.empty
-        : dashboardLoading
-        ? DoctorAppointmentsDisplayState.loading
-        : dashboardError
-        ? DoctorAppointmentsDisplayState.error
-        : dashboard.workSchedules.isEmpty
-        ? DoctorAppointmentsDisplayState.empty
-        : DoctorAppointmentsDisplayState.data;
-    final stats = [
-      (
-        'Đã đặt',
-        Icons.event_available_outlined,
-        useDemoData
-            ? demoBooked
-            : hasResolvedData
-            ? dashboard?.bookedCount
-            : null,
-      ),
-      (
-        'Đã khám',
-        Icons.done_all_rounded,
-        useDemoData
-            ? demoCompleted
-            : hasResolvedData
-            ? dashboard?.completedCount
-            : null,
-      ),
-      (
-        'Chờ khám',
-        Icons.schedule_rounded,
-        useDemoData
-            ? demoBooked - demoCompleted
-            : hasResolvedData
-            ? dashboard?.waitingCount
-            : null,
-      ),
-    ];
     return SingleChildScrollView(
       key: const PageStorageKey('doctor-home'),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
@@ -371,25 +326,75 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                 ),
               ),
               const SizedBox(height: 18),
+              if (workspace != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: workspace.isLoading ? null : workspace.refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Làm mới'),
+                  ),
+                ),
+              if (workspace?.isLoading == true && data != null)
+                const LinearProgressIndicator(),
+              if (workspace?.hasError == true)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Text(
+                          workspace!.errorMessage ??
+                              'Không thể tải dữ liệu bác sĩ.',
+                          textAlign: TextAlign.center,
+                        ),
+                        TextButton(
+                          onPressed: workspace.refresh,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final columns =
-                      MediaQuery.textScalerOf(context).scale(14) > 20 ? 1 : 3;
+                      MediaQuery.textScalerOf(context).scale(14) > 20
+                      ? 1
+                      : totals.pending > 0
+                      ? 2
+                      : 3;
                   final width =
                       (constraints.maxWidth - (columns - 1) * 10) / columns;
                   return Wrap(
                     spacing: 10,
                     runSpacing: 10,
                     children: [
-                      for (final stat in stats)
+                      for (final stat in [
+                        (
+                          'Đã đặt',
+                          Icons.event_available_outlined,
+                          totals.booked,
+                        ),
+                        ('Đã khám', Icons.done_all_rounded, totals.completed),
+                        ('Chờ khám', Icons.schedule_rounded, totals.waiting),
+                        if (totals.pending > 0)
+                          (
+                            'Chờ xác nhận',
+                            Icons.pending_actions,
+                            totals.pending,
+                          ),
+                      ])
                         SizedBox(
                           width: width,
                           child: DoctorDashboardStatCard(
                             label: stat.$1,
                             icon: stat.$2,
-                            value: stat.$3,
-                            isLoading: dashboardLoading,
-                            hasError: dashboardError,
+                            value: data != null ? stat.$3 : null,
+                            isLoading:
+                                workspace?.isLoading == true && data == null,
+                            hasError:
+                                workspace?.hasError == true && data == null,
                           ),
                         ),
                     ],
@@ -399,20 +404,18 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
               const SizedBox(height: 26),
               DoctorTodayAppointmentsSection(
                 selectedDate: _selectedDate,
-                state: appointmentState,
-                schedules: useDemoData
-                    ? demoSchedules
-                    : dashboard?.workSchedules ?? const [],
-                appointments: useDemoData
-                    ? demoBookings
-                          .map((booking) => booking.appointment)
-                          .toList(growable: false)
-                    : dashboard?.appointments ?? const [],
-                timeSlots: useDemoData
-                    ? DoctorHomeDemoData.timeSlots(demoSchedules)
-                    : dashboard?.timeSlots ?? const [],
-                bookings: useDemoData ? demoBookings : null,
-                isDemo: useDemoData,
+                state: data != null
+                    ? DoctorAppointmentsDisplayState.data
+                    : workspace?.isLoading == true
+                    ? DoctorAppointmentsDisplayState.loading
+                    : workspace?.hasError == true
+                    ? DoctorAppointmentsDisplayState.error
+                    : DoctorAppointmentsDisplayState.empty,
+                schedules: data?.schedules ?? const [],
+                timeSlots: data?.slots ?? const [],
+                bookings: data?.bookings,
+                isDemo: workspace?.repository.isDemo ?? false,
+                workspace: workspace,
               ),
               const SizedBox(height: 18),
               Container(
@@ -443,15 +446,11 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            dashboard == null
+                            workspace?.repository.isDemo == true
+                                ? 'Đang hiển thị dữ liệu mẫu theo ngày đang chọn. Thứ bảy chỉ có buổi sáng, Chủ nhật không có ca khám. Lịch và số liệu không phải dữ liệu thực tế và không được lưu lên hệ thống.'
+                                : workspace == null
                                 ? 'Lịch và thống kê chưa được kết nối. Các chỉ số hiển thị “—” khi chưa có dữ liệu được xác minh.'
-                                : dashboardLoading
-                                ? 'Đang đồng bộ lịch làm việc và lịch hẹn.'
-                                : dashboardError
-                                ? 'Không thể đồng bộ dữ liệu. Vui lòng thử lại sau.'
-                                : dashboard.workSchedules.isEmpty
-                                ? 'Chưa có ca làm được phân công cho ngày đã chọn.'
-                                : 'Lịch và thống kê đang được đồng bộ từ hệ thống.',
+                                : 'Dữ liệu theo tài khoản bác sĩ đăng nhập. Tự làm mới mỗi 30 giây; nhấn Làm mới để cập nhật ngay.',
                             style: textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                               height: 1.5,
@@ -539,8 +538,6 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final dashboard = context.watch<DoctorDashboardController?>();
-    _loadDashboardAfterBuild(dashboard, auth.currentUser?.id ?? '');
     return Theme(
       data: Theme.of(context).copyWith(
         textTheme: Theme.of(context).textTheme
@@ -595,9 +592,21 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                     child: IndexedStack(
                       index: _tab,
                       children: [
-                        _home(context, auth, dashboard),
-                        DoctorReportsPage(selectedDate: _selectedDate),
-                        const DoctorProfilePage(),
+                        _home(context, auth),
+                        DoctorReportsPage(
+                          key: ValueKey('reports-$_accountId'),
+                          selectedDate: _selectedDate,
+                          workspace: _workspace,
+                        ),
+                        DoctorProfilePage(
+                          key: ValueKey('profile-$_accountId'),
+                          doctor: _workspace?.repository.isDemo == false
+                              ? _workspace?.data?.doctor
+                              : null,
+                          isLoading: _workspace?.isLoading == true,
+                          error: _workspace?.errorMessage,
+                          onRetry: _workspace?.refresh,
+                        ),
                       ],
                     ),
                   ),

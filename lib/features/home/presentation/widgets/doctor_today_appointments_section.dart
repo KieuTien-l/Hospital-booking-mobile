@@ -4,8 +4,11 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../appointments/domain/entities/appointment.dart';
 import '../../../doctors/domain/entities/time_slot.dart';
 import '../../../doctors/domain/entities/work_schedule.dart';
+import '../models/doctor_home_demo_data.dart';
 import '../models/doctor_slot_booking.dart';
 import '../pages/doctor_slot_details_page.dart';
+import '../models/doctor_slot_availability.dart';
+import '../controllers/doctor_workspace_controller.dart';
 
 enum DoctorAppointmentsDisplayState { loading, empty, error, data }
 
@@ -34,8 +37,10 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     this.schedules = const [],
     this.timeSlots = const [],
     this.appointments = const [],
+    this.demoCounts = const {},
     this.bookings,
     this.isDemo = false,
+    this.workspace,
   });
 
   final DoctorAppointmentsDisplayState state;
@@ -43,8 +48,11 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
   final List<WorkSchedule> schedules;
   final List<TimeSlot> timeSlots;
   final List<Appointment> appointments;
+  final Map<String, DoctorScheduleCounts> demoCounts;
   final List<DoctorSlotBooking>? bookings;
   final bool isDemo;
+  final DoctorWorkspaceController? workspace;
+  bool get _demo => isDemo || demoCounts.isNotEmpty;
 
   static String _dateLabel(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -221,20 +229,15 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     WorkSchedule schedule,
     TimeSlot? slot,
   ) {
-    final full =
-        slot != null &&
-        (slot.status == TimeSlotStatus.booked ||
-            (slot.capacity != null &&
-                slot.bookedCount != null &&
-                slot.bookedCount! >= slot.capacity!));
-    final available = !full && slot != null && slot.isAvailable;
-    final label = full
-        ? 'Đã đặt hết'
-        : available
+    final availability = slot == null
+        ? DoctorSlotAvailability.unknown
+        : DoctorSlotAvailability.fromSlot(slot);
+    final available = availability == DoctorSlotAvailability.available;
+    final label = available
         ? null
         : slot == null
         ? 'Chưa có dữ liệu ca khám'
-        : 'Chưa có chỗ khả dụng';
+        : availability.label;
     final time =
         '${slot?.startTime ?? schedule.startTime ?? '—'} - '
         '${slot?.endTime ?? schedule.endTime ?? '—'}';
@@ -249,7 +252,7 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
         child: InkWell(
           onTap: () {
             if (slot == null) {
-              _showDetails(context, schedule, _countsFor(schedule));
+              _showDetails(context, schedule);
               return;
             }
             Navigator.of(context).push(
@@ -258,7 +261,8 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                   schedule: schedule,
                   slot: slot,
                   bookings: _bookingsFor(schedule),
-                  isDemo: isDemo,
+                  isDemo: _demo,
+                  workspace: workspace,
                 ),
               ),
             );
@@ -305,8 +309,15 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
   void _showDetails(
     BuildContext context,
     WorkSchedule schedule,
-    _ScheduleAppointmentCounts counts,
   ) {
+    final demoCountsForSchedule = demoCounts[schedule.id];
+    final counts = demoCountsForSchedule == null
+        ? _countsFor(schedule)
+        : _ScheduleAppointmentCounts(
+            booked: demoCountsForSchedule.booked,
+            completed: demoCountsForSchedule.completed,
+            waiting: demoCountsForSchedule.waiting,
+          );
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -324,7 +335,7 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),
-              if (isDemo) ...[
+              if (_demo) ...[
                 const Text('Dữ liệu mẫu • Chỉ để xem giao diện'),
                 const SizedBox(height: 12),
               ],
@@ -397,7 +408,7 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        if (isDemo) ...[
+        if (_demo) ...[
           const Text(
             'Dữ liệu mẫu • Chỉ để xem giao diện',
             style: TextStyle(color: AppColors.textSecondary),
@@ -441,7 +452,8 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                         ? 'Đang tải lịch khám'
                         : error
                         ? 'Không thể tải lịch khám'
-                        : isDemo && selectedDate?.weekday == DateTime.sunday
+                        : (_demo || workspace?.data != null) &&
+                              selectedDate?.weekday == DateTime.sunday
                         ? 'Chủ nhật không có ca khám'
                         : selectedDate == null
                         ? 'Chưa có dữ liệu lịch khám để hiển thị'
@@ -456,9 +468,10 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                         ? 'Vui lòng chờ trong giây lát.'
                         : error
                         ? 'Lịch khám hiện chưa thể hiển thị. Vui lòng quay lại sau.'
-                        : isDemo && selectedDate?.weekday == DateTime.sunday
+                        : (_demo || workspace?.data != null) &&
+                              selectedDate?.weekday == DateTime.sunday
                         ? 'Vui lòng chọn ngày khác để xem các ca khám.'
-                        : isDemo
+                        : _demo
                         ? 'Không có ca khám mẫu cho ngày đang chọn. Vui lòng chọn ngày khác.'
                         : 'Lịch và ca làm cho ngày đang chọn sẽ xuất hiện khi dữ liệu được kết nối.',
                     textAlign: TextAlign.center,

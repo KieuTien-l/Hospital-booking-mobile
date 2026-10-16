@@ -3,32 +3,37 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../doctors/presentation/controllers/doctor_dashboard_controller.dart';
+import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/presentation/widgets/doctor_detail_section.dart';
 
 /// Read-only until Doctor profile editing rights and data have been verified.
 class DoctorProfilePage extends StatelessWidget {
-  const DoctorProfilePage({super.key});
+  const DoctorProfilePage({
+    super.key,
+    this.doctor,
+    this.isLoading = false,
+    this.error,
+    this.onRetry,
+  });
+  final Doctor? doctor;
+  final bool isLoading;
+  final String? error;
+  final VoidCallback? onRetry;
 
   void _previewAvatar(BuildContext context) => showDialog<void>(
     context: context,
+    useRootNavigator: false,
     builder: (context) => AlertDialog(
       title: const Text('Ảnh đại diện'),
-      content: const Column(
+      content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(
-            radius: 48,
-            backgroundColor: AppColors.primarySoft,
-            child: Icon(
-              Icons.person_outline_rounded,
-              size: 54,
-              color: AppColors.textOnPrimary,
-            ),
-          ),
-          SizedBox(height: 16),
+          _avatar(48),
+          const SizedBox(height: 16),
           Text(
-            'Đang sử dụng ảnh đại diện mặc định.',
+            doctor?.avatarUrl?.isNotEmpty == true
+                ? 'Ảnh đại diện bác sĩ.'
+                : 'Đang sử dụng ảnh đại diện mặc định.',
             textAlign: TextAlign.center,
           ),
         ],
@@ -42,6 +47,31 @@ class DoctorProfilePage extends StatelessWidget {
     ),
   );
 
+  Widget _avatar(double radius) {
+    final url = doctor?.avatarUrl;
+    final fallback = CircleAvatar(
+      radius: radius,
+      backgroundColor: AppColors.primarySoft,
+      child: Icon(
+        Icons.person_outline_rounded,
+        size: radius,
+        color: AppColors.textOnPrimary,
+      ),
+    );
+    if (url == null || Uri.tryParse(url)?.scheme != 'https') return fallback;
+    return ClipOval(
+      child: Image.network(
+        url,
+        width: radius * 2,
+        height: radius * 2,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => fallback,
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : fallback,
+      ),
+    );
+  }
+
   Widget _section(String title, String subtitle, IconData icon, Widget child) =>
       DoctorDetailSection(
         title: title,
@@ -51,13 +81,18 @@ class DoctorProfilePage extends StatelessWidget {
         child: child,
       );
 
-  Widget _field(String label, {String? value, Key? key}) => TextFormField(
-    key: key,
-    initialValue: value?.trim() ?? '',
-    readOnly: true,
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: 'Chưa có dữ liệu được xác minh',
+  Widget _field(String label, {String? value, Key? key}) => KeyedSubtree(
+    // Keep a field's horizontal scroll offset separate from ExpansionTile's
+    // saved boolean state when refreshed data replaces a keyed field.
+    key: PageStorageKey('doctor-field-$label'),
+    child: TextFormField(
+      key: key,
+      initialValue: value?.trim() ?? '',
+      readOnly: true,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'Chưa có dữ liệu được xác minh',
+      ),
     ),
   );
 
@@ -81,7 +116,6 @@ class DoctorProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final doctor = context.watch<DoctorDashboardController?>()?.doctor;
     final user = auth.currentUser;
     final name = _firstVerifiedValue(doctor?.fullName, user?.fullName) ?? '';
     return SingleChildScrollView(
@@ -93,17 +127,26 @@ class DoctorProfilePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Center(
-                child: CircleAvatar(
-                  radius: 42,
-                  backgroundColor: AppColors.primarySoft,
-                  child: Icon(
-                    Icons.person_outline_rounded,
-                    size: 46,
-                    color: AppColors.textOnPrimary,
+              if (isLoading) const LinearProgressIndicator(),
+              if (error != null)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Không thể tải hồ sơ bác sĩ. $error',
+                          textAlign: TextAlign.center,
+                        ),
+                        TextButton(
+                          onPressed: onRetry,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              Center(child: _avatar(42)),
               const SizedBox(height: 18),
               Text(
                 'Hồ sơ bác sĩ',
@@ -184,15 +227,26 @@ class DoctorProfilePage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _field('Chuyên khoa', value: doctor?.specialtyName),
+                    _field(
+                      'Chuyên khoa',
+                      value: doctor?.specialtyName ?? doctor?.specialtyId,
+                      key: ValueKey(
+                        'specialty-${doctor?.specialtyName}-${doctor?.specialtyId}',
+                      ),
+                    ),
                     const SizedBox(height: 16),
-                    _field('Học vị', value: doctor?.qualification),
+                    _field(
+                      'Học vị',
+                      value: doctor?.qualification,
+                      key: ValueKey('qualification-${doctor?.qualification}'),
+                    ),
                     const SizedBox(height: 16),
                     _field(
                       'Kinh nghiệm',
                       value: doctor == null
                           ? null
-                          : '${doctor.yearsOfExperience} năm',
+                          : '${doctor!.yearsOfExperience} năm',
+                      key: ValueKey('experience-${doctor?.yearsOfExperience}'),
                     ),
                     const SizedBox(height: 20),
                     // Same section names as the Patient DoctorDetailPage. No demo data.
@@ -245,17 +299,7 @@ class DoctorProfilePage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(
-                      child: CircleAvatar(
-                        radius: 36,
-                        backgroundColor: AppColors.primarySoft,
-                        child: Icon(
-                          Icons.person_outline_rounded,
-                          size: 40,
-                          color: AppColors.textOnPrimary,
-                        ),
-                      ),
-                    ),
+                    Center(child: _avatar(36)),
                     const SizedBox(height: 16),
                     Wrap(
                       alignment: WrapAlignment.center,
@@ -293,7 +337,11 @@ class DoctorProfilePage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _field('Email đăng nhập', value: user?.email),
+                    _field(
+                      'Email đăng nhập',
+                      value: user?.email,
+                      key: ValueKey('login-email-${user?.id}-${user?.email}'),
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Các chức năng bảo mật bổ sung chưa được kết nối.',

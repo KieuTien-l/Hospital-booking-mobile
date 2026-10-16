@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'features/home/domain/repositories/doctor_workspace_repository.dart';
+import 'features/home/data/repositories/demo_doctor_workspace_repository.dart';
+import 'features/home/data/repositories/firestore_doctor_workspace_repository.dart';
+
 import 'features/health_records/data/datasources/health_record_firebase_datasource.dart';
 import 'features/health_records/data/repositories/health_record_repository_impl.dart';
 import 'features/health_records/domain/repositories/health_record_repository.dart';
@@ -96,6 +100,18 @@ class App extends StatelessWidget {
         Provider<AppointmentRepository>(
           create: (_) =>
               AppointmentRepositoryImpl(AppointmentFirebaseDatasource()),
+        ),
+        Provider<DoctorWorkspaceRepository>(
+          create: (context) =>
+              const bool.fromEnvironment('DOCTOR_DEMO', defaultValue: false)
+              ? const DemoDoctorWorkspaceRepository()
+              : FirestoreDoctorWorkspaceRepository(
+                  doctorRepository: context.read<DoctorRepository>(),
+                  workScheduleRepository:
+                      context.read<WorkScheduleRepository>(),
+                  timeSlotRepository: context.read<TimeSlotRepository>(),
+                  appointmentRepository: context.read<AppointmentRepository>(),
+                ),
         ),
         Provider<NotificationRepository>(
           create: (_) =>

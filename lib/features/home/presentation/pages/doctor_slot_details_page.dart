@@ -7,6 +7,9 @@ import '../../../doctors/domain/entities/work_schedule.dart';
 import '../models/doctor_slot_booking.dart';
 import '../widgets/doctor_dashboard_stat_card.dart';
 import '../widgets/patient_home_background.dart';
+import '../controllers/doctor_workspace_controller.dart';
+import '../models/doctor_slot_availability.dart';
+import '../../domain/entities/doctor_workspace.dart';
 
 class DoctorSlotDetailsPage extends StatefulWidget {
   const DoctorSlotDetailsPage({
@@ -15,6 +18,7 @@ class DoctorSlotDetailsPage extends StatefulWidget {
     required this.slot,
     this.bookings,
     this.isDemo = false,
+    this.workspace,
   });
 
   final WorkSchedule schedule;
@@ -23,36 +27,49 @@ class DoctorSlotDetailsPage extends StatefulWidget {
   /// Null means the booking source has not been connected; [] is a known empty list.
   final List<DoctorSlotBooking>? bookings;
   final bool isDemo;
+  final DoctorWorkspaceController? workspace;
 
   @override
   State<DoctorSlotDetailsPage> createState() => _DoctorSlotDetailsPageState();
 }
 
 class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
+  WorkSchedule get _schedule =>
+      widget.workspace?.data?.schedules
+          .where((schedule) => schedule.id == widget.schedule.id)
+          .firstOrNull ??
+      widget.schedule;
+  TimeSlot get _slot =>
+      widget.workspace?.data?.slots
+          .where((slot) => slot.id == widget.slot.id)
+          .firstOrNull ??
+      widget.slot;
+  List<DoctorSlotBooking>? get _sourceBookings => widget.workspace == null
+      ? widget.bookings
+      : widget.workspace?.data?.bookings;
   String _query = '';
   int _filter = 0;
 
   bool _waiting(DoctorSlotBooking booking) =>
-      booking.appointment.status == AppointmentStatus.pending ||
       booking.appointment.status == AppointmentStatus.confirmed;
 
   List<DoctorSlotBooking> get _bookings {
     final validSlot =
-        widget.slot.workScheduleId == widget.schedule.id &&
-        widget.slot.doctorId == widget.schedule.doctorId;
-    final result = (widget.bookings ?? const <DoctorSlotBooking>[]).where((
+        _slot.workScheduleId == _schedule.id &&
+        _slot.doctorId == _schedule.doctorId;
+    final result = (_sourceBookings ?? const <DoctorSlotBooking>[]).where((
       booking,
     ) {
       final appointment = booking.appointment;
       return validSlot &&
-          appointment.doctorId == widget.schedule.doctorId &&
-          appointment.workScheduleId == widget.schedule.id &&
-          appointment.timeSlotId == widget.slot.id &&
+          appointment.doctorId == _schedule.doctorId &&
+          appointment.workScheduleId == _schedule.id &&
+          appointment.timeSlotId == _slot.id &&
           appointment.appointmentDate != null &&
-          widget.schedule.workDate != null &&
+          _schedule.workDate != null &&
           DateUtils.isSameDay(
             appointment.appointmentDate,
-            widget.schedule.workDate,
+            _schedule.workDate,
           ) &&
           appointment.status != AppointmentStatus.cancelled;
     }).toList();
@@ -160,6 +177,16 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                       ),
                       const SizedBox(height: 8),
                       _pill(status, color),
+                      if (appointment.peopleCount > 1) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Số người khám: ${appointment.peopleCount}',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -192,16 +219,35 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => widget.workspace == null
+      ? _build(context)
+      : ListenableBuilder(
+          listenable: widget.workspace!,
+          builder: (context, _) => _build(context),
+        );
+
+  Widget _build(BuildContext context) {
+    final workspace = widget.workspace;
+    if (workspace?.data != null &&
+        !workspace!.data!.slots.any((slot) => slot.id == widget.slot.id)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Chi tiết ca khám')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Ca khám không còn trong lịch được phân công.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
     final bookings = _bookings;
-    final connected = widget.bookings != null;
-    final completed = bookings
-        .where(
-          (booking) =>
-              booking.appointment.status == AppointmentStatus.completed,
-        )
-        .length;
-    final waiting = bookings.where(_waiting).length;
+    final connected = _sourceBookings != null;
+    final totals = DoctorBookingTotals.fromBookings(bookings);
+    final completed = totals.completed;
+    final waiting = totals.waiting;
     final query = _query.trim().toLowerCase();
     final visible = bookings
         .where(
@@ -209,26 +255,23 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
               (_filter == 0 ||
                   (_filter == 1
                       ? _waiting(booking)
+                      : _filter == 2
+                      ? booking.appointment.status ==
+                            AppointmentStatus.completed
                       : booking.appointment.status ==
-                            AppointmentStatus.completed)) &&
+                            AppointmentStatus.pending)) &&
               (booking.patientName.toLowerCase().contains(query) ||
                   booking.appointment.patientId.toLowerCase().contains(query)),
         )
         .toList();
-    final date = widget.schedule.workDate;
+    final date = _schedule.workDate;
     final morning =
-        (int.tryParse(widget.slot.startTime?.split(':').first ?? '') ?? 12) <
-        12;
-    final capacity = widget.slot.capacity;
-    final booked = widget.slot.bookedCount;
-    final full =
-        widget.slot.status == TimeSlotStatus.booked ||
-        (capacity != null && booked != null && booked >= capacity);
-    final status = full
-        ? 'Đã đặt hết'
-        : widget.slot.isAvailable
-        ? 'Còn chỗ'
-        : 'Chưa có chỗ khả dụng';
+        (int.tryParse(_slot.startTime?.split(':').first ?? '') ?? 12) < 12;
+    final capacity = _slot.capacity;
+    final booked = _slot.bookedCount;
+    final availability = DoctorSlotAvailability.fromSlot(_slot);
+    final full = availability != DoctorSlotAvailability.available;
+    final status = availability.label;
     return Theme(
       data: Theme.of(context).copyWith(
         textTheme: Theme.of(context).textTheme
@@ -255,6 +298,37 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (workspace?.isLoading == true)
+                        const LinearProgressIndicator(),
+                      if (workspace?.hasError == true)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Không thể cập nhật danh sách. ${workspace!.errorMessage ?? ''}',
+                                  textAlign: TextAlign.center,
+                                ),
+                                TextButton(
+                                  onPressed: workspace.refresh,
+                                  child: const Text('Thử lại'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (workspace != null)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: workspace.isLoading
+                                ? null
+                                : workspace.refresh,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Làm mới'),
+                          ),
+                        ),
                       Card(
                         margin: EdgeInsets.zero,
                         child: Padding(
@@ -284,7 +358,7 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                '${widget.slot.startTime ?? '—'} - ${widget.slot.endTime ?? '—'}',
+                                '${_slot.startTime ?? '—'} - ${_slot.endTime ?? '—'}',
                                 style: const TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w700,
@@ -366,6 +440,8 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                           final columns =
                               MediaQuery.textScalerOf(context).scale(14) > 20
                               ? 1
+                              : totals.pending > 0
+                              ? 2
                               : 3;
                           return Wrap(
                             spacing: 10,
@@ -375,10 +451,16 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                                 (
                                   'Đã đặt',
                                   Icons.event_available_outlined,
-                                  bookings.length,
+                                  totals.booked,
                                 ),
                                 ('Đã khám', Icons.done_all_rounded, completed),
                                 ('Chờ khám', Icons.schedule_rounded, waiting),
+                                if (totals.pending > 0)
+                                  (
+                                    'Chờ xác nhận',
+                                    Icons.pending_actions,
+                                    totals.pending,
+                                  ),
                               ])
                                 SizedBox(
                                   width:
@@ -389,6 +471,12 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                                     label: stat.$1,
                                     icon: stat.$2,
                                     value: connected ? stat.$3 : null,
+                                    isLoading:
+                                        workspace?.isLoading == true &&
+                                        !connected,
+                                    hasError:
+                                        workspace?.hasError == true &&
+                                        !connected,
                                   ),
                                 ),
                             ],
@@ -429,6 +517,7 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                               'Tất cả',
                               'Chờ khám',
                               'Đã khám',
+                              if (totals.pending > 0) 'Chờ xác nhận',
                             ].indexed)
                               ChoiceChip(
                                 label: Text(title),
@@ -464,7 +553,12 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                                 ),
                                 const SizedBox(height: 14),
                                 Text(
-                                  !connected
+                                  workspace?.isLoading == true && !connected
+                                      ? 'Đang tải danh sách khám'
+                                      : workspace?.hasError == true &&
+                                            !connected
+                                      ? 'Không thể tải danh sách khám'
+                                      : !connected
                                       ? 'Chưa có dữ liệu danh sách khám'
                                       : bookings.isEmpty
                                       ? 'Chưa có bệnh nhân đặt ca này'
