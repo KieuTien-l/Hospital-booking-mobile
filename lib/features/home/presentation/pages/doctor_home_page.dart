@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../models/doctor_home_demo_data.dart';
 import '../widgets/doctor_dashboard_stat_card.dart';
 import '../widgets/doctor_today_appointments_section.dart';
 import '../widgets/patient_home_background.dart';
@@ -10,7 +11,10 @@ import 'doctor_reports_page.dart';
 import 'doctor_profile_page.dart';
 
 class DoctorHomePage extends StatefulWidget {
-  const DoctorHomePage({super.key});
+  const DoctorHomePage({super.key, this.showDemoData = true});
+
+  /// Temporary preview; set to false to restore the unconnected-data UI.
+  final bool showDemoData;
 
   @override
   State<DoctorHomePage> createState() => _DoctorHomePageState();
@@ -46,6 +50,23 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
   }
 
   Widget _home(BuildContext context, AuthController auth) {
+    final demoSchedules = DoctorHomeDemoData.schedules(
+      DateTime.now(),
+      selectedDate: _selectedDate,
+    );
+    final demoCounts = DoctorHomeDemoData.counts(demoSchedules);
+    final selectedCounts = demoSchedules
+        .where(
+          (schedule) => DateUtils.isSameDay(schedule.workDate, _selectedDate),
+        )
+        .map((schedule) => demoCounts[schedule.id]!);
+    final totals = selectedCounts.fold(
+      const DoctorScheduleCounts(booked: 0, completed: 0),
+      (total, counts) => DoctorScheduleCounts(
+        booked: total.booked + counts.booked,
+        completed: total.completed + counts.completed,
+      ),
+    );
     final name = auth.currentUser?.fullName.trim() ?? '';
     final textTheme = Theme.of(context).textTheme;
     return SingleChildScrollView(
@@ -272,16 +293,21 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                     spacing: 10,
                     runSpacing: 10,
                     children: [
-                      for (final stat in const [
-                        ('Đã đặt', Icons.event_available_outlined),
-                        ('Đã khám', Icons.done_all_rounded),
-                        ('Chờ khám', Icons.schedule_rounded),
+                      for (final stat in [
+                        (
+                          'Đã đặt',
+                          Icons.event_available_outlined,
+                          totals.booked,
+                        ),
+                        ('Đã khám', Icons.done_all_rounded, totals.completed),
+                        ('Chờ khám', Icons.schedule_rounded, totals.waiting),
                       ])
                         SizedBox(
                           width: width,
                           child: DoctorDashboardStatCard(
                             label: stat.$1,
                             icon: stat.$2,
+                            value: widget.showDemoData ? stat.$3 : null,
                           ),
                         ),
                     ],
@@ -289,7 +315,20 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                 },
               ),
               const SizedBox(height: 26),
-              DoctorTodayAppointmentsSection(selectedDate: _selectedDate),
+              DoctorTodayAppointmentsSection(
+                selectedDate: _selectedDate,
+                state: widget.showDemoData
+                    ? DoctorAppointmentsDisplayState.data
+                    : DoctorAppointmentsDisplayState.empty,
+                schedules: widget.showDemoData ? demoSchedules : const [],
+                demoCounts: widget.showDemoData ? demoCounts : const {},
+                timeSlots: widget.showDemoData
+                    ? DoctorHomeDemoData.timeSlots(demoSchedules)
+                    : const [],
+                bookings: widget.showDemoData
+                    ? DoctorHomeDemoData.bookings(demoSchedules)
+                    : null,
+              ),
               const SizedBox(height: 18),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -319,7 +358,9 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Lịch và thống kê chưa được kết nối. Các chỉ số hiển thị “—” khi chưa có dữ liệu được xác minh.',
+                            widget.showDemoData
+                                ? 'Đang hiển thị dữ liệu mẫu theo ngày đang chọn. Thứ bảy chỉ có buổi sáng, Chủ nhật không có ca khám. Lịch và số liệu không phải dữ liệu thực tế và không được lưu lên hệ thống.'
+                                : 'Lịch và thống kê chưa được kết nối. Các chỉ số hiển thị “—” khi chưa có dữ liệu được xác minh.',
                             style: textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                               height: 1.5,
