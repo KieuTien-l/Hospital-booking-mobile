@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../../core/state/view_state.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../doctors/domain/entities/work_schedule.dart';
 import '../../../doctors/presentation/controllers/doctor_dashboard_controller.dart';
+import '../models/doctor_home_demo_data.dart';
+import '../models/doctor_slot_booking.dart';
 import '../widgets/doctor_dashboard_stat_card.dart';
 import '../widgets/doctor_today_appointments_section.dart';
 import '../widgets/patient_home_background.dart';
@@ -12,7 +15,10 @@ import 'doctor_reports_page.dart';
 import 'doctor_profile_page.dart';
 
 class DoctorHomePage extends StatefulWidget {
-  const DoctorHomePage({super.key});
+  const DoctorHomePage({super.key, this.showDemoData = true});
+
+  /// Temporary preview; set to false to restore the unconnected-data UI.
+  final bool showDemoData;
 
   @override
   State<DoctorHomePage> createState() => _DoctorHomePageState();
@@ -69,6 +75,34 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
   ) {
     final name = auth.currentUser?.fullName.trim() ?? '';
     final textTheme = Theme.of(context).textTheme;
+    // Demo data is useful for a standalone preview, but it must never replace
+    // data from the authenticated doctor's dashboard in the actual app.
+    final useDemoData = dashboard == null && widget.showDemoData;
+    final demoSchedules = useDemoData
+        ? DoctorHomeDemoData.schedules(
+            DateUtils.dateOnly(DateTime.now()),
+            selectedDate: _selectedDate,
+          )
+        : const <WorkSchedule>[];
+    final demoBookings = useDemoData
+        ? DoctorHomeDemoData.bookings(demoSchedules)
+        : const <DoctorSlotBooking>[];
+    final demoCounts = useDemoData
+        ? DoctorHomeDemoData.counts(demoSchedules)
+        : const <String, DoctorScheduleCounts>{};
+    final selectedDemoCounts = demoSchedules
+        .where(
+          (schedule) => DateUtils.isSameDay(schedule.workDate, _selectedDate),
+        )
+        .map((schedule) => demoCounts[schedule.id]!);
+    final demoBooked = selectedDemoCounts.fold(
+      0,
+      (total, counts) => total + counts.booked,
+    );
+    final demoCompleted = selectedDemoCounts.fold(
+      0,
+      (total, counts) => total + counts.completed,
+    );
     final dashboardState = dashboard?.status ?? ViewState.initial;
     final appointmentStreamLoading =
         dashboardState == ViewState.success &&
@@ -76,12 +110,16 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
     final dashboardLoading =
         dashboardState == ViewState.loading || appointmentStreamLoading;
     final dashboardError =
-        dashboardState == ViewState.error || dashboard?.appointmentError != null;
+        dashboardState == ViewState.error ||
+        dashboard?.appointmentError != null;
     final hasResolvedData =
-        (dashboardState == ViewState.success || dashboardState == ViewState.empty) &&
+        (dashboardState == ViewState.success ||
+            dashboardState == ViewState.empty) &&
         !dashboardLoading &&
         !dashboardError;
-    final appointmentState = dashboard == null
+    final appointmentState = useDemoData
+        ? DoctorAppointmentsDisplayState.data
+        : dashboard == null
         ? DoctorAppointmentsDisplayState.empty
         : dashboardLoading
         ? DoctorAppointmentsDisplayState.loading
@@ -94,17 +132,29 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
       (
         'Đã đặt',
         Icons.event_available_outlined,
-        hasResolvedData ? dashboard?.bookedCount : null,
+        useDemoData
+            ? demoBooked
+            : hasResolvedData
+            ? dashboard?.bookedCount
+            : null,
       ),
       (
         'Đã khám',
         Icons.done_all_rounded,
-        hasResolvedData ? dashboard?.completedCount : null,
+        useDemoData
+            ? demoCompleted
+            : hasResolvedData
+            ? dashboard?.completedCount
+            : null,
       ),
       (
         'Chờ khám',
         Icons.schedule_rounded,
-        hasResolvedData ? dashboard?.waitingCount : null,
+        useDemoData
+            ? demoBooked - demoCompleted
+            : hasResolvedData
+            ? dashboard?.waitingCount
+            : null,
       ),
     ];
     return SingleChildScrollView(
@@ -350,8 +400,19 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
               DoctorTodayAppointmentsSection(
                 selectedDate: _selectedDate,
                 state: appointmentState,
-                schedules: dashboard?.workSchedules ?? const [],
-                appointments: dashboard?.appointments ?? const [],
+                schedules: useDemoData
+                    ? demoSchedules
+                    : dashboard?.workSchedules ?? const [],
+                appointments: useDemoData
+                    ? demoBookings
+                          .map((booking) => booking.appointment)
+                          .toList(growable: false)
+                    : dashboard?.appointments ?? const [],
+                timeSlots: useDemoData
+                    ? DoctorHomeDemoData.timeSlots(demoSchedules)
+                    : dashboard?.timeSlots ?? const [],
+                bookings: useDemoData ? demoBookings : null,
+                isDemo: useDemoData,
               ),
               const SizedBox(height: 18),
               Container(

@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const projectId = 'bookinghospitalapp';
-const startDate = argumentValue('--start-date') ?? '2026-10-20';
-const days = Number(argumentValue('--days') ?? '7');
+const startDate = argumentValue('--start-date') || '2026-10-20';
+const days = Number(argumentValue('--days') || '7');
 const strict = process.argv.slice(2).includes('--strict');
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 

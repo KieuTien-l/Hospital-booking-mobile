@@ -68,6 +68,7 @@ Future<_AuthRepository> _pumpDashboard(
   UserEntity? user, {
   bool gate = false,
   double textScale = 1,
+  bool showDemoData = false,
 }) async {
   final repository = _AuthRepository(user);
   final auth = AuthController(authRepo: repository);
@@ -86,7 +87,9 @@ Future<_AuthRepository> _pumpDashboard(
                 .copyWith(textScaler: TextScaler.linear(textScale)),
             child: child!,
           ),
-          home: gate ? const AuthGate() : const DoctorHomePage(),
+          home: gate
+              ? const AuthGate()
+              : DoctorHomePage(showDemoData: showDemoData),
         ),
       ),
     ),
@@ -111,7 +114,7 @@ void main() {
         rootBundle.load('assets/fonts/be_vietnam_pro/BeVietnamPro-Regular.ttf'),
       );
     await font.load();
-    await _pumpDashboard(tester, _doctor(''));
+    await _pumpDashboard(tester, _doctor(''), showDemoData: true);
     expect(tester.takeException(), isNull);
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(const ValueKey('dashboard-preview')),
@@ -153,7 +156,11 @@ void main() {
   testWidgets(
     'Uses authenticated name and shows unavailable data without counts',
     (tester) async {
-      await _pumpDashboard(tester, _doctor('  Nguyễn An  '));
+      await _pumpDashboard(
+        tester,
+        _doctor('  Nguyễn An  '),
+        showDemoData: false,
+      );
       expect(find.text('Xin chào, Bác sĩ Nguyễn An!'), findsOneWidget);
       expect(find.byType(DoctorDashboardStatCard), findsNWidgets(3));
       expect(find.text('—'), findsNWidgets(3));
@@ -476,12 +483,13 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('Lịch schedule-test'));
+      await tester.tap(find.text('08:00 - 12:00'));
       await tester.pumpAndSettle();
       expect(find.text('Lịch other-day'), findsNothing);
       expect(find.text('Chi tiết lịch làm việc'), findsOneWidget);
-      expect(find.text('3 / 1 / 2'), findsOneWidget);
+      expect(find.text('Bệnh nhân đã đặt: 3'), findsOneWidget);
       expect(find.text('Bệnh nhân đã khám: 1'), findsOneWidget);
+      expect(find.text('Bệnh nhân đang chờ: 2'), findsOneWidget);
       expect(find.text('Danh sách bệnh nhân'), findsNothing);
       expect(tester.takeException(), isNull);
     },

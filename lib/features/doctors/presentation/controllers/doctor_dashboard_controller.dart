@@ -4,8 +4,10 @@ import '../../../../core/state/view_state.dart';
 import '../../../appointments/domain/entities/appointment.dart';
 import '../../../appointments/domain/repositories/appointment_repository.dart';
 import '../../domain/entities/doctor.dart';
+import '../../domain/entities/time_slot.dart';
 import '../../domain/entities/work_schedule.dart';
 import '../../domain/repositories/doctor_repository.dart';
+import '../../domain/repositories/time_slot_repository.dart';
 import '../../domain/repositories/work_schedule_repository.dart';
 
 /// Live data for the Doctor Dashboard.
@@ -17,18 +19,22 @@ class DoctorDashboardController extends ViewStateController {
   DoctorDashboardController({
     required DoctorRepository doctorRepository,
     required WorkScheduleRepository workScheduleRepository,
+    required TimeSlotRepository timeSlotRepository,
     required AppointmentRepository appointmentRepository,
   }) : _doctors = doctorRepository,
        _schedules = workScheduleRepository,
+       _timeSlots = timeSlotRepository,
        _appointments = appointmentRepository;
 
   final DoctorRepository _doctors;
   final WorkScheduleRepository _schedules;
+  final TimeSlotRepository _timeSlots;
   final AppointmentRepository _appointments;
 
   StreamSubscription<List<Appointment>>? _appointmentSubscription;
   Doctor? _doctor;
   List<WorkSchedule> _workSchedules = const [];
+  List<TimeSlot> _doctorTimeSlots = const [];
   List<Appointment> _doctorAppointments = const [];
   bool _appointmentsLoaded = false;
   String _authUserId = '';
@@ -38,6 +44,7 @@ class DoctorDashboardController extends ViewStateController {
 
   Doctor? get doctor => _doctor;
   List<WorkSchedule> get workSchedules => _workSchedules;
+  List<TimeSlot> get timeSlots => _doctorTimeSlots;
   List<Appointment> get appointments => _doctorAppointments;
   bool get appointmentsLoaded => _appointmentsLoaded;
   String? get appointmentError => _appointmentError;
@@ -95,6 +102,7 @@ class DoctorDashboardController extends ViewStateController {
     _authUserId = normalizedUserId;
     _selectedDate = normalizedDate;
     _workSchedules = const [];
+    _doctorTimeSlots = const [];
     _appointmentError = null;
     final request = beginRequest();
 
@@ -114,6 +122,7 @@ class DoctorDashboardController extends ViewStateController {
       if (doctor == null) {
         _doctor = null;
         _doctorAppointments = const [];
+        _doctorTimeSlots = const [];
         _appointmentsLoaded = false;
         await _appointmentSubscription?.cancel();
         _appointmentSubscription = null;
@@ -127,9 +136,24 @@ class DoctorDashboardController extends ViewStateController {
       );
       if (!isCurrent(request)) return;
 
+      final slotLists = await Future.wait(
+        schedules.map((schedule) => _timeSlots.getTimeSlotsByWorkSchedule(schedule.id)),
+      );
+      if (!isCurrent(request)) return;
+      final scheduleIds = schedules.map((schedule) => schedule.id).toSet();
+      final slots = slotLists
+          .expand((values) => values)
+          .where(
+            (slot) =>
+                slot.doctorId == doctor.id &&
+                scheduleIds.contains(slot.workScheduleId),
+          )
+          .toList(growable: false);
+
       final doctorChanged = _doctor?.id != doctor.id;
       _doctor = doctor;
       _workSchedules = List.unmodifiable(schedules);
+      _doctorTimeSlots = List.unmodifiable(slots);
       if (doctorChanged || _appointmentSubscription == null) {
         await _appointmentSubscription?.cancel();
         _appointmentsLoaded = false;

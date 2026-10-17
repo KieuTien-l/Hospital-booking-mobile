@@ -166,6 +166,7 @@ class App extends StatelessWidget {
           create: (context) => DoctorDashboardController(
             doctorRepository: context.read<DoctorRepository>(),
             workScheduleRepository: context.read<WorkScheduleRepository>(),
+            timeSlotRepository: context.read<TimeSlotRepository>(),
             appointmentRepository: context.read<AppointmentRepository>(),
           ),
         ),

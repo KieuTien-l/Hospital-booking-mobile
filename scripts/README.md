@@ -120,6 +120,25 @@ returns exit code 2 if any finding is detected:
 npm run audit-backend:strict --prefix scripts -- --start-date=2026-10-20 --days=7
 ```
 
+## Seed the 2026 operational hospital data
+
+This creates a coherent **synthetic** data set from 08/09/2026 to
+27/10/2026 for every active non-sample doctor whose specialty is active. Each
+doctor has a stable weekday off, Sundays remain closed, and each working day
+has morning and afternoon slots. The 17/10 dashboard is populated with 12
+booked patients, of which 7 are completed and 5 are waiting.
+
+The script creates the dedicated Firebase Auth account, `TAI_KHOAN`, and
+`BENH_NHAN` profile for every synthetic patient. It uses deterministic IDs and
+will refuse to overwrite a document created by any other source. All records
+are labelled `source: SEED_HOSPITAL_OPERATIONAL_2026` and `isTestData: true`.
+
+```powershell
+$env:SEED_PATIENT_PASSWORD = 'Choose-a-strong-test-password'
+npm run seed-hospital-2026:dry-run --prefix scripts
+npm run seed-hospital-2026:apply --prefix scripts
+```
+
 ## Repair Patient data
 
 `repair-auth-profiles` now covers both failure modes: a Firebase Auth user
