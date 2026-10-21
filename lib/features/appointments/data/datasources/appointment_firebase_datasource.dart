@@ -75,7 +75,9 @@ class AppointmentFirebaseDatasource {
       if (!slot.isAvailable) {
         throw const BookingException('This time slot is no longer available.');
       }
-      if (!doctor.isActive) {
+      if (!doctor.isActive ||
+          doctorSnapshot.data()?['acceptingBookings'] == false ||
+          schedule.status != 'ACTIVE') {
         throw const BookingException('This doctor is no longer available.');
       }
       if (slot.workScheduleId != appointment.workScheduleId ||

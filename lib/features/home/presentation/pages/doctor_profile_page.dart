@@ -5,6 +5,7 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/presentation/widgets/doctor_detail_section.dart';
+import '../widgets/doctor_account_security.dart';
 
 /// Read-only until Doctor profile editing rights and data have been verified.
 class DoctorProfilePage extends StatelessWidget {
@@ -112,7 +113,10 @@ class DoctorProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final user = auth.currentUser;
-    final name = user?.fullName.trim() ?? '';
+    final birth = doctor?.dateOfBirth?.toUtc().add(const Duration(hours: 7));
+    final name = doctor?.fullName.trim().isNotEmpty == true
+        ? doctor!.fullName
+        : user?.fullName.trim() ?? '';
     return SingleChildScrollView(
       key: const PageStorageKey('doctor-profile'),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
@@ -176,28 +180,52 @@ class DoctorProfilePage extends StatelessWidget {
                   children: [
                     _field(
                       'Họ và tên',
-                      value: user?.fullName,
-                      key: ValueKey(
-                        'doctor-name-${user?.id}-${user?.fullName}',
-                      ),
+                      value: name,
+                      key: ValueKey('doctor-name-${user?.id}-$name'),
                     ),
                     const SizedBox(height: 16),
-                    _field('Ngày sinh'),
+                    _field(
+                      'Ngày sinh',
+                      value: birth == null
+                          ? null
+                          : '${birth.day.toString().padLeft(2, '0')}/${birth.month.toString().padLeft(2, '0')}/${birth.year}',
+                      key: ValueKey('doctor-birth-$birth'),
+                    ),
+                    const SizedBox(height: 16),
+                    _field(
+                      'Giới tính',
+                      value: doctor?.gender,
+                      key: ValueKey('doctor-gender-${doctor?.gender}'),
+                    ),
+                    const SizedBox(height: 16),
+                    _field(
+                      'Địa chỉ',
+                      value: doctor?.address,
+                      key: ValueKey('doctor-address-${doctor?.address}'),
+                    ),
                     const SizedBox(height: 16),
                     _field(
                       'Email',
-                      value: user?.email,
-                      key: ValueKey('doctor-email-${user?.id}-${user?.email}'),
+                      value: doctor?.email.isNotEmpty == true
+                          ? doctor!.email
+                          : user?.email,
+                      key: ValueKey(
+                        'doctor-email-${user?.id}-${doctor?.email}-${user?.email}',
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _field(
                       'Số điện thoại',
-                      value: user?.phone,
-                      key: ValueKey('doctor-phone-${user?.id}-${user?.phone}'),
+                      value: doctor?.phone.isNotEmpty == true
+                          ? doctor!.phone
+                          : user?.phone,
+                      key: ValueKey(
+                        'doctor-phone-${user?.id}-${doctor?.phone}-${user?.phone}',
+                      ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Hồ sơ hiện ở chế độ chỉ đọc. Quyền chỉnh sửa và chức năng lưu đang chờ xác minh.',
+                      'Thông tin hồ sơ do quản trị viên quản lý. Vui lòng liên hệ admin khi cần cập nhật.',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         height: 1.5,
@@ -274,7 +302,7 @@ class DoctorProfilePage extends StatelessWidget {
                     _professionalSection('Công trình nghiên cứu'),
                     const SizedBox(height: 4),
                     const Text(
-                      'Thông tin chuyên môn chỉ đọc và cần Admin xác thực.',
+                      'Thông tin chuyên môn do admin quản lý; bác sĩ chỉ xem.',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         height: 1.5,
@@ -285,7 +313,7 @@ class DoctorProfilePage extends StatelessWidget {
               ),
               _section(
                 'Ảnh đại diện',
-                'Xem và cập nhật ảnh hồ sơ',
+                'Ảnh hồ sơ do admin quản lý',
                 Icons.camera_alt_outlined,
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -311,7 +339,7 @@ class DoctorProfilePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Chọn ảnh chưa khả dụng. Nguồn ảnh và quyền cập nhật đang chờ xác minh.',
+                      'Liên hệ admin để cập nhật ảnh đại diện.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.textSecondary,
@@ -334,13 +362,7 @@ class DoctorProfilePage extends StatelessWidget {
                       key: ValueKey('login-email-${user?.id}-${user?.email}'),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Các chức năng bảo mật bổ sung chưa được kết nối.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
+                    const DoctorAccountSecurity(),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: auth.isLoading ? null : () => auth.logout(),

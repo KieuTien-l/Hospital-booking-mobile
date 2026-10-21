@@ -16,6 +16,8 @@ class FeedbackForm extends StatelessWidget {
     required this.onRatingChanged,
     required this.onSubmit,
     required this.submitting,
+    this.isDemo = true,
+    this.profileSelector,
   });
   final GlobalKey<FormState> formKey;
   final TextEditingController titleController;
@@ -26,6 +28,8 @@ class FeedbackForm extends StatelessWidget {
   final ValueChanged<int?> onRatingChanged;
   final VoidCallback onSubmit;
   final bool submitting;
+  final bool isDemo;
+  final Widget? profileSelector;
   @override
   Widget build(BuildContext context) => Form(
     key: formKey,
@@ -36,7 +40,7 @@ class FeedbackForm extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Card(
+          Card(
             child: Padding(
               padding: EdgeInsets.all(18),
               child: Column(
@@ -51,12 +55,20 @@ class FeedbackForm extends StatelessWidget {
                     'Chia sẻ trải nghiệm, góp ý hoặc những vấn đề bạn gặp phải để HealWay ngày càng hoàn thiện hơn.',
                   ),
                   SizedBox(height: 10),
-                  Text('Chế độ demo • Phản hồi chưa được gửi đến hệ thống.'),
+                  Text(
+                    isDemo
+                        ? 'Chế độ demo • Phản hồi chưa được gửi đến hệ thống.'
+                        : 'Phản hồi được gửi đến hệ thống để admin tiếp nhận.',
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
+          if (profileSelector != null) ...[
+            profileSelector!,
+            const SizedBox(height: 16),
+          ],
           FormField<FeedbackCategory>(
             validator: (_) =>
                 category == null ? 'Vui lòng chọn loại phản hồi.' : null,

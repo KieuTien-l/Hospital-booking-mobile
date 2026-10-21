@@ -17,7 +17,7 @@ enum FeedbackStatus {
   final String label;
 }
 
-/// Presentation-only feedback; never represents a persisted submission.
+/// UI snapshot of feedback, supplied by the live adapter or demo fixtures.
 class FeedbackUiModel {
   const FeedbackUiModel({
     required this.title,

@@ -8,8 +8,15 @@ import '../widgets/patient_home_background.dart';
 import 'feedback_detail_page.dart';
 
 class CustomerFeedbackPage extends StatefulWidget {
-  const CustomerFeedbackPage({super.key, this.history = const []});
+  const CustomerFeedbackPage({
+    super.key,
+    this.history = const [],
+    this.onSubmit,
+    this.profileSelector,
+  });
   final List<FeedbackUiModel> history;
+  final Future<void> Function(FeedbackUiModel draft)? onSubmit;
+  final Widget? profileSelector;
   @override
   State<CustomerFeedbackPage> createState() => _CustomerFeedbackPageState();
 }
@@ -26,6 +33,17 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
   int? _rating;
   bool _submitting = false;
   @override
+  void didUpdateWidget(covariant CustomerFeedbackPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.onSubmit != null &&
+        !identical(widget.history, oldWidget.history)) {
+      _history
+        ..clear()
+        ..addAll(widget.history);
+    }
+  }
+
+  @override
   void dispose() {
     _tabs.dispose();
     _title.dispose();
@@ -36,6 +54,43 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
   Future<void> _submit() async {
     if (_submitting || !_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
+    if (widget.onSubmit != null) {
+      setState(() => _submitting = true);
+      try {
+        await widget.onSubmit!(
+          FeedbackUiModel(
+            title: _title.text.trim(),
+            content: _content.text.trim(),
+            category: _category!,
+            rating: _rating,
+            dateLabel: '',
+            status: FeedbackStatus.pending,
+          ),
+        );
+        if (mounted) {
+          _filter = null;
+          _title.clear();
+          _content.clear();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đã gửi phản hồi đến hệ thống.')),
+          );
+          _tabs.animateTo(1);
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                error is StateError ? error.message : 'Chưa xác minh được kết quả gửi. Giữ nguyên nội dung để thử lại, tránh gửi trùng.',
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
+      return;
+    }
     setState(() {
       _submitting = true;
       _history.insert(
@@ -127,6 +182,8 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
                       category: _category,
                       rating: _rating,
                       submitting: _submitting,
+                      isDemo: widget.onSubmit == null,
+                      profileSelector: widget.profileSelector,
                       onCategoryChanged: (value) =>
                           setState(() => _category = value),
                       onRatingChanged: (value) =>
@@ -137,8 +194,10 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
                       key: const PageStorageKey('feedback-history'),
                       padding: const EdgeInsets.all(16),
                       children: [
-                        const Text(
-                          'Lịch sử mẫu • Chỉ lưu trong phiên demo, chưa gửi đến hệ thống.',
+                        Text(
+                          widget.onSubmit == null
+                              ? 'Lịch sử mẫu • Chỉ lưu trong phiên demo, chưa gửi đến hệ thống.'
+                              : 'Phản hồi đã gửi và tiến độ xử lý từ quản trị viên.',
                         ),
                         const SizedBox(height: 12),
                         Wrap(

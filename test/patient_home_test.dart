@@ -211,7 +211,7 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthController(authRepo: repository),
-        child: const MaterialApp(home: AuthGate()),
+        child: const MaterialApp(home: AuthGate(useLiveCommunications: false)),
       ),
     );
     await tester.pumpAndSettle();
@@ -342,7 +342,7 @@ void main() {
             create: (_) => SpecialtyController(_HomeSpecialtyRepository()),
           ),
         ],
-        child: const MaterialApp(home: AuthGate()),
+        child: const MaterialApp(home: AuthGate(useLiveCommunications: false)),
       ),
     );
     await tester.pumpAndSettle();
@@ -372,7 +372,7 @@ void main() {
     expect(find.text('CHÀO MỪNG BẠN ĐẾN VỚI HEALWAY'), findsNothing);
     await tester.tap(find.text('Đọc tất cả'));
     await tester.pumpAndSettle();
-    expect(find.text('CHƯA CÓ THÔNG BÁO'), findsOneWidget);
+    expect(find.text('Chưa có thông báo'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Tất cả'));
     await tester.pumpAndSettle();
@@ -388,7 +388,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chưa đọc'));
     await tester.pumpAndSettle();
-    expect(find.text('CHƯA CÓ THÔNG BÁO'), findsOneWidget);
+    expect(find.text('Chưa có thông báo'), findsOneWidget);
     await tester.tap(find.text('Cá nhân'));
     await tester.pumpAndSettle();
     expect(find.text('Nguyễn An'), findsOneWidget);

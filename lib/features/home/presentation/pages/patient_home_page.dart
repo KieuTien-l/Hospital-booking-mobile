@@ -9,6 +9,7 @@ import '../../../appointments/presentation/pages/payment_history_page.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../notifications/presentation/pages/live_notifications_page.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/pages/select_patient_profile_page.dart';
@@ -20,6 +21,7 @@ import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import 'usage_guide_page.dart';
 import 'customer_feedback_page.dart';
+import 'live_customer_feedback_page.dart';
 import '../models/feedback_demo_data.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
@@ -31,7 +33,8 @@ const _blue = Color(0xFF0065B8);
 const _ink = Color(0xFF163958);
 
 class PatientHomePage extends StatefulWidget {
-  const PatientHomePage({super.key});
+  const PatientHomePage({super.key, this.useLiveCommunications = false});
+  final bool useLiveCommunications;
 
   @override
   State<PatientHomePage> createState() => _PatientHomePageState();
@@ -44,18 +47,33 @@ class _PatientHomePageState extends State<PatientHomePage> {
   void _open(String title, [String? content]) {
     if (title == 'Lắng nghe khách hàng') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const CustomerFeedbackPage(history: FeedbackDemoData.history)));
+      final userId = context.read<AuthController>().currentUser?.id;
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => widget.useLiveCommunications && userId != null
+              ? LiveCustomerFeedbackPage(userId: userId)
+              : const CustomerFeedbackPage(history: FeedbackDemoData.history),
+        ),
+      );
       return;
     }
     if (title == 'Hướng dẫn sử dụng') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const UsageGuidePage()));
+      Navigator.of(
+        context,
+      ).push<void>(MaterialPageRoute(builder: (_) => const UsageGuidePage()));
       return;
     }
     if (title == 'Thanh toán viện phí') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => PaymentHistoryPage(
-        transactions: PaymentDemoData.transactions, isDemo: true)));
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PaymentHistoryPage(
+            transactions: PaymentDemoData.transactions,
+            isDemo: true,
+          ),
+        ),
+      );
       return;
     }
     if (title == 'Kết quả cận lâm sàng') {
@@ -72,9 +90,14 @@ class _PatientHomePageState extends State<PatientHomePage> {
     }
     if (title == 'Lịch đặt khám' || title == 'Lịch sử đặt khám') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(MaterialPageRoute(
-        builder: (_) => AppointmentHistoryPage(items: AppointmentHistoryDemoData.items, isDemo: true),
-      ));
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => AppointmentHistoryPage(
+            items: AppointmentHistoryDemoData.items,
+            isDemo: true,
+          ),
+        ),
+      );
       return;
     }
     if (title == 'Hồ sơ sức khỏe') {
@@ -298,7 +321,15 @@ class _PatientHomePageState extends State<PatientHomePage> {
                       if (_tab != 1) _body(auth),
                       Offstage(
                         offstage: _tab != 1,
-                        child: const NotificationsPage(),
+                        child:
+                            widget.useLiveCommunications &&
+                                auth.currentUser != null
+                            ? _tab == 1
+                                  ? LiveNotificationsPage(
+                                      userId: auth.currentUser!.id,
+                                    )
+                                  : const SizedBox.shrink()
+                            : const NotificationsPage(),
                       ),
                     ],
                   ),

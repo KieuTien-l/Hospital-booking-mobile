@@ -11,7 +11,7 @@ import '../widgets/doctor_dashboard_stat_card.dart';
 import '../widgets/doctor_today_appointments_section.dart';
 import '../widgets/patient_home_background.dart';
 import 'doctor_reports_page.dart';
-import 'doctor_profile_page.dart';
+import 'managed_doctor_profile_page.dart';
 
 class DoctorHomePage extends StatefulWidget {
   const DoctorHomePage({super.key, this.showDemoData = true});
@@ -598,7 +598,7 @@ class _DoctorHomePageState extends State<DoctorHomePage>
                           selectedDate: _selectedDate,
                           workspace: _workspace,
                         ),
-                        DoctorProfilePage(
+                        ManagedDoctorProfilePage(
                           key: ValueKey('profile-$_accountId'),
                           doctor: _workspace?.repository.isDemo == false
                               ? _workspace?.data?.doctor

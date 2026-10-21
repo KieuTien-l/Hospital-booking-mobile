@@ -1,60 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../admin/presentation/admin_workspace.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
-class AdminHomePage extends StatelessWidget {
+class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final user = context.watch<AuthController>().currentUser;
+  State<AdminHomePage> createState() => _AdminHomePageState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Đăng xuất',
-            onPressed: () => context.read<AuthController>().logout(),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.admin_panel_settings_rounded,
-                  size: 64,
-                  color: Color(0xFF0060EF),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  user != null && user.fullName.isNotEmpty
-                      ? 'Xin chào Quản trị viên, ${user.fullName}!'
-                      : 'Chào mừng Quản trị viên!',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (user != null && user.email.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(user.email, style: const TextStyle(color: Colors.grey)),
-                ],
-                const SizedBox(height: 16),
-                const Text(
-                  'Đây là trang chủ dành cho quản trị viên.',
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+class _AdminHomePageState extends State<AdminHomePage> {
+  GlobalKey<NavigatorState> _navigator = GlobalKey<NavigatorState>();
+  String? _accountId;
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
+    if (_accountId != auth.currentUser?.id) {
+      _accountId = auth.currentUser?.id;
+      _navigator = GlobalKey<NavigatorState>();
+    }
+    return NavigatorPopHandler<Object?>(
+      onPopWithResult: (result) => _navigator.currentState?.pop(result),
+      child: Navigator(
+        key: _navigator,
+        onGenerateRoute: (_) => MaterialPageRoute<void>(
+          builder: (_) => AdminWorkspace(
+            userName: auth.currentUser?.fullName ?? 'Quản trị viên',
+            onLogout: auth.logout,
           ),
         ),
       ),

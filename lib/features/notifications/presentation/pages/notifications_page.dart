@@ -6,9 +6,16 @@ import 'notification_detail_page.dart';
 
 /// Content only: the patient shell owns the bottom navigation.
 class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key, this.initialItems = mockNotifications});
+  const NotificationsPage({
+    super.key,
+    this.initialItems = mockNotifications,
+    this.onRead,
+    this.onReadAll,
+  });
 
   final List<NotificationItem> initialItems;
+  final Future<void> Function(NotificationItem)? onRead;
+  final Future<void> Function(List<NotificationItem>)? onReadAll;
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -31,9 +38,35 @@ class _NotificationsPageState extends State<NotificationsPage> {
     _items = List.of(widget.initialItems);
   }
 
-  void _open(int index) {
+  @override
+  void didUpdateWidget(covariant NotificationsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.onRead != null &&
+        !identical(oldWidget.initialItems, widget.initialItems)) {
+      _items = List.of(widget.initialItems);
+    }
+  }
+
+  Future<void> _open(int index) async {
     final item = _items[index];
-    setState(() => _items[index] = item.markAsRead());
+    try {
+      await widget.onRead?.call(item);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Chưa cập nhật được trạng thái đã đọc. Vui lòng thử lại.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (widget.onRead == null) {
+      setState(() => _items[index] = item.markAsRead());
+    }
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => NotificationDetailPage(item: item)),
     );
@@ -55,8 +88,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   Text(
                     'Thông báo',
@@ -68,11 +104,30 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                   TextButton.icon(
                     onPressed: hasUnread
-                        ? () => setState(() {
-                            _items = _items
-                                .map((item) => item.markAsRead())
-                                .toList();
-                          })
+                        ? () async {
+                            try {
+                              await widget.onReadAll?.call(_items);
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Chưa cập nhật được thông báo. Vui lòng thử lại.',
+                                    ),
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+                            if (!mounted) return;
+                            if (widget.onReadAll == null) {
+                              setState(() {
+                                _items = _items
+                                    .map((item) => item.markAsRead())
+                                    .toList();
+                              });
+                            }
+                          }
                         : null,
                     style: TextButton.styleFrom(
                       backgroundColor: _NotificationColors.soft,

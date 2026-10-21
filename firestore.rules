@@ -86,8 +86,14 @@ service cloud.firestore {
     function canCreateAppointment() {
       let slot = get(/databases/$(database)/documents/CA_KHAM/$(request.resource.data.timeSlotId));
       let schedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId));
+      let doctor = get(/databases/$(database)/documents/BAC_SI/$(request.resource.data.doctorId));
+      let patient = get(/databases/$(database)/documents/BENH_NHAN/$(request.resource.data.patientId));
       return validAppointmentCreateShape() &&
           ownsPatient(request.resource.data.patientId) &&
+          patient.data.get('isActive', true) == true &&
+          patient.data.get('status', 'ACTIVE') != 'ARCHIVED' &&
+          doctor.data.status == 'ACTIVE' &&
+          doctor.data.get('acceptingBookings', true) == true &&
           slot.data.status == 'AVAILABLE' &&
           slot.data.capacity is int &&
           slot.data.capacity > 0 &&
@@ -178,32 +184,34 @@ service cloud.firestore {
           ]) &&
           request.resource.data.role == 'patient' &&
           request.resource.data.isActive == true;
-      allow update: if isAdmin() ||
-          (signedIn() &&
+      // Doctor identity/profile and all admin mutations go through adminCommand.
+      allow update: if
+          (hasActiveRole('patient') &&
               request.auth.uid == accountId &&
               request.resource.data.role == resource.data.role &&
               request.resource.data.isActive == resource.data.isActive &&
               request.resource.data.diff(resource.data).affectedKeys()
                   .hasOnly(['email', 'fullName', 'phone', 'updatedAt']));
-      allow delete: if isAdmin();
+      allow delete: if false;
     }
 
     match /CHUYEN_KHOA/{specialtyId} {
       allow read: if hasActiveAccount();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /BAC_SI/{doctorId} {
       allow read: if hasActiveAccount();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /BENH_NHAN/{patientId} {
       allow read: if isAdmin() || ownsPatient(patientId);
-      allow create: if isAdmin() ||
-          (signedIn() && request.resource.data.authUserId == request.auth.uid);
-      allow update: if isAdmin() ||
-          (ownsPatient(patientId) &&
+      allow create: if signedIn() &&
+          request.resource.data.authUserId == request.auth.uid &&
+          getAfter(/databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid)).data.role == 'patient';
+      allow update: if
+          (hasActiveRole('patient') && ownsPatient(patientId) &&
               request.resource.data.authUserId == resource.data.authUserId &&
               request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                 'fullName',
@@ -224,21 +232,21 @@ service cloud.firestore {
                 'relationshipToAccountHolder',
                 'updatedAt'
               ]));
-      allow delete: if isAdmin();
+      allow delete: if false;
     }
 
     match /LICH_LAM_VIEC/{scheduleId} {
       allow read: if hasActiveAccount();
-      allow create: if isAdmin() || isDoctor(request.resource.data.doctorId);
-      allow update, delete: if isAdmin() || canManageOwnSchedule();
+      allow create: if isDoctor(request.resource.data.doctorId);
+      allow update, delete: if canManageOwnSchedule();
     }
 
     match /CA_KHAM/{slotId} {
       allow read: if hasActiveAccount();
-      allow create: if isAdmin() ||
+      allow create: if
           isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId)).data.doctorId);
-      allow update: if isAdmin() || canManageOwnSlot() || canBookSlot(slotId);
-      allow delete: if isAdmin() ||
+      allow update: if canManageOwnSlot() || canBookSlot(slotId);
+      allow delete: if
           isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(resource.data.workScheduleId)).data.doctorId);
     }
 
@@ -246,9 +254,31 @@ service cloud.firestore {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
           isDoctor(resource.data.doctorId);
       allow create: if canCreateAppointment();
-      allow update: if isAdmin() || canDoctorUpdateAppointment() ||
+      allow update: if canDoctorUpdateAppointment() ||
           canUpdateOwnAppointment();
-      allow delete: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /THONG_BAO/{notificationId} {
+      allow read: if isAdmin() || (hasActiveAccount() && resource.data.userId == request.auth.uid && resource.data.status == 'SENT');
+      allow update: if hasActiveAccount() && resource.data.userId == request.auth.uid && resource.data.status == 'SENT' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'updatedAt']) && request.resource.data.isRead == true;
+      allow create, delete: if false;
+    }
+    match /PHAN_HOI/{feedbackId} {
+      allow get: if isAdmin() || (hasActiveRole('patient') && (!exists(/databases/$(database)/documents/PHAN_HOI/$(feedbackId)) || resource.data.userId == request.auth.uid));
+      allow list: if isAdmin() || (hasActiveRole('patient') && resource.data.userId == request.auth.uid);
+      allow create: if hasActiveRole('patient') && request.resource.data.userId == request.auth.uid &&
+        ownsPatient(request.resource.data.patientId) && request.resource.data.processingStatus == 'NEW' &&
+        request.resource.data.keys().hasOnly(['userId', 'patientId', 'title', 'content', 'rating', 'category', 'processingStatus', 'createdAt']) &&
+        request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160 &&
+        request.resource.data.content is string && request.resource.data.content.size() > 0 && request.resource.data.content.size() <= 4000 &&
+        (request.resource.data.rating == null || (request.resource.data.rating is int && request.resource.data.rating >= 1 && request.resource.data.rating <= 5));
+      allow update, delete: if false;
+    }
+    match /{collection}/{recordId} {
+      allow read: if collection in ['THANH_TOAN', 'HO_SO_SUC_KHOE', 'KET_QUA_CLS', 'LS_CHAT_AI', 'CAU_HINH', 'NHAT_KY_ADMIN', 'ADMIN_PROVISIONING', 'ADMIN_NOTES', 'YEU_CAU_HOAN_TIEN'] && isAdmin();
+      allow write: if false;
     }
   }
 }

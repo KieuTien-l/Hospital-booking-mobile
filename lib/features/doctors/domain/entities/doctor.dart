@@ -14,6 +14,10 @@ class Doctor {
     this.qualification,
     this.biography,
     this.avatarUrl,
+    this.dateOfBirth,
+    this.gender,
+    this.address,
+    this.acceptingBookings = true,
     this.createdAt,
     this.updatedAt,
   });
@@ -32,6 +36,10 @@ class Doctor {
   final String? qualification;
   final String? biography;
   final String? avatarUrl;
+  final DateTime? dateOfBirth;
+  final String? gender;
+  final String? address;
+  final bool acceptingBookings;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
