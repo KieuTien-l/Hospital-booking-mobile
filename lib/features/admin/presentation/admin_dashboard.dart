@@ -28,6 +28,11 @@ class _AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The workspace owns the complete data grid. These controllers provide
+    // the domain backend aggregates and relationship audit for the overview.
+    final liveDashboard = context.watch<AdminDashboardController?>();
+    final liveAccounts = context.watch<AdminAccountController?>();
+    final liveAppointments = context.watch<AdminAppointmentController?>();
     final appointments = controller.dataset('LICH_HEN');
     final payments = controller.dataset('THANH_TOAN');
     final selected =
@@ -283,6 +288,17 @@ class _AdminDashboard extends StatelessWidget {
             );
           },
         ),
+        if (liveDashboard != null ||
+            liveAccounts != null ||
+            liveAppointments != null) ...[
+          const SizedBox(height: 16),
+          _quocVietBackendStatus(
+            context,
+            liveDashboard,
+            liveAccounts,
+            liveAppointments,
+          ),
+        ],
         if (missingPaymentDates > 0 &&
             payments.error == null &&
             !payments.loading)
@@ -482,6 +498,105 @@ class _AdminDashboard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _quocVietBackendStatus(
+    BuildContext context,
+    AdminDashboardController? dashboard,
+    AdminAccountController? accounts,
+    AdminAppointmentController? appointments,
+  ) {
+    final hasError =
+        dashboard?.hasError == true ||
+        accounts?.hasError == true ||
+        appointments?.hasError == true;
+    final loading =
+        dashboard?.isLoading == true ||
+        accounts?.isLoading == true ||
+        appointments?.isLoading == true;
+    final issueCount = appointments?.invalidRelationshipRecords.length ?? 0;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  hasError
+                      ? Icons.cloud_off_outlined
+                      : Icons.cloud_done_outlined,
+                  color: hasError ? AppColors.error : _blue,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Trạng thái đồng bộ dữ liệu',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Text(
+                  loading
+                      ? 'Đang đồng bộ'
+                      : hasError
+                      ? 'Cần kiểm tra'
+                      : 'Đã kết nối',
+                  style: TextStyle(
+                    color: hasError ? AppColors.error : _muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Chuyên khoa: ${dashboard?.specialtyCount ?? 0}  •  '
+              'Bác sĩ hoạt động: ${dashboard?.activeDoctorCount ?? 0}  •  '
+              'Lịch hẹn: ${dashboard?.appointmentCount ?? 0}',
+              style: const TextStyle(color: _muted),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Tài khoản chờ duyệt: ${accounts?.pendingAccounts.length ?? 0}  •  '
+              'Liên kết lịch hẹn cần kiểm tra: $issueCount',
+              style: TextStyle(
+                color: issueCount > 0 ? AppColors.error : _muted,
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: loading
+                    ? null
+                    : () {
+                        context.read<AdminDashboardController?>()?.refresh();
+                        context
+                            .read<AdminAccountController?>()
+                            ?.loadPendingAccounts();
+                        context.read<AdminAppointmentController?>()?.load(
+                          force: true,
+                        );
+                      },
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Làm mới dữ liệu quản trị'),
+              ),
+            ),
+            if (hasError) ...[
+              const SizedBox(height: 8),
+              Text(
+                dashboard?.errorMessage ??
+                    accounts?.errorMessage ??
+                    appointments?.errorMessage ??
+                    'Không thể đồng bộ dữ liệu quản trị.',
+                style: const TextStyle(color: AppColors.error),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

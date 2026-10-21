@@ -49,6 +49,13 @@ class AppointmentFirebaseDatasource {
         });
   }
 
+  /// Administrators are authorized by Firestore rules to observe the full
+  /// appointment collection. Keep ordering client-side to avoid requiring a
+  /// compound index for the dashboard.
+  Stream<List<Appointment>> watchAllAppointments() {
+    return _appointments.snapshots().map(_sortAppointments);
+  }
+
   /// Streams appointments assigned to the authenticated doctor's profile.
   /// Firestore rules authorize this query only for that exact doctor id.
   Stream<List<Appointment>> watchAppointmentsByDoctor(String doctorId) {
@@ -58,17 +65,21 @@ class AppointmentFirebaseDatasource {
     return _appointments
         .where('doctorId', isEqualTo: normalizedId)
         .snapshots()
-        .map((snapshot) {
-          final appointments = snapshot.docs
-              .map(AppointmentModel.fromFirestore)
-              .toList();
-          appointments.sort((a, b) {
-            final aDate = a.appointmentDate ?? a.bookedAt ?? a.createdAt;
-            final bDate = b.appointmentDate ?? b.bookedAt ?? b.createdAt;
-            return (bDate ?? DateTime(0)).compareTo(aDate ?? DateTime(0));
-          });
-          return List.unmodifiable(appointments);
-        });
+        .map(_sortAppointments);
+  }
+
+  List<Appointment> _sortAppointments(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    final appointments = snapshot.docs
+        .map(AppointmentModel.fromFirestore)
+        .toList();
+    appointments.sort((a, b) {
+      final aDate = a.appointmentDate ?? a.bookedAt ?? a.createdAt;
+      final bDate = b.appointmentDate ?? b.bookedAt ?? b.createdAt;
+      return (bDate ?? DateTime(0)).compareTo(aDate ?? DateTime(0));
+    });
+    return List.unmodifiable(appointments);
   }
 
   Future<Appointment> getAppointmentById(String appointmentId) async {
@@ -340,9 +351,11 @@ class AppointmentFirebaseDatasource {
     final dateLabel = date == null
         ? ''
         : ' ngày ${date.day.toString().padLeft(2, '0')}/'
-            '${date.month.toString().padLeft(2, '0')}/${date.year}';
+              '${date.month.toString().padLeft(2, '0')}/${date.year}';
     final timeLabel = appointment.startTime?.trim() ?? '';
-    final scheduleLabel = timeLabel.isEmpty ? dateLabel : ' lúc $timeLabel$dateLabel';
+    final scheduleLabel = timeLabel.isEmpty
+        ? dateLabel
+        : ' lúc $timeLabel$dateLabel';
     return 'Lịch hẹn$scheduleLabel đã được hủy. Khung giờ đã được giải phóng.';
   }
 

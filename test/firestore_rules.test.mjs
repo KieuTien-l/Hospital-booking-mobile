@@ -138,6 +138,30 @@ test('admin can read every appointment', async () => {
   assert.equal(snapshot.data().patientId, 'patient-2');
 });
 
+test('admin cannot save a schedule for a missing doctor', async () => {
+  await assertFails(
+    setDoc(doc(adminDatabase(), 'LICH_LAM_VIEC', 'invalid-schedule'), {
+      doctorId: 'missing-doctor',
+      workDate: new Date(),
+      startTime: '08:00',
+      endTime: '12:00',
+      status: 'ACTIVE',
+    }),
+  );
+});
+
+test('admin can save a schedule for an active doctor', async () => {
+  await assertSucceeds(
+    setDoc(doc(adminDatabase(), 'LICH_LAM_VIEC', 'valid-schedule'), {
+      doctorId: 'doctor-1',
+      workDate: new Date(),
+      startTime: '08:00',
+      endTime: '12:00',
+      status: 'ACTIVE',
+    }),
+  );
+});
+
 test('anonymous users cannot access protected appointment data', async () => {
   const database = testEnvironment.unauthenticatedContext().firestore();
   await assertFails(getDoc(doc(database, 'LICH_HEN', 'appointment-1')));

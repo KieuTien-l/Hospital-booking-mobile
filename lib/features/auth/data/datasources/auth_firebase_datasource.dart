@@ -78,10 +78,10 @@ class AuthFirebaseDatasource {
         fullName: fullName,
         phone: phone,
         role: UserRole.patient,
-        isActive: true,
+        isActive: false,
         accountKey: firebaseUser.uid,
         permission: 'PATIENT',
-        status: 'ACTIVE',
+        status: 'PENDING',
       );
       final patient = PatientModel(
         id: firebaseUser.uid,

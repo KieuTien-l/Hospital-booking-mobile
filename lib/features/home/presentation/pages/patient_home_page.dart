@@ -8,6 +8,7 @@ import '../../../appointments/presentation/pages/payment_history_page.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/pages/forgot_password_page.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../notifications/presentation/pages/live_notifications_page.dart';
 import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/create_patient_profile_page.dart';
@@ -21,6 +22,7 @@ import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import 'usage_guide_page.dart';
 import 'customer_feedback_page.dart';
+import 'live_customer_feedback_page.dart';
 import 'patient_support_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
@@ -32,7 +34,8 @@ const _blue = Color(0xFF0065B8);
 const _ink = Color(0xFF163958);
 
 class PatientHomePage extends StatefulWidget {
-  const PatientHomePage({super.key});
+  const PatientHomePage({super.key, this.useLiveCommunications = true});
+  final bool useLiveCommunications;
 
   @override
   State<PatientHomePage> createState() => _PatientHomePageState();
@@ -56,8 +59,13 @@ class _PatientHomePageState extends State<PatientHomePage> {
   void _open(String title, [String? content]) {
     if (title == 'Lắng nghe khách hàng') {
       FocusScope.of(context).unfocus();
+      final userId = context.read<AuthController>().currentUser?.id;
       Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => const CustomerFeedbackPage()),
+        MaterialPageRoute(
+          builder: (_) => widget.useLiveCommunications && userId != null
+              ? LiveCustomerFeedbackPage(userId: userId)
+              : const CustomerFeedbackPage(),
+        ),
       );
       return;
     }
@@ -65,7 +73,8 @@ class _PatientHomePageState extends State<PatientHomePage> {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.chatbot),
+          builder: (_) =>
+              const PatientSupportPage(kind: PatientSupportKind.chatbot),
         ),
       );
       return;
@@ -110,7 +119,8 @@ class _PatientHomePageState extends State<PatientHomePage> {
     if (title == 'Cài đặt') {
       Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.settings),
+          builder: (_) =>
+              const PatientSupportPage(kind: PatientSupportKind.settings),
         ),
       );
       return;
@@ -118,21 +128,23 @@ class _PatientHomePageState extends State<PatientHomePage> {
     if (title == 'Chính sách & điều khoản') {
       Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.policy),
+          builder: (_) =>
+              const PatientSupportPage(kind: PatientSupportKind.policy),
         ),
       );
       return;
     }
     if (title == 'Hướng dẫn khách hàng') {
-      Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => const UsageGuidePage()),
-      );
+      Navigator.of(
+        context,
+      ).push<void>(MaterialPageRoute(builder: (_) => const UsageGuidePage()));
       return;
     }
     if (title == 'Liên hệ' || title == 'Liên hệ / Hỗ trợ') {
       Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.contact),
+          builder: (_) =>
+              const PatientSupportPage(kind: PatientSupportKind.contact),
         ),
       );
       return;
@@ -140,7 +152,8 @@ class _PatientHomePageState extends State<PatientHomePage> {
     if (title == 'Bảng giá dịch vụ kỹ thuật') {
       Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => const PatientSupportPage(kind: PatientSupportKind.servicePrices),
+          builder: (_) =>
+              const PatientSupportPage(kind: PatientSupportKind.servicePrices),
         ),
       );
       return;
@@ -407,7 +420,13 @@ class _PatientHomePageState extends State<PatientHomePage> {
                       if (_tab != 1) _body(auth),
                       Offstage(
                         offstage: _tab != 1,
-                        child: const NotificationsPage(),
+                        child:
+                            widget.useLiveCommunications &&
+                                auth.currentUser != null
+                            ? LiveNotificationsPage(
+                                userId: auth.currentUser!.id,
+                              )
+                            : const NotificationsPage(),
                       ),
                     ],
                   ),

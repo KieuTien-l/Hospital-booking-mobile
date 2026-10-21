@@ -15,6 +15,9 @@ import 'package:flutter_application_4/features/specialties/presentation/controll
 
 class _HomeSpecialtyRepository implements SpecialtyRepository {
   @override
+  Stream<List<Specialty>> watchAllSpecialties() => watchSpecialties();
+
+  @override
   Stream<List<Specialty>> watchSpecialties() => Stream.value(const [
     Specialty(id: 'skin', name: 'Da liễu', description: '', isActive: true),
   ]);

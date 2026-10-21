@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
 import '../../../appointments/domain/entities/appointment.dart';
+import '../../../doctors/domain/entities/time_slot.dart';
 import '../../../doctors/domain/entities/work_schedule.dart';
+import '../../domain/entities/doctor_workspace.dart';
+import '../controllers/doctor_workspace_controller.dart';
 
 enum DoctorAppointmentsDisplayState { loading, empty, error, data }
 
@@ -26,6 +29,9 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     this.selectedDate,
     this.schedules = const [],
     this.appointments = const [],
+    this.timeSlots = const [],
+    this.bookings = const [],
+    this.workspace,
   });
   final DoctorAppointmentsDisplayState state;
   final DateTime? selectedDate;
@@ -36,11 +42,20 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
   /// Only pass appointments verified to belong to the authenticated doctor.
   final List<Appointment> appointments;
 
+  /// Compatibility inputs used by the existing doctor workspace flow.  The
+  /// screen derives the same appointment counters from these bookings.
+  final List<TimeSlot> timeSlots;
+  final List<DoctorBooking> bookings;
+  final DoctorWorkspaceController? workspace;
+
   static String _dateLabel(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
   _ScheduleAppointmentCounts _countsFor(WorkSchedule schedule) {
-    final values = appointments
+    final source = appointments.isNotEmpty
+        ? appointments
+        : bookings.map((booking) => booking.appointment).toList();
+    final values = source
         .where((appointment) => appointment.workScheduleId == schedule.id)
         .toList(growable: false);
     int peopleWhere(bool Function(Appointment) matches) => values

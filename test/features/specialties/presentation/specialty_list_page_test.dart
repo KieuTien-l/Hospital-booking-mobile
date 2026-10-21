@@ -12,6 +12,10 @@ import 'package:flutter_application_4/features/specialties/presentation/pages/sp
 class _Repository implements SpecialtyRepository {
   final stream = StreamController<List<Specialty>>.broadcast();
   int calls = 0;
+
+  @override
+  Stream<List<Specialty>> watchAllSpecialties() => watchSpecialties();
+
   @override
   Stream<List<Specialty>> watchSpecialties() {
     calls++;

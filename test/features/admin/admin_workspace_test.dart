@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_4/core/themes/app_theme.dart';
 import 'package:flutter_application_4/features/admin/data/admin_repository.dart';
 import 'package:flutter_application_4/features/admin/data/admin_commands.dart';
+import 'package:flutter_application_4/features/admin/data/admin_doctor_provisioner.dart';
 import 'package:flutter_application_4/features/admin/presentation/admin_controller.dart';
 import 'package:flutter_application_4/features/admin/presentation/admin_workspace.dart';
 
@@ -26,6 +27,28 @@ class _Commands implements AdminCommands {
           command['operation'] == 'passwordSetup')
         'loginEmail': 'doctor@example.com',
     };
+  }
+
+  @override
+  Future<void> sendPasswordSetup(String email) async {
+    emails.add(email);
+  }
+}
+
+class _DoctorProvisioner implements DoctorAccountProvisioner {
+  final calls = <Map<String, dynamic>>[];
+  final emails = <String>[];
+
+  @override
+  Future<DoctorAccountProvisioningResult> provision(
+    Map<String, dynamic> values,
+  ) async {
+    calls.add(values);
+    return const DoctorAccountProvisioningResult(
+      doctorId: 'new-doctor',
+      loginEmail: 'doctor@example.com',
+      passwordSetupSent: true,
+    );
   }
 
   @override
@@ -114,6 +137,7 @@ void main() {
     _Repository repository,
     Size size, {
     AdminCommands? commands,
+    DoctorAccountProvisioner? doctorProvisioner,
   }) async {
     await tester.runAsync(() async {
       final font = FontLoader('BeVietnamPro')
@@ -141,6 +165,7 @@ void main() {
             onLogout: () {},
             repository: repository,
             commands: commands,
+            doctorProvisioner: doctorProvisioner,
           ),
         ),
       ),
@@ -429,14 +454,16 @@ void main() {
   );
 
   testWidgets(
-    'doctor creation and password setup are explicit separate operations in admin UI',
+    'doctor creation provisions a fixed doctor role without a cloud function',
     (tester) async {
       final repository = _Repository(), commands = _Commands();
+      final doctorProvisioner = _DoctorProvisioner();
       await pumpWorkspace(
         tester,
         repository,
         const Size(1440, 1000),
         commands: commands,
+        doctorProvisioner: doctorProvisioner,
       );
       repository.emit('CHUYEN_KHOA', [
         const AdminRecord('SP-1', {'name': 'Nội', 'status': 'ACTIVE'}),
@@ -474,17 +501,13 @@ void main() {
       await tester.ensureVisible(find.text('Tạo'));
       await tester.tap(find.text('Tạo'));
       await tester.pumpAndSettle();
-      expect(commands.calls.single['operation'], 'createDoctor');
-      expect(commands.emails, isEmpty);
-      expect(find.text('Gửi email thiết lập mật khẩu'), findsOneWidget);
-      await tester.enterText(
-        input('Lý do thao tác / ghi chú quản trị'),
-        'Gửi hướng dẫn lần đầu',
+      expect(commands.calls, isEmpty);
+      expect(doctorProvisioner.calls, hasLength(1));
+      expect(
+        doctorProvisioner.calls.single['loginEmail'],
+        'doctor@example.com',
       );
-      await tester.tap(find.text('Gửi email'));
-      await tester.pumpAndSettle();
-      expect(commands.calls.last['operation'], 'passwordSetup');
-      expect(commands.emails, ['doctor@example.com']);
+      expect(doctorProvisioner.calls.single['specialtyId'], 'SP-1');
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await repository.close();

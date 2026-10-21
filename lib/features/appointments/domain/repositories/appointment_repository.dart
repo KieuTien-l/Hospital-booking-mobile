@@ -4,6 +4,12 @@ import '../entities/appointment.dart';
 abstract class AppointmentRepository {
   Stream<List<Appointment>> watchAppointmentsByPatient(String patientId);
 
+  /// Streams every appointment for the admin dashboard.
+  ///
+  /// Non-production implementations can opt out safely; the dashboard will
+  /// show an empty appointment set until they provide this stream.
+  Stream<List<Appointment>> watchAllAppointments() => Stream.value(const []);
+
   /// Streams appointments for the currently authenticated doctor profile.
   Stream<List<Appointment>> watchAppointmentsByDoctor(String doctorId);
 

@@ -37,6 +37,8 @@ class UserModel extends UserEntity {
             'DISABLED',
             'FALSE',
             '0',
+            'PENDING',
+            'REJECTED',
           }.contains(status.toUpperCase());
 
     return UserModel(
@@ -81,6 +83,7 @@ class UserModel extends UserEntity {
       'fullName': fullName,
       'role': role.name,
       'isActive': isActive,
+      if (status != null) 'status': status,
       'phone': phone,
       'updatedAt': FieldValue.serverTimestamp(),
     };

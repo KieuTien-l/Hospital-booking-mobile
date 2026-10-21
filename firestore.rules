@@ -49,6 +49,33 @@ service cloud.firestore {
                   doctor.data.userId == account.data.accountKey));
     }
 
+    // Administrators may manage schedules, but a schedule must still belong
+    // to a real active doctor. This prevents an otherwise privileged client
+    // from introducing orphaned doctor/schedule relationships.
+    function hasActiveDoctorProfile(doctorId) {
+      let doctor = get(/databases/$(database)/documents/BAC_SI/$(doctorId));
+      return doctor.data.status == 'ACTIVE';
+    }
+
+    function canAdminSaveSchedule() {
+      return request.resource.data.doctorId is string &&
+          request.resource.data.doctorId.size() > 0 &&
+          hasActiveDoctorProfile(request.resource.data.doctorId);
+    }
+
+    function canAdminSaveSlot() {
+      let schedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId));
+      return request.resource.data.workScheduleId is string &&
+          request.resource.data.doctorId is string &&
+          schedule.data.status == 'ACTIVE' &&
+          request.resource.data.doctorId == schedule.data.doctorId &&
+          request.resource.data.capacity is int &&
+          request.resource.data.capacity > 0 &&
+          request.resource.data.bookedCount is int &&
+          request.resource.data.bookedCount >= 0 &&
+          request.resource.data.bookedCount <= request.resource.data.capacity;
+    }
+
     function validAppointmentCreateShape() {
       return request.resource.data.keys().hasAll([
             'patientId',
@@ -386,23 +413,52 @@ service cloud.firestore {
           ownsPatient(appointment.data.patientId);
     }
 
+    // Approval is a one-way review of a self-registered patient account. The
+    // reviewer never receives permission to modify the role or profile fields.
+    function canReviewPendingAccount() {
+      return isAdmin() &&
+          resource.data.status == 'PENDING' &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.email == resource.data.email &&
+          request.resource.data.fullName == resource.data.fullName &&
+          request.resource.data.phone == resource.data.phone &&
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'isActive', 'updatedAt']) &&
+          ((request.resource.data.status == 'APPROVED' &&
+              request.resource.data.isActive == true) ||
+              (request.resource.data.status == 'REJECTED' &&
+                  request.resource.data.isActive == false));
+    }
+
     match /TAI_KHOAN/{accountId} {
       allow read: if signedIn() && (request.auth.uid == accountId || isAdmin());
-      allow create: if signedIn() &&
-          request.auth.uid == accountId &&
-          request.resource.data.keys().hasOnly([
-            'email', 'fullName', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt'
-          ]) &&
-          request.resource.data.role == 'patient' &&
-          request.resource.data.isActive == true;
-      allow update: if isAdmin() ||
+      allow create: if (
+            signedIn() &&
+            request.auth.uid == accountId &&
+            request.resource.data.keys().hasOnly([
+              'email', 'fullName', 'phone', 'role', 'isActive', 'status', 'createdAt', 'updatedAt'
+            ]) &&
+            request.resource.data.role == 'patient' &&
+            request.resource.data.status == 'PENDING' &&
+            request.resource.data.isActive == false
+          ) || (
+            isAdmin() &&
+            request.resource.data.keys().hasOnly([
+              'email', 'fullName', 'phone', 'role', 'isActive', 'status', 'createdAt', 'updatedAt'
+            ]) &&
+            request.resource.data.role == 'doctor' &&
+            request.resource.data.status == 'ACTIVE' &&
+            request.resource.data.isActive == true
+          );
+      allow update: if canReviewPendingAccount() ||
           (signedIn() &&
               request.auth.uid == accountId &&
               request.resource.data.role == resource.data.role &&
               request.resource.data.isActive == resource.data.isActive &&
+              request.resource.data.status == resource.data.status &&
               request.resource.data.diff(resource.data).affectedKeys()
                   .hasOnly(['email', 'fullName', 'phone', 'updatedAt']));
-      allow delete: if isAdmin();
+      allow delete: if false;
     }
 
     match /CHUYEN_KHOA/{specialtyId} {
@@ -450,15 +506,19 @@ service cloud.firestore {
 
     match /LICH_LAM_VIEC/{scheduleId} {
       allow read: if hasActiveAccount();
-      allow create: if isAdmin() || isDoctor(request.resource.data.doctorId);
-      allow update, delete: if isAdmin() || canManageOwnSchedule();
+      allow create: if (isAdmin() && canAdminSaveSchedule()) ||
+          isDoctor(request.resource.data.doctorId);
+      allow update: if (isAdmin() && canAdminSaveSchedule()) ||
+          canManageOwnSchedule();
+      allow delete: if isAdmin() || canManageOwnSchedule();
     }
 
     match /CA_KHAM/{slotId} {
       allow read: if hasActiveAccount();
-      allow create: if isAdmin() ||
+      allow create: if (isAdmin() && canAdminSaveSlot()) ||
           isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId)).data.doctorId);
-      allow update: if isAdmin() || canManageOwnSlot() || canBookSlot(slotId) ||
+      allow update: if (isAdmin() && canAdminSaveSlot()) ||
+          canManageOwnSlot() || canBookSlot(slotId) ||
           canReleaseBookedSlot(slotId);
       allow delete: if isAdmin() ||
           isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(resource.data.workScheduleId)).data.doctorId);

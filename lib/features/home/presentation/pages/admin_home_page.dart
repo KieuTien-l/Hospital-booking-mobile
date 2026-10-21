@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../admin/presentation/admin_workspace.dart';
+import '../../../admin/presentation/controllers/admin_account_controller.dart';
+import '../../../admin/presentation/controllers/admin_appointment_controller.dart';
+import '../../../admin/presentation/controllers/admin_dashboard_controller.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class AdminHomePage extends StatefulWidget {
@@ -14,6 +17,20 @@ class AdminHomePage extends StatefulWidget {
 class _AdminHomePageState extends State<AdminHomePage> {
   GlobalKey<NavigatorState> _navigator = GlobalKey<NavigatorState>();
   String? _accountId;
+  var _backendLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_backendLoaded) return;
+    _backendLoaded = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AdminDashboardController?>()?.load();
+      context.read<AdminAppointmentController?>()?.load();
+      context.read<AdminAccountController?>()?.loadPendingAccounts();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

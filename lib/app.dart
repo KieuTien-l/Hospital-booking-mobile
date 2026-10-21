@@ -7,6 +7,14 @@ import 'features/home/domain/repositories/doctor_workspace_repository.dart';
 import 'features/home/data/repositories/demo_doctor_workspace_repository.dart';
 import 'features/home/data/repositories/http_doctor_workspace_repository.dart';
 
+import 'features/admin/data/repositories/admin_account_repository_impl.dart';
+import 'features/admin/domain/repositories/admin_account_repository.dart';
+import 'features/admin/presentation/controllers/admin_account_controller.dart';
+import 'features/admin/presentation/controllers/admin_appointment_controller.dart';
+import 'features/admin/data/repositories/admin_management_repository_impl.dart';
+import 'features/admin/domain/repositories/admin_management_repository.dart';
+import 'features/admin/presentation/controllers/admin_dashboard_controller.dart';
+import 'features/admin/presentation/controllers/admin_management_controller.dart';
 import 'features/health_records/data/datasources/health_record_firebase_datasource.dart';
 import 'features/health_records/data/repositories/health_record_repository_impl.dart';
 import 'features/health_records/domain/repositories/health_record_repository.dart';
@@ -22,7 +30,7 @@ import 'features/feedbacks/data/datasources/feedback_firebase_datasource.dart';
 import 'features/feedbacks/data/repositories/feedback_repository_impl.dart';
 import 'features/feedbacks/domain/repositories/feedback_repository.dart';
 import 'features/feedbacks/presentation/controllers/feedback_controller.dart';
-import  'features/payments/data/datasources/patient_payment_firebase_datasource.dart';
+import 'features/payments/data/datasources/patient_payment_firebase_datasource.dart';
 import 'features/payments/data/repositories/patient_payment_repository_impl.dart';
 import 'features/payments/domain/repositories/patient_payment_repository.dart';
 import 'features/payments/presentation/controllers/patient_payment_controller.dart';
@@ -110,6 +118,12 @@ class App extends StatelessWidget {
         ),
         Provider<SpecialtyRepository>(
           create: (_) => SpecialtyRepositoryImpl(SpecialtyFirebaseDatasource()),
+        ),
+        Provider<AdminManagementRepository>(
+          create: (_) => AdminManagementRepositoryImpl(),
+        ),
+        Provider<AdminAccountRepository>(
+          create: (_) => AdminAccountRepositoryImpl(),
         ),
         Provider<DoctorRepository>(
           create: (_) => DoctorRepositoryImpl(DoctorFirebaseDatasource()),
@@ -199,6 +213,30 @@ class App extends StatelessWidget {
             workScheduleRepository: context.read<WorkScheduleRepository>(),
             appointmentRepository: context.read<AppointmentRepository>(),
           ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => AdminDashboardController(
+            specialtyRepository: context.read<SpecialtyRepository>(),
+            doctorRepository: context.read<DoctorRepository>(),
+            appointmentRepository: context.read<AppointmentRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => AdminManagementController(
+            context.read<AdminManagementRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => AdminAppointmentController(
+            appointmentRepository: context.read<AppointmentRepository>(),
+            doctorRepository: context.read<DoctorRepository>(),
+            workScheduleRepository: context.read<WorkScheduleRepository>(),
+            timeSlotRepository: context.read<TimeSlotRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) =>
+              AdminAccountController(context.read<AdminAccountRepository>()),
         ),
         ChangeNotifierProvider(
           create: (context) =>

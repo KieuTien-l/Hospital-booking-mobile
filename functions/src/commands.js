@@ -163,6 +163,12 @@ class CommandContext {
     this.reason();
     const enabled = this.input.values?.enabled;
     if (typeof enabled !== 'boolean') fail('Thiếu trạng thái bật/tắt.', 'invalid-argument');
+    if (collection === 'CHUYEN_KHOA' && !enabled) {
+      const doctors = await this.rows('BAC_SI', 'specialtyId', key);
+      if (doctors.some((doctor) => doctor.data().isActive !== false && doctor.data().status !== 'INACTIVE')) {
+        fail('Không thể ngừng hoạt động chuyên khoa đang có bác sĩ hoạt động.');
+      }
+    }
     if (collection === 'BAC_SI') return this.updated(collection, key, before, { acceptingBookings: enabled });
     if (collection === 'BENH_NHAN') return this.updated(collection, key, before, { status: enabled ? 'ACTIVE' : 'ARCHIVED', isActive: enabled });
     if (collection === 'CA_KHAM') {

@@ -3,12 +3,26 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/presentation/controllers/doctor_dashboard_controller.dart';
 import '../../../doctors/presentation/widgets/doctor_detail_section.dart';
 
 /// Read-only until Doctor profile editing rights and data have been verified.
 class DoctorProfilePage extends StatelessWidget {
-  const DoctorProfilePage({super.key});
+  const DoctorProfilePage({
+    super.key,
+    this.doctor,
+    this.isLoading = false,
+    this.error,
+    this.onRetry,
+  });
+
+  /// Optional values supplied by the direct Firestore profile adapter.
+  /// Without them, the page continues to read the dashboard controller.
+  final Doctor? doctor;
+  final bool isLoading;
+  final String? error;
+  final VoidCallback? onRetry;
 
   void _previewAvatar(BuildContext context) => showDialog<void>(
     context: context,
@@ -81,7 +95,8 @@ class DoctorProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final doctor = context.watch<DoctorDashboardController?>()?.doctor;
+    final doctor =
+        this.doctor ?? context.watch<DoctorDashboardController?>()?.doctor;
     final user = auth.currentUser;
     final name = _firstVerifiedValue(doctor?.fullName, user?.fullName) ?? '';
     return SingleChildScrollView(
@@ -129,6 +144,20 @@ class DoctorProfilePage extends StatelessWidget {
                 style: TextStyle(color: AppColors.textSecondary, height: 1.5),
               ),
               const SizedBox(height: 28),
+              if (isLoading) const LinearProgressIndicator(),
+              if (error != null) ...[
+                Text(error!, style: const TextStyle(color: AppColors.error)),
+                if (onRetry != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Thử lại'),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+              ],
               _section(
                 'Thông tin cá nhân',
                 'Họ tên, ngày sinh, liên hệ',
@@ -139,9 +168,7 @@ class DoctorProfilePage extends StatelessWidget {
                     _field(
                       'Họ và tên',
                       value: name,
-                      key: ValueKey(
-                        'doctor-name-${user?.id}-$name',
-                      ),
+                      key: ValueKey('doctor-name-${user?.id}-$name'),
                     ),
                     const SizedBox(height: 16),
                     _field('Ngày sinh'),

@@ -23,6 +23,11 @@
     "seed-payments:apply": "node seed-payment-sample.mjs --apply",
     "seed-multispecialty:dry-run": "node seed-multispecialty-booking-data.mjs",
     "seed-multispecialty:apply": "node seed-multispecialty-booking-data.mjs --apply",
+    "demo-v2:dry-run": "node reset-and-seed-demo-v2.mjs --end-date=2026-10-25",
+    "demo-v2:apply": "node reset-and-seed-demo-v2.mjs --end-date=2026-10-25 --apply",
+    "demo-v2:repair": "node reset-and-seed-demo-v2.mjs --end-date=2026-10-25 --apply --repair",
+    "demo-v2:shift-dates:dry-run": "node shift-demo-v2-dates.mjs",
+    "demo-v2:shift-dates:apply": "node shift-demo-v2-dates.mjs --apply",
     "audit-booking": "node audit-booking-data.mjs",
     "audit-backend:strict": "node audit-booking-data.mjs --strict"
   },

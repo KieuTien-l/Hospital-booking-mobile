@@ -389,7 +389,8 @@ extension _AdminActions on _AdminWorkspaceState {
   }
 
   Widget? _createButton(AdminSection section) {
-    if (_commands == null || !_creatable.contains(section.collection)) {
+    if (!_creatable.contains(section.collection) ||
+        (_commands == null && section.collection != 'BAC_SI')) {
       return null;
     }
     final source = _controller.dataset(section.collection!);
@@ -409,15 +410,18 @@ extension _AdminActions on _AdminWorkspaceState {
 
   Future<void> _createRecord(AdminSection section) async {
     final collection = section.collection!;
+    if (collection == 'BAC_SI') {
+      await _createDoctorWithAccount();
+      return;
+    }
     final operation = switch (collection) {
-      'BAC_SI' => 'createDoctor',
       'LICH_HEN' => 'book',
       'LICH_LAM_VIEC' => 'createSchedule',
       'CA_KHAM' => 'saveSlot',
       'THONG_BAO' => 'notificationDraft',
       _ => 'create',
     };
-    final result = await _editor(
+    await _editor(
       title: collection == 'BAC_SI'
           ? 'Thêm bác sĩ và cấp tài khoản'
           : 'Thêm ${section.title.toLowerCase()}',
@@ -431,17 +435,35 @@ extension _AdminActions on _AdminWorkspaceState {
       collection: collection,
       submitLabel: collection == 'THONG_BAO' ? 'Lưu bản nháp' : 'Tạo',
     );
-    if (result != null && collection == 'BAC_SI' && mounted) {
-      await _editor(
-        title: 'Gửi email thiết lập mật khẩu',
-        description:
-            'Đã tạo bác sĩ. Gửi hướng dẫn cho ${result['loginEmail']}? Nếu chưa gửi, bạn có thể gửi lại từ chi tiết bác sĩ / tài khoản.',
-        fields: const [],
-        operation: 'passwordSetup',
-        collection: 'TAI_KHOAN',
-        targetId: readString(result['id']),
-        submitLabel: 'Gửi email',
-      );
+  }
+
+  Future<void> _createDoctorWithAccount() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      useRootNavigator: false,
+      barrierDismissible: false,
+      builder: (dialogContext) => Theme(
+        data: _adminTheme(dialogContext),
+        child: AdminEditor(
+          title: 'Thêm bác sĩ và cấp tài khoản',
+          description: 'Tài khoản mới luôn có vai trò Bác sĩ. App tạo đăng nhập bằng phiên phụ nên phiên admin hiện tại được giữ nguyên, sau đó tạo TAI_KHOAN và BAC_SI trên Firestore rồi gửi email đặt mật khẩu.',
+          fields: _editFields('BAC_SI', null),
+          submitLabel: 'Tạo',
+          onSubmit: (values, _, _) async {
+            final provisioned = await _doctorProvisioner.provision(values);
+            return {
+              'id': provisioned.doctorId,
+              'loginEmail': provisioned.loginEmail,
+              'passwordSetupSent': provisioned.passwordSetupSent,
+              'message': provisioned.message,
+            };
+          },
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(readString(result['message']))));
     }
   }
 
@@ -557,6 +579,49 @@ extension _AdminActions on _AdminWorkspaceState {
     String action,
   ) async {
     final collection = section.collection!, d = record.data;
+    if (action == 'password') {
+      final accountId = collection == 'BAC_SI'
+          ? readReferenceId(d['userId'])
+          : record.id;
+      final account = _controller
+          .dataset('TAI_KHOAN')
+          .records
+          .where((item) => item.id == accountId)
+          .firstOrNull;
+      final loginEmail = readString(account?.data['email']);
+      if (loginEmail.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Không tìm thấy email đăng nhập của bác sĩ.'),
+            ),
+          );
+        }
+        return null;
+      }
+      try {
+        await _doctorProvisioner.sendPasswordSetup(loginEmail);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã gửi email thiết lập mật khẩu đến $loginEmail.'),
+            ),
+          );
+        }
+        return {
+          'id': accountId,
+          'collection': 'TAI_KHOAN',
+          'loginEmail': loginEmail,
+          'message': 'Đã gửi email thiết lập mật khẩu.',
+        };
+      } on AdminCommandException catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error.message)));
+        }
+        return null;
+      }
+    }
     String
     title = 'Cập nhật ${section.title.toLowerCase()}',
     description =
