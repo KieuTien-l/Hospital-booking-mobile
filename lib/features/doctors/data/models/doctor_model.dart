@@ -22,6 +22,10 @@ class DoctorModel extends Doctor {
     super.qualification,
     super.biography,
     super.avatarUrl,
+    super.dateOfBirth,
+    super.gender,
+    super.address,
+    super.acceptingBookings = true,
     super.createdAt,
     super.updatedAt,
   });
@@ -41,6 +45,10 @@ class DoctorModel extends Doctor {
     qualification: value.qualification,
     biography: value.biography,
     avatarUrl: value.avatarUrl,
+    dateOfBirth: value.dateOfBirth,
+    gender: value.gender,
+    address: value.address,
+    acceptingBookings: value.acceptingBookings,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   );
@@ -74,6 +82,10 @@ class DoctorModel extends Doctor {
       qualification: readOptionalString(json['qualification']),
       biography: readOptionalString(json['biography']),
       avatarUrl: readOptionalString(json['avatarUrl']),
+      dateOfBirth: readDateTime(json['dateOfBirth']),
+      gender: readOptionalString(json['gender']),
+      address: readOptionalString(json['address']),
+      acceptingBookings: readBool(json['acceptingBookings'], fallback: true),
       createdAt: readDateTime(json['createdAt']),
       updatedAt: readDateTime(json['updatedAt']),
     );
@@ -105,6 +117,10 @@ class DoctorModel extends Doctor {
       if (qualification != null) 'qualification': qualification,
       if (biography != null) 'biography': biography,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      if (dateOfBirth != null) 'dateOfBirth': dateOfBirth!.toIso8601String(),
+      if (gender != null) 'gender': gender,
+      if (address != null) 'address': address,
+      'acceptingBookings': acceptingBookings,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
@@ -125,6 +141,10 @@ class DoctorModel extends Doctor {
       if (qualification != null) 'qualification': qualification,
       if (biography != null) 'biography': biography,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+      if (gender != null) 'gender': gender,
+      if (address != null) 'address': address,
+      'acceptingBookings': acceptingBookings,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }

@@ -526,5 +526,19 @@ service cloud.firestore {
                   .hasOnly(['isRead']));
       allow delete: if isAdmin();
     }
+
+    // Additional read-only datasets used by the administrator workspace.
+    // Mutations are processed by the trusted adminCommand Cloud Function.
+    match /{collection}/{recordId} {
+      allow read: if collection in [
+            'LS_CHAT_AI',
+            'CAU_HINH',
+            'NHAT_KY_ADMIN',
+            'ADMIN_PROVISIONING',
+            'ADMIN_NOTES',
+            'YEU_CAU_HOAN_TIEN'
+          ] && isAdmin();
+      allow write: if false;
+    }
   }
 }
