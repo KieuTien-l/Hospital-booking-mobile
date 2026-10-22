@@ -158,17 +158,18 @@ test('patient feedback transaction is idempotent, cannot impersonate another pat
   const notices = await assertSucceeds(getDocs(query(collection(patientDb, 'THONG_BAO'), where('userId', '==', 'patient'), where('status', '==', 'SENT'))));
   assert.equal(notices.size, 1);
 });
-test('doctor identity is server-managed, patient self-registration and existing patient profile edits remain allowed', async () => {
+test('doctor edits require admin, patient registration requires approval and existing patient profile edits remain allowed', async () => {
   const doctorDb = env.authenticatedContext('doctor').firestore();
   await assertFails(updateDoc(doc(doctorDb, 'BAC_SI', 'doctor'), { fullName: 'Hacked' }));
   await assertFails(updateDoc(doc(doctorDb, 'TAI_KHOAN', 'doctor'), { phone: '123' }));
   const adminDb = env.authenticatedContext('admin').firestore();
-  await assertFails(updateDoc(doc(adminDb, 'BAC_SI', 'doctor'), { fullName: 'bypass backend' }));
+  await assertSucceeds(updateDoc(doc(adminDb, 'BAC_SI', 'doctor'), { fullName: 'Admin updated doctor' }));
   const patientDb = env.authenticatedContext('patient').firestore();
   await assertSucceeds(updateDoc(doc(patientDb, 'TAI_KHOAN', 'patient'), { phone: '0901234567' }));
   const signup = env.authenticatedContext('new-patient').firestore();
   const batch = writeBatch(signup);
-  batch.set(doc(signup, 'TAI_KHOAN', 'new-patient'), { fullName: 'Mới', phone: '', email: 'new@example.com', role: 'patient', isActive: true, createdAt: new Date(), updatedAt: new Date() });
+  await assertFails(setDoc(doc(signup, 'TAI_KHOAN', 'new-patient'), { fullName: 'Mới', phone: '', email: 'new@example.com', role: 'patient', isActive: true, status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date() }));
+  batch.set(doc(signup, 'TAI_KHOAN', 'new-patient'), { fullName: 'Mới', phone: '', email: 'new@example.com', role: 'patient', isActive: false, status: 'PENDING', createdAt: new Date(), updatedAt: new Date() });
   batch.set(doc(signup, 'BENH_NHAN', 'new-patient'), { authUserId: 'new-patient', fullName: 'Mới' });
   await assertSucceeds(batch.commit());
   await assertFails(setDoc(doc(signup, 'TAI_KHOAN', 'forged'), { role: 'doctor', isActive: true }));
