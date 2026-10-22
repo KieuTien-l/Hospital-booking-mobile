@@ -11,7 +11,18 @@ import 'notification_detail_page.dart';
 
 /// Content only: the patient shell owns the bottom navigation.
 class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key});
+  const NotificationsPage({
+    super.key,
+    this.initialItems,
+    this.onRead,
+    this.onReadAll,
+  });
+
+  /// Optional adapter for the legacy live Firestore screen.  Keeping this
+  /// boundary lets both notification data paths use the same presentation.
+  final List<NotificationItem>? initialItems;
+  final ValueChanged<NotificationItem>? onRead;
+  final ValueChanged<List<NotificationItem>>? onReadAll;
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -89,6 +100,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.initialItems != null) {
+      return _ExternalNotificationsPage(
+        items: widget.initialItems!,
+        onRead: widget.onRead,
+        onReadAll: widget.onReadAll,
+      );
+    }
     final controller = context.watch<NotificationController?>();
     if (controller == null) {
       return const _NotificationPreview();
@@ -243,6 +261,108 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExternalNotificationsPage extends StatefulWidget {
+  const _ExternalNotificationsPage({
+    required this.items,
+    this.onRead,
+    this.onReadAll,
+  });
+  final List<NotificationItem> items;
+  final ValueChanged<NotificationItem>? onRead;
+  final ValueChanged<List<NotificationItem>>? onReadAll;
+
+  @override
+  State<_ExternalNotificationsPage> createState() =>
+      _ExternalNotificationsPageState();
+}
+
+class _ExternalNotificationsPageState
+    extends State<_ExternalNotificationsPage> {
+  var _unreadOnly = false;
+
+  void _open(NotificationItem item) {
+    if (!item.isRead) widget.onRead?.call(item);
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => NotificationDetailPage(item: item)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = widget.items
+        .where((item) => !_unreadOnly || !item.isRead)
+        .toList(growable: false);
+    final unread = widget.items.where((item) => !item.isRead).toList();
+    return ColoredBox(
+      color: Colors.white,
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+              child: Row(
+                children: [
+                  Text(
+                    'Thông báo',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: unread.isEmpty
+                        ? null
+                        : () => widget.onReadAll?.call(unread),
+                    child: const Text('Đọc tất cả'),
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ChoiceChip(
+                  label: const Text('Tất cả'),
+                  selected: !_unreadOnly,
+                  onSelected: (_) => setState(() => _unreadOnly = false),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('Chưa đọc'),
+                  selected: _unreadOnly,
+                  onSelected: (_) => setState(() => _unreadOnly = true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: visible.isEmpty
+                  ? const Center(child: Text('CHƯA CÓ THÔNG BÁO'))
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                      itemCount: visible.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final item = visible[index];
+                        return ListTile(
+                          tileColor: item.isRead
+                              ? null
+                              : _NotificationColors.soft,
+                          title: Text(item.title),
+                          subtitle: Text(item.content),
+                          trailing: Text(item.time),
+                          onTap: () => _open(item),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );

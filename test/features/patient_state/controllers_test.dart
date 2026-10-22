@@ -367,6 +367,10 @@ void main() {
 
 class FakeSpecialties implements SpecialtyRepository {
   final stream = StreamController<List<Specialty>>();
+
+  @override
+  Stream<List<Specialty>> watchAllSpecialties() => watchSpecialties();
+
   @override
   Stream<List<Specialty>> watchSpecialties() => stream.stream;
 }

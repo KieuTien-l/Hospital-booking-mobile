@@ -9,7 +9,8 @@ import '../../features/home/presentation/widgets/doctor_workspace_shell.dart';
 import '../../features/home/presentation/pages/admin_home_page.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, this.useLiveCommunications = true});
+  final bool useLiveCommunications;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +19,7 @@ class AuthGate extends StatelessWidget {
     if (auth.status == AuthStatus.authenticated && auth.currentUser != null) {
       switch (auth.currentUser!.role) {
         case UserRole.patient:
-          return const PatientHomePage();
+          return PatientHomePage(useLiveCommunications: useLiveCommunications);
         case UserRole.doctor:
           if (!auth.currentUser!.isActive) return const LoginPage();
           return DoctorWorkspaceShell(key: ValueKey(auth.currentUser!.id));

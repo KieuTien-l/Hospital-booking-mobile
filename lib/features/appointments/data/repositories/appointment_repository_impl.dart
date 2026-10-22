@@ -13,6 +13,10 @@ class AppointmentRepositoryImpl implements AppointmentRepository {
       _datasource.watchAppointmentsByPatient(patientId);
 
   @override
+  Stream<List<Appointment>> watchAllAppointments() =>
+      _datasource.watchAllAppointments();
+
+  @override
   Stream<List<Appointment>> watchAppointmentsByDoctor(String doctorId) =>
       _datasource.watchAppointmentsByDoctor(doctorId);
 

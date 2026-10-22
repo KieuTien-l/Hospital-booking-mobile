@@ -12,8 +12,21 @@ import '../widgets/patient_home_background.dart';
 import 'feedback_detail_page.dart';
 
 class CustomerFeedbackPage extends StatefulWidget {
-  const CustomerFeedbackPage({super.key, this.history = const []});
+  const CustomerFeedbackPage({
+    super.key,
+    this.history = const [],
+    this.onSubmit,
+    this.profileSelector,
+  });
   final List<FeedbackUiModel> history;
+
+  /// Optional live persistence adapter.  When absent, the page keeps using
+  /// the app-level [FeedbackController].
+  final Future<void> Function(FeedbackUiModel draft)? onSubmit;
+
+  /// A live data source can provide a patient-profile picker without
+  /// replacing the established feedback UI.
+  final Widget? profileSelector;
   @override
   State<CustomerFeedbackPage> createState() => _CustomerFeedbackPageState();
 }
@@ -92,6 +105,34 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
 
   Future<void> _submit() async {
     if (_submitting || !_formKey.currentState!.validate()) return;
+    if (widget.onSubmit != null) {
+      FocusScope.of(context).unfocus();
+      setState(() => _submitting = true);
+      try {
+        await widget.onSubmit!(
+          FeedbackUiModel(
+            title: _title.text.trim(),
+            content: _content.text.trim(),
+            category: _category!,
+            rating: _rating,
+            dateLabel: 'Vừa gửi',
+            status: FeedbackStatus.pending,
+          ),
+        );
+      } catch (_) {
+        if (mounted) {
+          setState(() => _submitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Không thể gửi phản hồi. Vui lòng thử lại.'),
+            ),
+          );
+        }
+        return;
+      }
+      if (mounted) await _completeSubmit();
+      return;
+    }
     final patient = context.read<PatientProfileController?>()?.patient;
     final controller = context.read<FeedbackController?>();
     if (patient == null) {
@@ -137,6 +178,10 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
     }
     await controller.loadFeedbacks(patient.id);
     if (!mounted) return;
+    await _completeSubmit();
+  }
+
+  Future<void> _completeSubmit() async {
     _title.clear();
     _content.clear();
     setState(() {
@@ -226,18 +271,29 @@ class _CustomerFeedbackPageState extends State<CustomerFeedbackPage>
                 child: TabBarView(
                   controller: _tabs,
                   children: [
-                    FeedbackForm(
-                      formKey: _formKey,
-                      titleController: _title,
-                      contentController: _content,
-                      category: _category,
-                      rating: _rating,
-                      submitting: _submitting,
-                      onCategoryChanged: (value) =>
-                          setState(() => _category = value),
-                      onRatingChanged: (value) =>
-                          setState(() => _rating = value),
-                      onSubmit: _submit,
+                    Column(
+                      children: [
+                        if (widget.profileSelector case final selector?)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                            child: selector,
+                          ),
+                        Expanded(
+                          child: FeedbackForm(
+                            formKey: _formKey,
+                            titleController: _title,
+                            contentController: _content,
+                            category: _category,
+                            rating: _rating,
+                            submitting: _submitting,
+                            onCategoryChanged: (value) =>
+                                setState(() => _category = value),
+                            onRatingChanged: (value) =>
+                                setState(() => _rating = value),
+                            onSubmit: _submit,
+                          ),
+                        ),
+                      ],
                     ),
                     ListView(
                       key: const PageStorageKey('feedback-history'),

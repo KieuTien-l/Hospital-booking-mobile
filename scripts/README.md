@@ -1,5 +1,39 @@
 # Firestore migration
 
+## Reset and create the coherent DEMO_V2 dataset
+
+`reset-and-seed-demo-v2.mjs` preserves the sole administrator account, removes
+all other root Firestore collections and Firebase Authentication users, then
+creates the consistent demonstration data set: 12 specialties, 60 doctors,
+60 patients, accounts, schedules, time slots, past completed appointments and
+future appointments through 2026-10-25. It is destructive when `--apply` is
+present; run the dry run first.
+
+```powershell
+$env:FIREBASE_SERVICE_ACCOUNT_PATH = 'C:\secure\bookinghospitalapp-admin.json'
+$env:DEMO_ACCOUNT_PASSWORD = 'Password123@'
+npm run demo-v2:dry-run --prefix scripts
+npm run demo-v2:apply --prefix scripts
+```
+
+If an interrupted reset leaves the dataset incomplete, restore the full seed
+without deleting any additional data:
+
+```powershell
+npm run demo-v2:repair --prefix scripts
+```
+
+If a calendar date needs to be moved by one day without recreating any records,
+run the date-only migration after its dry run:
+
+```powershell
+npm run demo-v2:shift-dates:dry-run --prefix scripts
+npm run demo-v2:shift-dates:apply --prefix scripts
+```
+
+Doctor login emails follow `bs00001@hospital.test`; patient login emails follow
+`bn00001@hospital.test`. All seed records are marked `source: DEMO_V2`.
+
 This tool replaces Vietnamese Firestore field names with the canonical English
 schema. It first adds the English fields without changing document IDs or
 overwriting an existing canonical field; cleanup then removes the Vietnamese

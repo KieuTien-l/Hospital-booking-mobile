@@ -65,6 +65,7 @@ class PatientModel extends Patient {
     final isActive = status.isNotEmpty
         ? !const {
             'INACTIVE',
+            'ARCHIVED',
             'DISABLED',
             'FALSE',
             '0',

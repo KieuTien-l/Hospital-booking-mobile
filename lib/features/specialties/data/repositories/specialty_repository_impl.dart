@@ -10,4 +10,8 @@ class SpecialtyRepositoryImpl implements SpecialtyRepository {
 
   @override
   Stream<List<Specialty>> watchSpecialties() => _datasource.watchSpecialties();
+
+  @override
+  Stream<List<Specialty>> watchAllSpecialties() =>
+      _datasource.watchAllSpecialties();
 }

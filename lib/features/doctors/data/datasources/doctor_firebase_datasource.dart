@@ -13,11 +13,16 @@ class DoctorFirebaseDatasource {
       _firestore.collection(DoctorModel.collectionName);
 
   Future<List<Doctor>> getDoctors() async {
-    final snapshot = await _doctors.get();
-    return snapshot.docs
-        .map(DoctorModel.fromFirestore)
+    return (await getAllDoctors())
         .where((doctor) => doctor.isActive)
         .toList(growable: false);
+  }
+
+  /// Includes inactive profiles so administrators can detect an invalid
+  /// specialty assignment instead of silently excluding it from the report.
+  Future<List<Doctor>> getAllDoctors() async {
+    final snapshot = await _doctors.get();
+    return snapshot.docs.map(DoctorModel.fromFirestore).toList(growable: false);
   }
 
   Future<Doctor?> getDoctorById(String doctorId) async {

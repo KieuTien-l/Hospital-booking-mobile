@@ -1,5 +1,6 @@
 class NotificationItem {
   const NotificationItem({
+    this.id = '',
     required this.title,
     required this.content,
     required this.time,
@@ -11,6 +12,7 @@ class NotificationItem {
   });
 
   final String title;
+  final String id;
   final String content;
   final String time;
   final bool isRead;
@@ -20,6 +22,7 @@ class NotificationItem {
   final String? location;
 
   NotificationItem markAsRead() => NotificationItem(
+    id: id,
     title: title,
     content: content,
     time: time,

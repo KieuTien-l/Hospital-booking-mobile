@@ -73,7 +73,9 @@ void main() {
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: controller,
-          child: const MaterialApp(home: AuthGate()),
+          child: const MaterialApp(
+            home: AuthGate(useLiveCommunications: false),
+          ),
         ),
       );
       await tester.pumpAndSettle();

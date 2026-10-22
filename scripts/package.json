@@ -25,6 +25,11 @@
     "seed-multispecialty:apply": "node seed-multispecialty-booking-data.mjs --apply",
     "seed-hospital-2026:dry-run": "node seed-hospital-operational-data-2026.mjs",
     "seed-hospital-2026:apply": "node seed-hospital-operational-data-2026.mjs --apply",
+    "demo-v2:dry-run": "node reset-and-seed-demo-v2.mjs --end-date=2026-10-25",
+    "demo-v2:apply": "node reset-and-seed-demo-v2.mjs --end-date=2026-10-25 --apply",
+    "demo-v2:repair": "node reset-and-seed-demo-v2.mjs --end-date=2026-10-25 --apply --repair",
+    "demo-v2:shift-dates:dry-run": "node shift-demo-v2-dates.mjs",
+    "demo-v2:shift-dates:apply": "node shift-demo-v2-dates.mjs --apply",
     "audit-booking": "node audit-booking-data.mjs",
     "audit-backend:strict": "node audit-booking-data.mjs --strict"
   },

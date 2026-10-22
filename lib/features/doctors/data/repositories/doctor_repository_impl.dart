@@ -12,6 +12,9 @@ class DoctorRepositoryImpl implements DoctorRepository {
   Future<List<Doctor>> getDoctors() => _datasource.getDoctors();
 
   @override
+  Future<List<Doctor>> getAllDoctors() => _datasource.getAllDoctors();
+
+  @override
   Future<Doctor?> getDoctorById(String doctorId) =>
       _datasource.getDoctorById(doctorId);
 

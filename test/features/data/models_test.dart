@@ -52,10 +52,12 @@ void main() {
             'isActive',
             'phone',
             'role',
+            'status',
             'updatedAt',
           ]),
         );
         expect(user.toFirestoreCreate()['role'], 'doctor');
+        expect(user.toFirestoreCreate()['status'], 'ACTIVE');
       },
     );
   });

@@ -68,7 +68,7 @@ void main() {
     },
   );
   test(
-    'Foreign doctor responses and Sunday schedules are rejected',
+    'Foreign doctor responses and forbidden weekend schedules are rejected',
     () async {
       final repository = TestWorkspaceRepository()
         ..dayLoader = (date) async => testDay(date, userId: 'other');
@@ -81,31 +81,32 @@ void main() {
       await controller.load(monday);
       expect(controller.data, isNull);
       expect(controller.hasError, isTrue);
-      final date = DateTime(2026, 10, 18);
-      final data = testDay(date);
-      final invalid = DoctorDayData(
-        doctor: data.doctor,
-        date: date,
-        schedules: [
-          WorkSchedule(
-            id: 'invalid',
-            doctorId: data.doctor.id,
-            workDate: date,
-            startTime: '13:00',
-            endTime: '16:00',
-          ),
-        ],
-        slots: [],
-        bookings: [],
-      );
-      expect(
-        () => DoctorWorkspaceController.validate(
-          invalid,
-          userId: 'account',
+      for (final date in [DateTime(2026, 10, 17), DateTime(2026, 10, 18)]) {
+        final data = testDay(date);
+        final invalid = DoctorDayData(
+          doctor: data.doctor,
           date: date,
-        ),
-        throwsStateError,
-      );
+          schedules: [
+            WorkSchedule(
+              id: 'invalid',
+              doctorId: data.doctor.id,
+              workDate: date,
+              startTime: '13:00',
+              endTime: '16:00',
+            ),
+          ],
+          slots: [],
+          bookings: [],
+        );
+        expect(
+          () => DoctorWorkspaceController.validate(
+            invalid,
+            userId: 'account',
+            date: date,
+          ),
+          throwsStateError,
+        );
+      }
     },
   );
   test('A completed request cannot restore data after disposal', () async {

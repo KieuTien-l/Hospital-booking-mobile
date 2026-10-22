@@ -15,6 +15,9 @@ import 'package:flutter_application_4/features/specialties/presentation/controll
 
 class _HomeSpecialtyRepository implements SpecialtyRepository {
   @override
+  Stream<List<Specialty>> watchAllSpecialties() => watchSpecialties();
+
+  @override
   Stream<List<Specialty>> watchSpecialties() => Stream.value(const [
     Specialty(id: 'skin', name: 'Da liễu', description: '', isActive: true),
   ]);
@@ -53,7 +56,9 @@ void main() {
       await tester.pumpWidget(
         ChangeNotifierProvider(
           create: (_) => AuthController(authRepo: _HomeAuthRepository()),
-          child: const MaterialApp(home: PatientHomePage()),
+          child: const MaterialApp(
+            home: PatientHomePage(useLiveCommunications: false),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -78,7 +83,9 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthController(authRepo: _HomeAuthRepository()),
-        child: const MaterialApp(home: PatientHomePage()),
+        child: const MaterialApp(
+          home: PatientHomePage(useLiveCommunications: false),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -103,7 +110,9 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthController(authRepo: _HomeAuthRepository()),
-        child: const MaterialApp(home: PatientHomePage()),
+        child: const MaterialApp(
+          home: PatientHomePage(useLiveCommunications: false),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -128,7 +137,9 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthController(authRepo: _HomeAuthRepository()),
-        child: const MaterialApp(home: PatientHomePage()),
+        child: const MaterialApp(
+          home: PatientHomePage(useLiveCommunications: false),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -154,7 +165,9 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthController(authRepo: _HomeAuthRepository()),
-        child: const MaterialApp(home: PatientHomePage()),
+        child: const MaterialApp(
+          home: PatientHomePage(useLiveCommunications: false),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -182,7 +195,7 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthController(authRepo: repository),
-        child: const MaterialApp(home: AuthGate()),
+        child: const MaterialApp(home: AuthGate(useLiveCommunications: false)),
       ),
     );
     await tester.pumpAndSettle();
@@ -226,7 +239,9 @@ void main() {
             create: (_) => SpecialtyController(_HomeSpecialtyRepository()),
           ),
         ],
-        child: const MaterialApp(home: PatientHomePage()),
+        child: const MaterialApp(
+          home: PatientHomePage(useLiveCommunications: false),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -298,7 +313,9 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthController(authRepo: _HomeAuthRepository()),
-        child: const MaterialApp(home: PatientHomePage()),
+        child: const MaterialApp(
+          home: PatientHomePage(useLiveCommunications: false),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -336,7 +353,7 @@ void main() {
             create: (_) => SpecialtyController(_HomeSpecialtyRepository()),
           ),
         ],
-        child: const MaterialApp(home: AuthGate()),
+        child: const MaterialApp(home: AuthGate(useLiveCommunications: false)),
       ),
     );
     await tester.pumpAndSettle();

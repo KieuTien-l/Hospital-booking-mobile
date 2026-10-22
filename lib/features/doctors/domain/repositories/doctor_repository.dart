@@ -4,6 +4,9 @@ import '../entities/doctor.dart';
 abstract class DoctorRepository {
   Future<List<Doctor>> getDoctors();
 
+  /// Returns active and inactive profiles for administrator validation.
+  Future<List<Doctor>> getAllDoctors() => getDoctors();
+
   Future<Doctor?> getDoctorById(String doctorId);
 
   /// Finds the active doctor profile for a Firebase Authentication user.
