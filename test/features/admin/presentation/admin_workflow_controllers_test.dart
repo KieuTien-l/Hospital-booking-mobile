@@ -39,6 +39,28 @@ const _account = UserModel(
 );
 
 void main() {
+  test('ADM-15 cancelled history stays valid after specialty transfer and capacity reduction', () async {
+    final appointments = _Appointments();
+    final controller = AdminAppointmentController(
+      appointmentRepository: appointments,
+      doctorRepository: _Doctors(),
+      workScheduleRepository: _Schedules(),
+      timeSlotRepository: _Slots(bookedCount: 0, capacity: 1),
+    );
+    addTearDown(controller.dispose);
+    addTearDown(appointments.close);
+    final load = controller.load();
+    appointments.add([
+      _appointment(
+        'historic',
+        status: AppointmentStatus.cancelled,
+        peopleCount: 2,
+        specialtyId: 'former-specialty',
+      ),
+    ]);
+    await load;
+    expect(controller.records.single.hasValidRelationships, isTrue);
+  });
   test('ADM-15 changing a successful filter reloads; cancellation need not hold a reservation', () async {
     final appointments = _Appointments();
     final controller = AdminAppointmentController(
@@ -134,6 +156,8 @@ Appointment _appointment(
   String id, {
   String timeSlotId = 'slot-1',
   AppointmentStatus status = AppointmentStatus.pending,
+  int peopleCount = 1,
+  String? specialtyId,
 }) => Appointment(
   id: id,
   patientId: 'patient-1',
@@ -143,7 +167,8 @@ Appointment _appointment(
   appointmentDate: DateTime(2026, 10, 21),
   startTime: '08:00',
   endTime: '09:00',
-  peopleCount: 1,
+  peopleCount: peopleCount,
+  specialtyId: specialtyId,
   status: status,
 );
 
@@ -213,8 +238,9 @@ class _Schedules implements WorkScheduleRepository {
 }
 
 class _Slots implements TimeSlotRepository {
-  _Slots({this.bookedCount = 1});
+  _Slots({this.bookedCount = 1, this.capacity = 5});
   final int bookedCount;
+  final int capacity;
   @override
   Future<List<TimeSlot>> getTimeSlotsByWorkSchedule(
     String workScheduleId,
@@ -225,7 +251,7 @@ class _Slots implements TimeSlotRepository {
       doctorId: 'doctor-1',
       startTime: '08:00',
       endTime: '09:00',
-      capacity: 5,
+      capacity: capacity,
       bookedCount: bookedCount,
       status: TimeSlotStatus.available,
     ),

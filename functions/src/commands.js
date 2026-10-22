@@ -51,6 +51,21 @@ class CommandContext {
     if (result.size > limit) fail('Có quá nhiều bản ghi liên quan; cần chia nhỏ thao tác.');
     return result.docs;
   }
+  reservationCounts(slot, appointments) {
+    // Rebuild from persisted appointments, including legacy slots without a
+    // reservation map. These reads share the booking/cancellation transaction.
+    const held = appointments.filter((doc) => heldStatuses.has(doc.data().status));
+    const counts = Object.fromEntries(held.map((doc) => {
+      const appointment = doc.data();
+      if (appointment.doctorId !== slot.doctorId || appointment.workScheduleId !== slot.workScheduleId) {
+        fail('Liên kết giữ chỗ không khớp ca khám.');
+      }
+      return [doc.id, number(appointment.peopleCount ?? 1, 'Số người giữ chỗ', 1, 100, true)];
+    }));
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+    if (total !== slot.bookedCount) fail('Bộ đếm ca khám không khớp các lịch hẹn đang giữ chỗ.');
+    return counts;
+  }
   reason() { return text(this.input.reason, 'Lý do', 500); }
   audit(collection, key, before, after, action = this.input.operation) {
     this.tx.create(this.db.collection('NHAT_KY_ADMIN').doc(this.requestId), {
@@ -224,7 +239,7 @@ class CommandContext {
       if (edit) this.tx.update(this.ref('LICH_LAM_VIEC', scheduleId), fields);
       else this.tx.create(this.ref('LICH_LAM_VIEC', scheduleId), { ...fields, createdAt: stamp() });
       for (let n = 0; n < count; n++) this.tx.create(this.ref('CA_KHAM', `${this.requestId}_${w}_${n}`), {
-        doctorId, workScheduleId: scheduleId, startTime: timeText(period.start + n * duration), endTime: timeText(Math.min(period.end, period.start + (n + 1) * duration)), capacity, bookedCount: 0, status: 'AVAILABLE', createdAt: stamp(), updatedAt: stamp(),
+        doctorId, workScheduleId: scheduleId, startTime: timeText(period.start + n * duration), endTime: timeText(Math.min(period.end, period.start + (n + 1) * duration)), capacity, bookedCount: 0, reservationCounts: {}, status: 'AVAILABLE', createdAt: stamp(), updatedAt: stamp(),
       });
     }
     this.audit('LICH_LAM_VIEC', key, before, { ...v, generatedSlots: count * weeks, reason });
@@ -249,7 +264,7 @@ class CommandContext {
     this.reason();
     this.tx.update(this.ref('LICH_LAM_VIEC', scheduleId), { adminVersion: FieldValue.increment(1), updatedAt: stamp() });
     if (before) this.tx.update(this.ref('CA_KHAM', key), fields);
-    else this.tx.create(this.ref('CA_KHAM', key), { ...fields, createdAt: stamp() });
+    else this.tx.create(this.ref('CA_KHAM', key), { ...fields, reservationCounts: {}, createdAt: stamp() });
     this.audit('CA_KHAM', key, before, fields);
     return { id: key, collection: 'CA_KHAM', message: 'Đã lưu ca khám.' };
   }
@@ -260,7 +275,8 @@ class CommandContext {
     if (slot.status !== 'AVAILABLE' || schedule.doctorId !== slot.doctorId) fail('Ca khám đã đầy, tạm khóa hoặc sai liên kết.');
     if (minutes(slot.startTime) < minutes(schedule.startTime) || minutes(slot.endTime) > minutes(schedule.endTime)) fail('Giờ ca khám không khớp lịch làm việc.');
     future(schedule, slot.startTime);
-    return { slot, schedule, doctor, counts: capacityChange(slot, peopleCount) };
+    const reservations = this.reservationCounts(slot, await this.rows('LICH_HEN', 'timeSlotId', slotId));
+    return { slot, schedule, doctor, reservations, counts: capacityChange(slot, peopleCount) };
   }
   async book() {
     const v = this.input.values || {}, patientId = id(v.patientId), patient = await this.get('BENH_NHAN', patientId);
@@ -271,7 +287,8 @@ class CommandContext {
     const fields = { patientId, doctorId: target.slot.doctorId, workScheduleId: target.slot.workScheduleId, timeSlotId: slotId, specialtyId: target.doctor.specialtyId, appointmentDate: target.schedule.workDate, startTime: target.slot.startTime, endTime: target.slot.endTime, status: 'PENDING', peopleCount, reason: text(v.reason, 'Lý do khám', 1000, false), symptoms: text(v.reason, 'Lý do khám', 1000, false), consultationFeeSnapshot: target.doctor.consultationFee, bookedAt: stamp(), createdAt: stamp(), updatedAt: stamp() };
     this.reason();
     this.tx.create(this.ref('LICH_HEN', key), fields);
-    this.tx.update(this.ref('CA_KHAM', slotId), { ...target.counts, appointmentId: key, updatedAt: stamp() });
+    this.tx.update(this.ref('CA_KHAM', slotId), { ...target.counts, appointmentId: key,
+      reservationCounts: { ...target.reservations, [key]: peopleCount }, updatedAt: stamp() });
     this.notification('book', patient, patientId, 'Đã tiếp nhận lịch khám', `Mã lịch ${key}. Lịch đang chờ xác nhận.`, key);
     this.audit('LICH_HEN', key, null, fields);
     return { id: key, collection: 'LICH_HEN', message: 'Đã tạo lịch hẹn và giữ chỗ.' };
@@ -286,8 +303,11 @@ class CommandContext {
     const others = slot ? await this.rows('LICH_HEN', 'timeSlotId', before.timeSlotId) : [];
     const fields = { status: next, ...(next === 'CANCELLED' ? { cancellationReason: this.input.reason } : {}) };
     if (slot) {
+      const reservations = this.reservationCounts(slot, others);
+      delete reservations[key];
       const pointer = others.find((d) => d.id !== key && heldStatuses.has(d.data().status));
-      this.tx.update(this.ref('CA_KHAM', before.timeSlotId), { ...capacityChange(slot, -number(before.peopleCount ?? 1, 'Số người', 1, 100, true)), appointmentId: pointer?.id || FieldValue.delete(), updatedAt: stamp() });
+      this.tx.update(this.ref('CA_KHAM', before.timeSlotId), { ...capacityChange(slot, -number(before.peopleCount ?? 1, 'Số người', 1, 100, true)),
+        reservationCounts: reservations, appointmentId: pointer?.id || FieldValue.delete(), updatedAt: stamp() });
     }
     this.notification('status', patient, before.patientId, next === 'CANCELLED' ? 'Lịch khám đã được hủy' : next === 'CONFIRMED' ? 'Lịch khám đã được xác nhận' : 'Ghi nhận vắng mặt', `Mã lịch ${key}. ${this.input.reason}`, key);
     return this.updated('LICH_HEN', key, before, fields);
@@ -302,10 +322,14 @@ class CommandContext {
     const target = await this.destination(slotId, count);
     const patient = await this.get('BENH_NHAN', before.patientId);
     const others = await this.rows('LICH_HEN', 'timeSlotId', before.timeSlotId);
+    const reservations = this.reservationCounts(oldSlot, others);
+    delete reservations[key];
     this.reason();
     const pointer = others.find((d) => d.id !== key && heldStatuses.has(d.data().status));
-    this.tx.update(this.ref('CA_KHAM', before.timeSlotId), { ...capacityChange(oldSlot, -count), appointmentId: pointer?.id || FieldValue.delete(), updatedAt: stamp() });
-    this.tx.update(this.ref('CA_KHAM', slotId), { ...target.counts, appointmentId: key, updatedAt: stamp() });
+    this.tx.update(this.ref('CA_KHAM', before.timeSlotId), { ...capacityChange(oldSlot, -count),
+      reservationCounts: reservations, appointmentId: pointer?.id || FieldValue.delete(), updatedAt: stamp() });
+    this.tx.update(this.ref('CA_KHAM', slotId), { ...target.counts, reservationCounts: { ...target.reservations, [key]: count },
+      appointmentId: key, updatedAt: stamp() });
     const fields = { doctorId: target.slot.doctorId, workScheduleId: target.slot.workScheduleId, timeSlotId: slotId, specialtyId: target.doctor.specialtyId, appointmentDate: target.schedule.workDate, startTime: target.slot.startTime, endTime: target.slot.endTime, rescheduleReason: this.input.reason };
     this.notification('reschedule', patient, before.patientId, 'Lịch khám đã thay đổi', `Mã lịch ${key}. Ngày ${dayKey(target.schedule.workDate)}, ${target.slot.startTime}. ${this.input.reason}`, key);
     return this.updated('LICH_HEN', key, before, fields);

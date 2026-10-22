@@ -108,6 +108,23 @@ test('rescheduling is all-or-nothing and cannot move a completed appointment', a
   await db.collection('LICH_HEN').doc(booking.id).update({ status: 'COMPLETED' });
   await assert.rejects(command('reschedule', { id: booking.id, values: { timeSlotId: 'slot' } }));
 });
+
+test('admin booking, cancellation and rescheduling preserve reservations created by patient flow', async () => {
+  const patientBooking = 'patient-booking';
+  const schedule = await get('LICH_LAM_VIEC', 'schedule');
+  await db.collection('LICH_HEN').doc(patientBooking).set({ patientId: 'patient', doctorId: 'doctor',
+    workScheduleId: 'schedule', timeSlotId: 'slot', specialtyId: 'specialty',
+    appointmentDate: schedule.workDate, startTime: '08:00', endTime: '08:30', peopleCount: 2, status: 'PENDING' });
+  await db.collection('CA_KHAM').doc('slot').update({ bookedCount: 2, reservationCounts: { [patientBooking]: 2 }, appointmentId: patientBooking });
+  const added = await command('book', { values: { patientId: 'patient', timeSlotId: 'slot', peopleCount: 1 } });
+  assert.deepEqual((await get('CA_KHAM', 'slot')).reservationCounts, { [patientBooking]: 2, [added.id]: 1 });
+  await command('appointmentStatus', { id: added.id, values: { status: 'CANCELLED' } });
+  assert.deepEqual((await get('CA_KHAM', 'slot')).reservationCounts, { [patientBooking]: 2 });
+  await command('reschedule', { id: patientBooking, values: { timeSlotId: 'other' } });
+  assert.deepEqual((await get('CA_KHAM', 'slot')).reservationCounts, {});
+  assert.deepEqual((await get('CA_KHAM', 'other')).reservationCounts, { [patientBooking]: 2 });
+  assert.equal((await get('CA_KHAM', 'other')).bookedCount, 2);
+});
 test('referenced records cannot be deleted, appointments cannot be deleted at all', async () => {
   await assert.rejects(command('delete', { collection: 'CHUYEN_KHOA', id: 'specialty' }));
   await assert.rejects(command('delete', { collection: 'BAC_SI', id: 'doctor' }));

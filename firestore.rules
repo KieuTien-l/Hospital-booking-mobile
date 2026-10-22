@@ -43,6 +43,7 @@ service cloud.firestore {
           account.data.isActive == true &&
           account.data.role == 'doctor' &&
           doctor.data.status == 'ACTIVE' &&
+          doctor.data.get('isActive', true) == true &&
           (doctor.data.userId == request.auth.uid ||
               (account.data.keys().hasAll(['accountKey']) &&
                   account.data.accountKey is string &&

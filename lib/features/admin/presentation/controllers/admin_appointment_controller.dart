@@ -167,11 +167,8 @@ class AdminAppointmentController extends ViewStateController {
     }
     final doctor = await _doctors.getDoctorById(appointment.doctorId);
     if (doctor == null) return false;
-    if (appointment.specialtyId != null &&
-        appointment.specialtyId!.isNotEmpty &&
-        appointment.specialtyId != doctor.specialtyId) {
-      return false;
-    }
+    // specialtyId is the booking-time snapshot. A doctor may have moved to
+    // another specialty since then, which does not invalidate the appointment.
     final finder = findScheduleById;
     final schedule = finder != null
         ? await finder(appointment.workScheduleId)
@@ -211,12 +208,13 @@ class AdminAppointmentController extends ViewStateController {
       return false;
     }
     return capacity != null &&
+        capacity > 0 &&
         appointment.peopleCount > 0 &&
         booked >= 0 &&
         booked <= capacity &&
-        capacity >= appointment.peopleCount &&
         (appointment.status == AppointmentStatus.cancelled ||
-            booked >= appointment.peopleCount);
+            (capacity >= appointment.peopleCount &&
+                booked >= appointment.peopleCount));
   }
 
   bool _sameDate(DateTime left, DateTime right) =>

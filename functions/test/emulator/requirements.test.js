@@ -102,6 +102,11 @@ test('ADM-15: scoped appointment queries succeed; broad or foreign reads fail', 
   await assertFails(updateDoc(doc(client('patient'), 'LICH_HEN', 'appointment'), { doctorId: 'other-doctor' }));
 });
 
+test('ADM-15: an inactive doctor profile cannot read appointments even with an active login', async () => {
+  await db.collection('BAC_SI').doc('doctor').update({ isActive: false });
+  await assertFails(getDoc(doc(client('doctor'), 'LICH_HEN', 'appointment')));
+});
+
 test('ADM-18: request stores verified sender and rejects forged or edited submissions', async () => {
   const ref = doc(client('doctor'), 'YEU_CAU_BAC_SI', 'request');
   await assertSucceeds(getDoc(ref)); // Transaction retry can check a new id.
