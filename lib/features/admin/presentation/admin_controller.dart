@@ -81,7 +81,12 @@ class AdminController extends ChangeNotifier {
       'patientId' => 'BENH_NHAN',
       'doctorId' => 'BAC_SI',
       'specialtyId' => 'CHUYEN_KHOA',
-      'userId' || 'authUserId' || 'assigneeId' || 'actorId' => 'TAI_KHOAN',
+      'userId' ||
+      'authUserId' ||
+      'assigneeId' ||
+      'actorId' ||
+      'senderId' ||
+      'reviewedBy' => 'TAI_KHOAN',
       _ => null,
     };
     final id = readReferenceId(value);
@@ -126,6 +131,7 @@ List<AdminRecord> adminDemoRecords(AdminSection section) {
       'LICH_HEN' => 'PENDING',
       'CA_KHAM' => 'AVAILABLE',
       'THANH_TOAN' => 'PAID',
+      'YEU_CAU_BAC_SI' => 'PENDING',
       _ => 'ACTIVE',
     },
     'capacity': 5,

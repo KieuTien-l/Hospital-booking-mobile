@@ -34,14 +34,9 @@ class SpecialtyModel extends Specialty {
     String? documentId,
   }) {
     final status = readStringForKeys(json, const ['status', 'TrangThai']);
-    final isActive = status.isNotEmpty
-        ? !const {
-            'INACTIVE',
-            'DISABLED',
-            'FALSE',
-            '0',
-          }.contains(status.toUpperCase())
-        : readBool(json['isActive'], fallback: true);
+    final isActive =
+        (status.isEmpty || status.toUpperCase() == 'ACTIVE') &&
+        readBool(json['isActive'], fallback: true);
 
     return SpecialtyModel(
       id: documentId ?? readString(json['id']),

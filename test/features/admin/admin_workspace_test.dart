@@ -330,6 +330,70 @@ void main() {
     await repository.close();
   });
 
+  testWidgets('ADM-18 admin opens and reviews a doctor request', (
+    tester,
+  ) async {
+    final repository = _Repository(), commands = _Commands();
+    await pumpWorkspace(
+      tester,
+      repository,
+      const Size(1440, 1000),
+      commands: commands,
+    );
+    repository.emit('YEU_CAU_BAC_SI', [
+      AdminRecord('REQUEST-1', {
+        'senderId': 'doctor-user',
+        'doctorId': 'doctor-1',
+        'scheduleId': 'schedule-1',
+        'type': 'Bận đột xuất',
+        'reason': 'Xin đổi ca',
+        'status': 'PENDING',
+        'date': DateTime(2026, 11, 2),
+        'createdAt': DateTime(2026, 10, 22),
+      }),
+    ]);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Yêu cầu bác sĩ'));
+    await tester.pumpAndSettle();
+    expect(find.text('REQUEST-1'), findsOneWidget);
+    await capture(tester, 'doctor-requests-1440');
+    await tester.tap(find.text('REQUEST-1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Thao tác quản trị').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Duyệt / trả lời yêu cầu'));
+    await tester.pumpAndSettle();
+    final status = find.byWidgetPredicate(
+      (w) =>
+          w is DropdownButtonFormField<String> &&
+          w.decoration.labelText == 'Kết quả xử lý',
+    );
+    await tester.tap(status);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Phê duyệt').last);
+    await tester.pumpAndSettle();
+    Finder input(String label) => find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.labelText == label,
+    );
+    await tester.enterText(
+      input('Phản hồi bác sĩ'),
+      'Đã tiếp nhận yêu cầu đổi ca.',
+    );
+    await tester.enterText(
+      input('Lý do thao tác / ghi chú quản trị'),
+      'Duyệt yêu cầu hợp lệ',
+    );
+    await capture(tester, 'doctor-request-review-1440');
+    await tester.tap(find.text('Xác nhận'));
+    await tester.pumpAndSettle();
+    expect(commands.calls.single['operation'], 'reviewDoctorRequest');
+    expect(commands.calls.single['id'], 'REQUEST-1');
+    expect(commands.calls.single['values']['status'], 'APPROVED');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await repository.close();
+  });
+
   testWidgets(
     'statistics dropdown applies calendar month, year and custom periods',
     (tester) async {

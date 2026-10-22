@@ -25,7 +25,7 @@ beforeEach(async () => {
   await db.collection('TAI_KHOAN').doc('patient').set({ role: 'patient', isActive: true, fullName: 'Bệnh nhân', phone: '' });
   await db.collection('TAI_KHOAN').doc('doctor').set({ role: 'doctor', isActive: true, fullName: 'Bác sĩ', phone: '' });
   await db.collection('CHUYEN_KHOA').doc('specialty').set({ name: 'Nội', status: 'ACTIVE' });
-  await db.collection('BAC_SI').doc('doctor').set({ userId: 'doctor', fullName: 'BS An', specialtyId: 'specialty', status: 'ACTIVE', acceptingBookings: true, isActive: true, consultationFee: 150000 });
+  await db.collection('BAC_SI').doc('doctor').set({ userId: 'doctor', fullName: 'BS An', specialtyId: 'specialty', status: 'ACTIVE', acceptingBookings: true, isActive: true, consultationFee: 150000, yearsOfExperience: 4 });
   await db.collection('BENH_NHAN').doc('patient').set({ authUserId: 'patient', fullName: 'Bệnh nhân', isActive: true, status: 'ACTIVE' });
   await db.collection('LICH_LAM_VIEC').doc('schedule').set({ doctorId: 'doctor', workDate: date(day), startTime: '08:00', endTime: '11:00', status: 'ACTIVE' });
   for (const [key, startTime, endTime] of [['slot', '08:00', '08:30'], ['other', '09:00', '09:30']]) await db.collection('CA_KHAM').doc(key).set({ doctorId: 'doctor', workScheduleId: 'schedule', startTime, endTime, capacity: 5, bookedCount: 0, status: 'AVAILABLE' });

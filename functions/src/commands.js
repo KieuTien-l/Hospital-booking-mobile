@@ -95,8 +95,18 @@ class CommandContext {
       case 'sendNotification': return this.sendNotification();
       case 'paymentReview': return this.paymentReview();
       case 'saveSettings': return this.settings();
+      case 'reviewDoctorRequest': return this.reviewDoctorRequest();
       default: fail('Thao tác chưa được hỗ trợ.', 'invalid-argument');
     }
+  }
+  async reviewDoctorRequest() {
+    const key = id(this.input.id), before = await this.get('YEU_CAU_BAC_SI', key);
+    if (before.status !== 'PENDING') fail('Yêu cầu đã được xử lý.', 'failed-precondition');
+    const values = this.input.values || {};
+    const status = choice(values.status, ['APPROVED', 'REJECTED', 'RESOLVED'], 'Kết quả xử lý');
+    const adminResponse = text(values.adminResponse, 'Phản hồi bác sĩ', 1000);
+    return this.updated('YEU_CAU_BAC_SI', key, before,
+      { status, adminResponse, reviewedBy: this.uid, reviewedAt: stamp() });
   }
   async create() {
     const collection = choice(this.input.collection, ['CHUYEN_KHOA', 'BENH_NHAN'], 'Danh mục');

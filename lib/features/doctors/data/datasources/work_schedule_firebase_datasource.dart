@@ -13,6 +13,13 @@ class WorkScheduleFirebaseDatasource {
   CollectionReference<Map<String, dynamic>> get _workSchedules =>
       _firestore.collection(WorkScheduleModel.collectionName);
 
+  /// Administrative history validation includes schedules that were closed later.
+  Future<WorkSchedule?> getWorkScheduleById(String id) async {
+    if (id.trim().isEmpty) return null;
+    final snapshot = await _workSchedules.doc(id.trim()).get();
+    return snapshot.exists ? WorkScheduleModel.fromFirestore(snapshot) : null;
+  }
+
   Future<List<WorkSchedule>> getWorkSchedules({
     required String doctorId,
     DateTime? workDate,

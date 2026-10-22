@@ -26,6 +26,7 @@ class AdminAccountController extends ViewStateController {
         },
         onError: (Object error) {
           if (pendingRequest == _pendingRequest) {
+            _pendingAccounts = const [];
             setState(ViewState.error, error);
           }
         },
@@ -55,6 +56,8 @@ class AdminAccountController extends ViewStateController {
 
   @override
   void dispose() {
+    _pendingRequest++;
+    _pendingAccounts = const [];
     _pendingSubscription?.cancel();
     super.dispose();
   }

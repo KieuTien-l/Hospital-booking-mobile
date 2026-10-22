@@ -31,8 +31,7 @@ class DoctorFirebaseDatasource {
 
     final snapshot = await _doctors.doc(normalizedId).get();
     if (!snapshot.exists) return null;
-    final doctor = DoctorModel.fromFirestore(snapshot);
-    return doctor.isActive ? doctor : null;
+    return DoctorModel.fromFirestore(snapshot);
   }
 
   /// Resolves the doctor profile that belongs to the signed-in Firebase user.
@@ -61,14 +60,15 @@ class DoctorFirebaseDatasource {
   }
 
   Future<Doctor?> _findActiveDoctorByUserKey(String userKey) async {
-    final snapshot = await _doctors
-        .where('userId', isEqualTo: userKey)
-        .limit(1)
-        .get();
-    if (snapshot.docs.isEmpty) return null;
-
-    final doctor = DoctorModel.fromFirestore(snapshot.docs.first);
-    return doctor.isActive ? doctor : null;
+    final snapshot = await _doctors.where('userId', isEqualTo: userKey).get();
+    final doctors = snapshot.docs
+        .map(DoctorModel.fromFirestore)
+        .where((doctor) => doctor.isActive)
+        .toList();
+    if (doctors.length > 1) {
+      throw StateError('Tài khoản đang liên kết với nhiều hồ sơ bác sĩ.');
+    }
+    return doctors.firstOrNull;
   }
 
   Future<List<Doctor>> getDoctorsBySpecialty(String specialtyId) async {

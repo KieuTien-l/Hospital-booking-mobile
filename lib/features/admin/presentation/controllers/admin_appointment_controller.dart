@@ -4,6 +4,7 @@ import '../../../../core/state/view_state.dart';
 import '../../../appointments/domain/entities/appointment.dart';
 import '../../../appointments/domain/repositories/appointment_repository.dart';
 import '../../../doctors/domain/entities/time_slot.dart';
+import '../../../doctors/domain/entities/work_schedule.dart';
 import '../../../doctors/domain/repositories/doctor_repository.dart';
 import '../../../doctors/domain/repositories/time_slot_repository.dart';
 import '../../../doctors/domain/repositories/work_schedule_repository.dart';
@@ -42,6 +43,7 @@ class AdminAppointmentController extends ViewStateController {
     required DoctorRepository doctorRepository,
     required WorkScheduleRepository workScheduleRepository,
     required TimeSlotRepository timeSlotRepository,
+    this.findScheduleById,
   }) : _appointments = appointmentRepository,
        _doctors = doctorRepository,
        _schedules = workScheduleRepository,
@@ -51,9 +53,11 @@ class AdminAppointmentController extends ViewStateController {
   final DoctorRepository _doctors;
   final WorkScheduleRepository _schedules;
   final TimeSlotRepository _slots;
+  final Future<WorkSchedule?> Function(String id)? findScheduleById;
   StreamSubscription<List<Appointment>>? _subscription;
   List<AdminAppointmentRecord> _records = const [];
   AdminAppointmentFilter _filter = const AdminAppointmentFilter();
+  int _publication = 0;
 
   List<AdminAppointmentRecord> get records => _records;
   List<Appointment> get appointments =>
@@ -69,27 +73,40 @@ class AdminAppointmentController extends ViewStateController {
     bool force = false,
   }) async {
     if (filter != null) _filter = filter;
-    if (!force && status == ViewState.success) return;
+    if (!force && filter == null && status == ViewState.success) return;
     final request = beginRequest();
+    _records = const [];
     try {
       final previousSubscription = _subscription;
       _subscription = null;
       if (previousSubscription != null) await previousSubscription.cancel();
-      final stream = _appointments.watchAllAppointments().asBroadcastStream();
-      final values = await stream.first;
       if (!isCurrent(request)) return;
-      await _publish(values, request);
-      if (!isCurrent(request)) return;
-      _subscription = stream.listen(
+      final initial = Completer<void>();
+      _subscription = _appointments.watchAllAppointments().listen(
         (updated) {
-          _publish(updated, request).catchError((Object error) {
-            if (isCurrent(request)) setState(ViewState.error, error);
-          });
+          _publish(updated, request).then(
+            (_) {
+              if (!initial.isCompleted) initial.complete();
+            },
+            onError: (Object error) {
+              if (isCurrent(request)) {
+                _records = const [];
+                setState(ViewState.error, error);
+              }
+              if (!initial.isCompleted) initial.complete();
+            },
+          );
         },
         onError: (Object error) {
-          if (isCurrent(request)) setState(ViewState.error, error);
+          _publication++;
+          if (isCurrent(request)) {
+            _records = const [];
+            setState(ViewState.error, error);
+          }
+          if (!initial.isCompleted) initial.complete();
         },
       );
+      await initial.future;
     } catch (error) {
       if (isCurrent(request)) setState(ViewState.error, error);
     }
@@ -98,18 +115,26 @@ class AdminAppointmentController extends ViewStateController {
   Future<void> refresh() => load(force: true);
 
   Future<void> _publish(List<Appointment> values, int request) async {
+    final publication = ++_publication;
     final filtered = values.where(_matchesFilter).toList(growable: false);
-    final records = await Future.wait(
-      filtered.map(
-        (appointment) async => AdminAppointmentRecord(
-          appointment: appointment,
-          hasValidRelationships: await _hasValidRelationships(appointment),
+    try {
+      final records = await Future.wait(
+        filtered.map(
+          (appointment) async => AdminAppointmentRecord(
+            appointment: appointment,
+            hasValidRelationships: await _hasValidRelationships(appointment),
+          ),
         ),
-      ),
-    );
-    if (!isCurrent(request)) return;
-    _records = List.unmodifiable(records);
-    setState(records.isEmpty ? ViewState.empty : ViewState.success);
+      );
+      if (!isCurrent(request) || publication != _publication) return;
+      _records = List.unmodifiable(records);
+      setState(records.isEmpty ? ViewState.empty : ViewState.success);
+    } catch (error) {
+      if (isCurrent(request) && publication == _publication) {
+        _records = const [];
+        setState(ViewState.error, error);
+      }
+    }
   }
 
   bool _matchesFilter(Appointment appointment) {
@@ -142,14 +167,22 @@ class AdminAppointmentController extends ViewStateController {
     }
     final doctor = await _doctors.getDoctorById(appointment.doctorId);
     if (doctor == null) return false;
-    final schedules = await _schedules.getWorkSchedules(
-      doctorId: appointment.doctorId,
-      workDate: appointment.appointmentDate,
-    );
-    final schedule = schedules
-        .where((item) => item.id == appointment.workScheduleId)
-        .firstOrNull;
-    if (schedule == null || schedule.doctorId != appointment.doctorId) {
+    if (appointment.specialtyId != null &&
+        appointment.specialtyId!.isNotEmpty &&
+        appointment.specialtyId != doctor.specialtyId) {
+      return false;
+    }
+    final finder = findScheduleById;
+    final schedule = finder != null
+        ? await finder(appointment.workScheduleId)
+        : (await _schedules.getWorkSchedules(
+            doctorId: appointment.doctorId,
+            workDate: appointment.appointmentDate,
+          )).where((item) => item.id == appointment.workScheduleId).firstOrNull;
+    if (schedule == null ||
+        schedule.doctorId != appointment.doctorId ||
+        schedule.workDate == null ||
+        !_sameDate(schedule.workDate!, appointment.appointmentDate!)) {
       return false;
     }
     final slots = await _slots.getTimeSlotsByWorkSchedule(schedule.id);
@@ -167,9 +200,23 @@ class AdminAppointmentController extends ViewStateController {
   bool _slotCanContainAppointment(TimeSlot slot, Appointment appointment) {
     final capacity = slot.capacity;
     final booked = slot.bookedCount ?? 0;
+    final reservations = slot.reservationCounts;
+    if (reservations.isNotEmpty &&
+        (reservations.values.any((count) => count <= 0) ||
+            reservations.values.fold(0, (sum, count) => sum + count) !=
+                booked ||
+            (appointment.status == AppointmentStatus.cancelled
+                ? reservations.containsKey(appointment.id)
+                : reservations[appointment.id] != appointment.peopleCount))) {
+      return false;
+    }
     return capacity != null &&
+        appointment.peopleCount > 0 &&
+        booked >= 0 &&
+        booked <= capacity &&
         capacity >= appointment.peopleCount &&
-        booked >= appointment.peopleCount;
+        (appointment.status == AppointmentStatus.cancelled ||
+            booked >= appointment.peopleCount);
   }
 
   bool _sameDate(DateTime left, DateTime right) =>

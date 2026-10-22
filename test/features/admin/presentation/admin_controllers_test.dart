@@ -33,6 +33,52 @@ const _doctor = Doctor(
 );
 
 void main() {
+  test(
+    'ADM-02 empty sources return empty state and zero real counts',
+    () async {
+      final specialties = _Specialties(), appointments = _Appointments();
+      final controller = AdminDashboardController(
+        specialtyRepository: specialties,
+        doctorRepository: _Doctors([]),
+        appointmentRepository: appointments,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(specialties.close);
+      addTearDown(appointments.close);
+      final load = controller.load();
+      specialties.add([]);
+      appointments.add([]);
+      await load;
+      expect(controller.status, ViewState.empty);
+      expect(controller.appointmentCount, 0);
+      expect(controller.activeDoctorCount, 0);
+    },
+  );
+
+  test('ADM-02 revoked access clears counts and unrelated events cannot hide the error', () async {
+    final specialties = _Specialties(), appointments = _Appointments();
+    final controller = AdminDashboardController(
+      specialtyRepository: specialties,
+      doctorRepository: _Doctors([_doctor]),
+      appointmentRepository: appointments,
+    );
+    addTearDown(controller.dispose);
+    addTearDown(specialties.close);
+    addTearDown(appointments.close);
+    final load = controller.load();
+    specialties.add([_specialty]);
+    appointments.add([_appointment('one', AppointmentStatus.pending)]);
+    await load;
+    specialties.addError(Exception('permission-denied'));
+    await Future<void>.delayed(Duration.zero);
+    appointments.add([_appointment('two', AppointmentStatus.completed)]);
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.status, ViewState.error);
+    expect(controller.specialties, isEmpty);
+    expect(controller.doctors, isEmpty);
+    expect(controller.appointments, isEmpty);
+  });
+
   test('dashboard loads real values, receives updates and refreshes', () async {
     final specialties = _Specialties();
     final appointments = _Appointments();

@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 
 const projectId = 'demo-healway-rules';
+const [emulatorHost, emulatorPort] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:9080').split(':');
 let testEnvironment;
 
 const databaseFor = (userId) =>
@@ -73,8 +74,8 @@ before(async () => {
   testEnvironment = await initializeTestEnvironment({
     projectId,
     firestore: {
-      host: '127.0.0.1',
-      port: 9080,
+      host: emulatorHost,
+      port: Number(emulatorPort),
       rules: await readFile('firestore.rules', 'utf8'),
     },
   });

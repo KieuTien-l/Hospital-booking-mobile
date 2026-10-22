@@ -129,6 +129,12 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
         qualification: current.qualification,
         biography: current.biography,
         avatarUrl: current.avatarUrl,
+        dateOfBirth: current.dateOfBirth,
+        gender: current.gender,
+        address: current.address,
+        acceptingBookings: current.acceptingBookings,
+        createdAt: current.createdAt,
+        updatedAt: current.updatedAt,
       );
       transaction.update(
         doctorDocument,
@@ -233,7 +239,11 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
           'Số lượt đã đặt không khớp dữ liệu giữ chỗ.',
         );
       }
-      final status = bookedCount >= capacity
+      final status =
+          input.status == TimeSlotStatus.unavailable ||
+              input.status == TimeSlotStatus.cancelled
+          ? input.status
+          : bookedCount >= capacity
           ? TimeSlotStatus.booked
           : input.status == TimeSlotStatus.booked
           ? TimeSlotStatus.available
@@ -283,6 +293,12 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
     qualification: _nullableText(value.qualification),
     biography: _nullableText(value.biography),
     avatarUrl: _nullableText(value.avatarUrl),
+    dateOfBirth: value.dateOfBirth,
+    gender: _nullableText(value.gender),
+    address: _nullableText(value.address),
+    acceptingBookings: value.acceptingBookings,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
   );
 
   WorkSchedule _normalizeSchedule(WorkSchedule value, String generatedId) =>
@@ -319,7 +335,7 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
   );
 
   void _validateSpecialty(Specialty value) {
-    if (value.name.isEmpty) {
+    if (value.name.isEmpty || value.name.length > 120) {
       throw const AdminManagementException('Tên chuyên khoa là bắt buộc.');
     }
   }
@@ -332,7 +348,9 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
         'Bác sĩ phải có tài khoản, họ tên và chuyên khoa.',
       );
     }
-    if (value.yearsOfExperience < 0 || value.consultationFee < 0) {
+    if (value.yearsOfExperience < 0 ||
+        !value.consultationFee.isFinite ||
+        value.consultationFee < 0) {
       throw const AdminManagementException(
         'Kinh nghiệm và phí khám không được âm.',
       );
@@ -346,6 +364,13 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
       );
     }
     _validateTimeRange(value.startTime, value.endTime, 'Lịch làm việc');
+    if (value.workDate!.weekday == DateTime.sunday ||
+        (value.workDate!.weekday == DateTime.saturday &&
+            _minutes(value.endTime!) > 12 * 60)) {
+      throw const AdminManagementException(
+        'Thứ bảy chỉ khám buổi sáng, Chủ nhật nghỉ khám.',
+      );
+    }
   }
 
   void _validateTimeSlot(TimeSlot value) {

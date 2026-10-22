@@ -5,7 +5,7 @@ import '../../domain/entities/doctor_workspace.dart';
 import '../controllers/doctor_workspace_controller.dart';
 import '../controllers/doctor_reports_controller.dart';
 
-/// Incident report UI only. Drafts are neither sent nor persisted.
+/// Sends requests through the active workspace and displays administrator replies.
 class DoctorReportsPage extends StatefulWidget {
   const DoctorReportsPage({
     super.key,

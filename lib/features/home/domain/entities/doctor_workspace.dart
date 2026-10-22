@@ -96,9 +96,18 @@ class DoctorReport {
     required this.reason,
     required this.status,
     this.adminResponse,
+    this.senderId,
+    this.doctorId,
+    this.scheduleId,
+    this.description,
+    this.reviewedBy,
+    this.createdAt,
+    this.reviewedAt,
   });
   final String id, type, reason;
   final DateTime date;
   final DoctorReportStatus status;
   final String? adminResponse;
+  final String? senderId, doctorId, scheduleId, description, reviewedBy;
+  final DateTime? createdAt, reviewedAt;
 }

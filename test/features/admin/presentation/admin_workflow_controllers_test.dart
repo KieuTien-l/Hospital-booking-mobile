@@ -39,6 +39,36 @@ const _account = UserModel(
 );
 
 void main() {
+  test('ADM-15 changing a successful filter reloads; cancellation need not hold a reservation', () async {
+    final appointments = _Appointments();
+    final controller = AdminAppointmentController(
+      appointmentRepository: appointments,
+      doctorRepository: _Doctors(),
+      workScheduleRepository: _Schedules(),
+      timeSlotRepository: _Slots(bookedCount: 0),
+    );
+    addTearDown(controller.dispose);
+    addTearDown(appointments.close);
+    final first = controller.load();
+    appointments.add([
+      _appointment('pending'),
+      _appointment('cancelled', status: AppointmentStatus.cancelled),
+    ]);
+    await first;
+    expect(controller.records, hasLength(2));
+    final reload = controller.load(
+      filter: const AdminAppointmentFilter(status: AppointmentStatus.cancelled),
+    );
+    await Future<void>.delayed(Duration.zero);
+    appointments.add([
+      _appointment('pending'),
+      _appointment('cancelled', status: AppointmentStatus.cancelled),
+    ]);
+    await reload;
+    expect(controller.records.single.appointment.id, 'cancelled');
+    expect(controller.records.single.hasValidRelationships, isTrue);
+  });
+
   test(
     'account workflow approves once and keeps pending stream live',
     () async {
@@ -183,10 +213,12 @@ class _Schedules implements WorkScheduleRepository {
 }
 
 class _Slots implements TimeSlotRepository {
+  _Slots({this.bookedCount = 1});
+  final int bookedCount;
   @override
   Future<List<TimeSlot>> getTimeSlotsByWorkSchedule(
     String workScheduleId,
-  ) async => const [
+  ) async => [
     TimeSlot(
       id: 'slot-1',
       workScheduleId: 'schedule-1',
@@ -194,7 +226,7 @@ class _Slots implements TimeSlotRepository {
       startTime: '08:00',
       endTime: '09:00',
       capacity: 5,
-      bookedCount: 1,
+      bookedCount: bookedCount,
       status: TimeSlotStatus.available,
     ),
   ];

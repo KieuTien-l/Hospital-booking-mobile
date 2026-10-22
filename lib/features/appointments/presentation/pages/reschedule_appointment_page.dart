@@ -68,7 +68,7 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
       final doctor = await doctorRepository.getDoctorById(
         widget.appointment.doctorId,
       );
-      if (doctor == null) {
+      if (doctor == null || !doctor.isActive || !doctor.acceptingBookings) {
         throw StateError('Bác sĩ không còn khả dụng để thay đổi lịch.');
       }
       final schedules = await scheduleController.loadWeeklySchedulesForDoctors(

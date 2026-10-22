@@ -10,6 +10,26 @@ import 'package:flutter_application_4/features/doctors/data/models/work_schedule
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('Doctor and specialty never treat archived or inconsistent status as active', () {
+    for (final status in ['ARCHIVED', 'DELETED', 'PENDING', 'unrecognized']) {
+      expect(
+        DoctorModel.fromJson({'status': status, 'isActive': true}).isActive,
+        isFalse,
+      );
+      expect(
+        SpecialtyModel.fromJson({'status': status, 'isActive': true}).isActive,
+        isFalse,
+      );
+    }
+    expect(
+      DoctorModel.fromJson({'status': 'ACTIVE', 'isActive': false}).isActive,
+      isFalse,
+    );
+    expect(
+      SpecialtyModel.fromJson({'status': 'ACTIVE', 'isActive': false}).isActive,
+      isFalse,
+    );
+  });
   group('UserModel', () {
     test('parses missing optional values safely', () {
       final user = UserModel.fromJson(const {

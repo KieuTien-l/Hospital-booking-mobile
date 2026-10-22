@@ -214,6 +214,8 @@ class App extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => AdminAppointmentController(
+            findScheduleById:
+                WorkScheduleFirebaseDatasource().getWorkScheduleById,
             appointmentRepository: context.read<AppointmentRepository>(),
             doctorRepository: context.read<DoctorRepository>(),
             workScheduleRepository: context.read<WorkScheduleRepository>(),

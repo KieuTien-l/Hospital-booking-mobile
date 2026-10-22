@@ -9,9 +9,17 @@ import '../widgets/patient_home_background.dart';
 enum PatientSupportKind { chatbot, servicePrices, contact, policy, settings }
 
 class PatientSupportPage extends StatefulWidget {
-  const PatientSupportPage({super.key, required this.kind});
+  const PatientSupportPage({
+    super.key,
+    required this.kind,
+    this.answerQuestion,
+  });
 
   final PatientSupportKind kind;
+
+  /// An asynchronous adapter can connect the same conversation UI to an AI service.
+  /// Without one, HealWay provides local application guidance.
+  final Future<String> Function(String question)? answerQuestion;
 
   @override
   State<PatientSupportPage> createState() => _PatientSupportPageState();
@@ -19,17 +27,20 @@ class PatientSupportPage extends StatefulWidget {
 
 class _PatientSupportPageState extends State<PatientSupportPage> {
   final _questionController = TextEditingController();
+  final _chatScroll = ScrollController();
+  bool _sending = false;
+  String? _failedQuestion;
   final _messages = <_SupportMessage>[
     const _SupportMessage(
       fromPatient: false,
-      text:
-          'Chào bạn. Hãy chọn một câu hỏi bên dưới hoặc nhập câu hỏi để nhận hướng dẫn sử dụng HealWay.',
+      text: 'Chào bạn. Hãy chọn một câu hỏi bên dưới hoặc nhập câu hỏi để nhận hướng dẫn sử dụng HealWay.',
     ),
   ];
 
   @override
   void dispose() {
     _questionController.dispose();
+    _chatScroll.dispose();
     super.dispose();
   }
 
@@ -41,23 +52,62 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
     PatientSupportKind.settings => 'Cài đặt',
   };
 
-  void _ask(String question) {
+  Future<void> _ask(String question, {bool retry = false}) async {
     final value = question.trim();
-    if (value.isEmpty) return;
+    if (value.isEmpty || _sending) return;
     setState(() {
-      _messages.add(_SupportMessage(fromPatient: true, text: value));
-      _messages.add(_SupportMessage(fromPatient: false, text: _answerFor(value)));
+      if (!retry) {
+        _messages.add(_SupportMessage(fromPatient: true, text: value));
+      }
+      _sending = true;
+      _failedQuestion = null;
       _questionController.clear();
+    });
+    _scrollToLatest();
+    try {
+      final answer =
+          await (widget.answerQuestion?.call(value) ??
+              Future<String>.delayed(
+                const Duration(milliseconds: 250),
+                () => _answerFor(value),
+              ));
+      if (answer.trim().isEmpty) throw StateError('Empty reply');
+      if (!mounted) return;
+      setState(
+        () => _messages.add(
+          _SupportMessage(fromPatient: false, text: answer.trim()),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _failedQuestion = value);
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+        _scrollToLatest();
+      }
+    }
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _chatScroll.hasClients) {
+        _chatScroll.animateTo(
+          _chatScroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
   String _answerFor(String question) {
     final normalized = question.toLowerCase();
-    if (normalized.contains('đặt') || normalized.contains('lịch')) {
-      return 'Vào Đặt khám, chọn hồ sơ, chuyên khoa, ngày và khung giờ trống. Sau khi xác nhận, bạn sẽ nhận được thông báo trong ứng dụng.';
-    }
     if (normalized.contains('hủy') || normalized.contains('đổi')) {
       return 'Vào Lịch đặt khám, chọn lịch ở trạng thái Chờ xác nhận hoặc Đã xác nhận, rồi chọn Thay đổi lịch hoặc Hủy lịch.';
+    }
+    if (normalized.contains('đặt') || normalized.contains('lịch')) {
+      return 'Vào Đặt khám, chọn hồ sơ, chuyên khoa, ngày và khung giờ trống. Sau khi xác nhận, bạn sẽ nhận được thông báo trong ứng dụng.';
     }
     if (normalized.contains('kết quả') || normalized.contains('xét nghiệm')) {
       return 'Vào Kết quả cận lâm sàng để xem dữ liệu bệnh viện đã trả. Bạn có thể lọc theo loại và năm.';
@@ -79,7 +129,10 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           foregroundColor: AppColors.textOnPrimary,
-          title: Text(_title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(
+            _title,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
         body: SafeArea(
           child: Center(
@@ -102,38 +155,84 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
   Widget _chatbot() => Column(
     children: [
       Expanded(
-        child: ListView(
+        child: SingleChildScrollView(
           key: const PageStorageKey('support-chat'),
+          controller: _chatScroll,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          children: [
-            for (final message in _messages) _messageBubble(message),
-            const SizedBox(height: 8),
-            const Text(
-              'Câu hỏi thường gặp',
-              style: TextStyle(
-                color: AppColors.textOnPrimary,
-                fontWeight: FontWeight.w700,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
+              const Text(
+                'Câu hỏi thường gặp',
+                style: TextStyle(
+                  color: AppColors.textOnPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                'Cách đặt lịch khám?',
-                'Cách thay đổi hoặc hủy lịch?',
-                'Xem kết quả xét nghiệm ở đâu?',
-                'Thanh toán viện phí như thế nào?',
-              ]
-                  .map(
-                    (question) => ActionChip(
-                      label: Text(question),
-                      onPressed: () => _ask(question),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    [
+                          'Cách đặt lịch khám?',
+                          'Cách thay đổi hoặc hủy lịch?',
+                          'Xem kết quả xét nghiệm ở đâu?',
+                          'Thanh toán viện phí như thế nào?',
+                        ]
+                        .map(
+                          (question) => ActionChip(
+                            label: Text(
+                              question,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onPressed: _sending ? null : () => _ask(question),
+                          ),
+                        )
+                        .toList(),
+              ),
+              const SizedBox(height: 16),
+              for (var i = 0; i < _messages.length; i++)
+                KeyedSubtree(
+                  key: ValueKey('chat-message-$i'),
+                  child: _messageBubble(_messages[i]),
+                ),
+              if (_sending)
+                Semantics(
+                  liveRegion: true,
+                  child: const ListTile(
+                    leading: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  )
-                  .toList(),
-            ),
-          ],
+                    title: Text('HealWay đang trả lời…'),
+                  ),
+                ),
+              if (_failedQuestion != null)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Chưa nhận được câu trả lời. Vui lòng thử lại.',
+                          semanticsLabel: 'Lỗi nhận câu trả lời',
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _ask(_failedQuestion!, retry: true),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       SafeArea(
@@ -145,6 +244,9 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
               Expanded(
                 child: TextField(
                   controller: _questionController,
+                  enabled: !_sending,
+                  minLines: 1,
+                  maxLines: 3,
                   textInputAction: TextInputAction.send,
                   onSubmitted: _ask,
                   decoration: const InputDecoration(
@@ -157,7 +259,9 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
               const SizedBox(width: 8),
               IconButton.filled(
                 tooltip: 'Gửi câu hỏi',
-                onPressed: () => _ask(_questionController.text),
+                onPressed: _sending
+                    ? null
+                    : () => _ask(_questionController.text),
                 icon: const Icon(Icons.send_rounded),
               ),
             ],
@@ -168,21 +272,40 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
   );
 
   Widget _messageBubble(_SupportMessage message) => Align(
-    alignment: message.fromPatient ? Alignment.centerRight : Alignment.centerLeft,
+    alignment: message.fromPatient
+        ? Alignment.centerRight
+        : Alignment.centerLeft,
     child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       constraints: const BoxConstraints(maxWidth: 440),
       decoration: BoxDecoration(
-        color: message.fromPatient ? AppColors.textOnPrimary : AppColors.surface,
+        color: message.fromPatient
+            ? AppColors.textOnPrimary
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        message.text,
-        style: TextStyle(
-          color: message.fromPatient ? Colors.white : AppColors.textPrimary,
-          height: 1.45,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message.fromPatient ? 'Bạn' : 'HealWay',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: message.fromPatient
+                  ? Colors.white
+                  : AppColors.textOnPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message.text,
+            style: TextStyle(
+              color: message.fromPatient ? Colors.white : AppColors.textPrimary,
+              height: 1.45,
+            ),
+          ),
+        ],
       ),
     ),
   );
@@ -310,7 +433,10 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
               const SizedBox(height: 6),
               Text(
                 section.content,
-                style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
             ],
           ],

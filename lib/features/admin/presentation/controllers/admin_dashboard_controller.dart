@@ -26,6 +26,8 @@ class AdminDashboardController extends ViewStateController {
   List<Specialty> _specialtyValues = const [];
   List<Doctor> _doctorValues = const [];
   List<Appointment> _appointmentValues = const [];
+  final Set<String> _sourceErrors = {};
+  bool _ready = false;
 
   List<Specialty> get specialties => _specialtyValues;
   List<Doctor> get doctors => _doctorValues;
@@ -39,8 +41,15 @@ class AdminDashboardController extends ViewStateController {
       .length;
 
   Future<void> load({bool force = false}) async {
-    if (!force && status == ViewState.success) return;
+    if (!force && (status == ViewState.success || status == ViewState.empty)) {
+      return;
+    }
     final request = beginRequest();
+    _ready = false;
+    _sourceErrors.clear();
+    _specialtyValues = const [];
+    _doctorValues = const [];
+    _appointmentValues = const [];
     try {
       final previousSpecialties = _specialtySubscription;
       final previousAppointments = _appointmentSubscription;
@@ -50,52 +59,69 @@ class AdminDashboardController extends ViewStateController {
       if (previousAppointments != null) {
         await previousAppointments.cancel();
       }
-      // Reuse each source for its initial value and its subsequent live
-      // updates. `asBroadcastStream` also supports simple single-listener
-      // repository implementations used outside Firestore.
-      final specialtyStream = _specialties
-          .watchAllSpecialties()
-          .asBroadcastStream();
-      final appointmentStream = _appointments
-          .watchAllAppointments()
-          .asBroadcastStream();
-      final values = await Future.wait<Object>([
-        specialtyStream.first,
-        _doctors.getAllDoctors(),
-        appointmentStream.first,
+      if (!isCurrent(request)) return;
+      final specialtiesReady = Completer<void>();
+      final appointmentsReady = Completer<void>();
+      void failed(String source, Object error, Completer<void> initial) {
+        if (!isCurrent(request)) return;
+        _sourceErrors.add(source);
+        _ready = false;
+        _specialtyValues = const [];
+        _appointmentValues = const [];
+        _doctorValues = const [];
+        setState(ViewState.error, error);
+        if (!initial.isCompleted) initial.completeError(error);
+      }
+
+      _specialtySubscription = _specialties.watchAllSpecialties().listen(
+        (values) {
+          if (!isCurrent(request) || _sourceErrors.isNotEmpty) return;
+          _specialtyValues = List.unmodifiable(values);
+          _sourceErrors.remove('specialties');
+          if (!specialtiesReady.isCompleted) specialtiesReady.complete();
+          _publishLiveState();
+        },
+        onError: (Object error) =>
+            failed('specialties', error, specialtiesReady),
+      );
+      _appointmentSubscription = _appointments.watchAllAppointments().listen(
+        (values) {
+          if (!isCurrent(request) || _sourceErrors.isNotEmpty) return;
+          _appointmentValues = List.unmodifiable(values);
+          _sourceErrors.remove('appointments');
+          if (!appointmentsReady.isCompleted) appointmentsReady.complete();
+          _publishLiveState();
+        },
+        onError: (Object error) =>
+            failed('appointments', error, appointmentsReady),
+      );
+      List<Doctor> doctors = const [];
+      await Future.wait([
+        specialtiesReady.future,
+        appointmentsReady.future,
+        _doctors.getAllDoctors().then((values) {
+          doctors = values;
+        }),
       ], eagerError: true);
       if (!isCurrent(request)) return;
-      _specialtyValues = List.unmodifiable(values[0] as List<Specialty>);
-      _doctorValues = List.unmodifiable(values[1] as List<Doctor>);
-      _appointmentValues = List.unmodifiable(values[2] as List<Appointment>);
-      _listenToLiveValues(specialtyStream, appointmentStream);
-      final isEmpty =
-          specialtyCount == 0 &&
-          activeDoctorCount == 0 &&
-          appointmentCount == 0;
-      setState(isEmpty ? ViewState.empty : ViewState.success);
+      _doctorValues = List.unmodifiable(doctors);
+      _ready = true;
+      _publishLiveState();
     } catch (error) {
-      if (isCurrent(request)) setState(ViewState.error, error);
+      if (isCurrent(request)) {
+        _ready = false;
+        _specialtyValues = const [];
+        _doctorValues = const [];
+        _appointmentValues = const [];
+        setState(ViewState.error, error);
+      }
     }
   }
 
   Future<void> refresh() => load(force: true);
 
-  void _listenToLiveValues(
-    Stream<List<Specialty>> specialtyStream,
-    Stream<List<Appointment>> appointmentStream,
-  ) {
-    _specialtySubscription = specialtyStream.listen((values) {
-      _specialtyValues = List.unmodifiable(values);
-      _publishLiveState();
-    }, onError: (Object error) => setState(ViewState.error, error));
-    _appointmentSubscription = appointmentStream.listen((values) {
-      _appointmentValues = List.unmodifiable(values);
-      _publishLiveState();
-    }, onError: (Object error) => setState(ViewState.error, error));
-  }
-
   void _publishLiveState() {
+    if (!_ready || _sourceErrors.isNotEmpty) return;
     final isEmpty =
         specialtyCount == 0 && activeDoctorCount == 0 && appointmentCount == 0;
     setState(isEmpty ? ViewState.empty : ViewState.success);

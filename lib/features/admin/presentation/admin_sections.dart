@@ -151,6 +151,16 @@ const adminSections = [
     },
   ),
   AdminSection('Báo cáo', Icons.analytics_outlined, null, {}),
+  AdminSection('Yêu cầu bác sĩ', Icons.assignment_outlined, 'YEU_CAU_BAC_SI', {
+    'doctorId': 'Bác sĩ',
+    'senderId': 'Người gửi',
+    'type': 'Loại vấn đề',
+    'date': 'Ngày liên quan',
+    'reason': 'Lý do',
+    'status': 'Trạng thái',
+    'reviewedBy': 'Người duyệt',
+    'reviewedAt': 'Ngày xử lý',
+  }),
 ];
 
 const adminFieldLabels = {
@@ -212,4 +222,11 @@ const adminFieldLabels = {
   'failureCode': 'Mã lỗi',
   'slotDuration': 'Thời lượng ca (phút)',
   'capacity': 'Sức chứa',
+  'senderId': 'Người gửi',
+  'scheduleId': 'Ca làm liên quan',
+  'adminResponse': 'Phản hồi quản trị',
+  'reviewedBy': 'Người duyệt',
+  'reviewedAt': 'Ngày xử lý',
+  'date': 'Ngày liên quan',
+  'type': 'Loại vấn đề',
 };

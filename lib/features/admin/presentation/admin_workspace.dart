@@ -31,6 +31,7 @@ const _line = Color(0xFFDCECF8);
 const _navigationItems = [
   0,
   18,
+  19,
   1,
   5,
   6,
@@ -1940,7 +1941,9 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
 
   String _format(String field, Object? value) {
     if (value == null || value == '') return 'Chưa có dữ liệu';
-    if (field.endsWith('Id')) return _controller.referenceName(field, value);
+    if (field.endsWith('Id') || field == 'reviewedBy') {
+      return _controller.referenceName(field, value);
+    }
     if (value is bool) return value ? 'Có' : 'Không';
     if ([
       'status',
@@ -2011,6 +2014,8 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
               'NEW': 'Mới tiếp nhận',
               'PROCESSING': 'Đang xử lý',
               'RESOLVED': 'Đã xử lý',
+              'APPROVED': 'Đã phê duyệt',
+              'REJECTED': 'Đã từ chối',
               'DRAFT': 'Bản nháp',
               'SENT': 'Đã gửi',
               'REQUESTED': 'Đã yêu cầu',

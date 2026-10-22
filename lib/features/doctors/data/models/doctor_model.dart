@@ -58,14 +58,9 @@ class DoctorModel extends Doctor {
     String? documentId,
   }) {
     final status = readStringForKeys(json, const ['status']);
-    final isActive = status.isNotEmpty
-        ? !const {
-            'INACTIVE',
-            'DISABLED',
-            'FALSE',
-            '0',
-          }.contains(status.toUpperCase())
-        : readBool(json['isActive'], fallback: true);
+    final isActive =
+        (status.isEmpty || status.toUpperCase() == 'ACTIVE') &&
+        readBool(json['isActive'], fallback: true);
 
     return DoctorModel(
       id: documentId ?? readString(json['id']),

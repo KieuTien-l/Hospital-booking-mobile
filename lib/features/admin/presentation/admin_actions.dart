@@ -525,6 +525,8 @@ extension _AdminActions on _AdminWorkspaceState {
           c == 'BAC_SI' && readString(d['userId']).isNotEmpty)
         ('password', 'Gửi email thiết lập mật khẩu'),
       if (c == 'PHAN_HOI') ('feedback', 'Phân công / xử lý phản hồi'),
+      if (c == 'YEU_CAU_BAC_SI' && d['status'] == 'PENDING')
+        ('reviewDoctorRequest', 'Duyệt / trả lời yêu cầu'),
       if (c == 'THONG_BAO' && d['status'] == 'DRAFT')
         ('send', 'Xem trước và gửi'),
       if (c == 'THANH_TOAN') ...[
@@ -633,6 +635,27 @@ extension _AdminActions on _AdminWorkspaceState {
     String? targetId;
     String targetCollection = collection;
     switch (action) {
+      case 'reviewDoctorRequest':
+        title = 'Xử lý yêu cầu bác sĩ';
+        fields = [
+          const AdminEditField(
+            'status',
+            'Kết quả xử lý',
+            input: AdminInput.choice,
+            required: true,
+            options: {
+              'APPROVED': 'Phê duyệt',
+              'REJECTED': 'Từ chối',
+              'RESOLVED': 'Đã xử lý',
+            },
+          ),
+          const AdminEditField(
+            'adminResponse',
+            'Phản hồi bác sĩ',
+            input: AdminInput.multiline,
+            required: true,
+          ),
+        ];
       case 'edit':
         operation = switch (collection) {
           'LICH_LAM_VIEC' => 'editSchedule',

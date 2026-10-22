@@ -54,13 +54,29 @@ service cloud.firestore {
     // from introducing orphaned doctor/schedule relationships.
     function hasActiveDoctorProfile(doctorId) {
       let doctor = get(/databases/$(database)/documents/BAC_SI/$(doctorId));
-      return doctor.data.status == 'ACTIVE';
+      return doctor.data.status == 'ACTIVE' && doctor.data.get('isActive', true) == true;
     }
 
     function canAdminSaveSchedule() {
       return request.resource.data.doctorId is string &&
           request.resource.data.doctorId.size() > 0 &&
-          hasActiveDoctorProfile(request.resource.data.doctorId);
+          hasActiveDoctorProfile(request.resource.data.doctorId) &&
+          request.resource.data.workDate is timestamp &&
+          validTimeRange(request.resource.data) &&
+          validWorkingDay(request.resource.data) &&
+          request.resource.data.status in ['ACTIVE', 'INACTIVE'];
+    }
+
+    function validWorkingDay(data) {
+      let weekday = (data.workDate + duration.value(7, 'h')).dayOfWeek();
+      return weekday != 7 && (weekday != 6 || data.endTime <= '12:00');
+    }
+
+    function validTimeRange(data) {
+      return data.startTime is string && data.endTime is string &&
+          data.startTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+          data.endTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+          data.startTime < data.endTime;
     }
 
     function canAdminSaveSlot() {
@@ -68,12 +84,20 @@ service cloud.firestore {
       return request.resource.data.workScheduleId is string &&
           request.resource.data.doctorId is string &&
           schedule.data.status == 'ACTIVE' &&
+          validTimeRange(request.resource.data) &&
+          request.resource.data.startTime >= schedule.data.startTime &&
+          request.resource.data.endTime <= schedule.data.endTime &&
           request.resource.data.doctorId == schedule.data.doctorId &&
           request.resource.data.capacity is int &&
           request.resource.data.capacity > 0 &&
           request.resource.data.bookedCount is int &&
           request.resource.data.bookedCount >= 0 &&
-          request.resource.data.bookedCount <= request.resource.data.capacity;
+          request.resource.data.bookedCount <= request.resource.data.capacity &&
+          (request.resource.data.status in ['UNAVAILABLE', 'CANCELLED'] ||
+              (request.resource.data.status == 'BOOKED' &&
+                  request.resource.data.bookedCount == request.resource.data.capacity) ||
+              (request.resource.data.status == 'AVAILABLE' &&
+                  request.resource.data.bookedCount < request.resource.data.capacity));
     }
 
     function validAppointmentCreateShape() {
@@ -464,12 +488,29 @@ service cloud.firestore {
 
     match /CHUYEN_KHOA/{specialtyId} {
       allow read: if hasActiveAccount();
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() && request.resource.data.name is string &&
+          request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120 &&
+          request.resource.data.status in ['ACTIVE', 'INACTIVE'] &&
+          request.resource.data.isActive == (request.resource.data.status == 'ACTIVE');
+      allow delete: if isAdmin();
     }
 
     match /BAC_SI/{doctorId} {
       allow read: if hasActiveAccount();
-      allow write: if isAdmin();
+      function validDoctor() {
+        let d = request.resource.data;
+        let specialty = get(/databases/$(database)/documents/CHUYEN_KHOA/$(d.specialtyId));
+        return d.fullName is string && d.fullName.size() > 0 &&
+            d.userId is string && d.userId.size() > 0 &&
+            d.consultationFee is number && d.consultationFee >= 0 &&
+            d.yearsOfExperience is int && d.yearsOfExperience >= 0 &&
+            d.status in ['ACTIVE', 'INACTIVE'] &&
+            (d.status == 'INACTIVE' || specialty.data.status == 'ACTIVE');
+      }
+      allow create: if isAdmin() && validDoctor() &&
+          getAfter(/databases/$(database)/documents/TAI_KHOAN/$(request.resource.data.userId)).data.role == 'doctor';
+      allow update: if isAdmin() && validDoctor() && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAdmin();
     }
 
     match /BENH_NHAN/{patientId} {
@@ -507,22 +548,31 @@ service cloud.firestore {
 
     match /LICH_LAM_VIEC/{scheduleId} {
       allow read: if hasActiveAccount();
-      allow create: if (isAdmin() && canAdminSaveSchedule()) ||
-          isDoctor(request.resource.data.doctorId);
-      allow update: if (isAdmin() && canAdminSaveSchedule()) ||
-          canManageOwnSchedule();
-      allow delete: if isAdmin() || canManageOwnSchedule();
+      allow create: if canAdminSaveSchedule() &&
+          (isAdmin() || isDoctor(request.resource.data.doctorId));
+      allow update: if canAdminSaveSchedule() &&
+          request.resource.data.doctorId == resource.data.doctorId &&
+          (isAdmin() || canManageOwnSchedule());
+      allow delete: if isAdmin();
     }
 
     match /CA_KHAM/{slotId} {
       allow read: if hasActiveAccount();
-      allow create: if (isAdmin() && canAdminSaveSlot()) ||
-          isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId)).data.doctorId);
-      allow update: if (isAdmin() && canAdminSaveSlot()) ||
-          canManageOwnSlot() || canBookSlot(slotId) ||
+      allow create: if canAdminSaveSlot() && request.resource.data.bookedCount == 0 &&
+          request.resource.data.get('reservationCounts', {}) == {} &&
+          (isAdmin() || isDoctor(request.resource.data.doctorId));
+      allow update: if (canAdminSaveSlot() &&
+          request.resource.data.doctorId == resource.data.doctorId &&
+          request.resource.data.workScheduleId == resource.data.workScheduleId &&
+          request.resource.data.bookedCount == resource.data.bookedCount &&
+          request.resource.data.get('reservationCounts', {}) == resource.data.get('reservationCounts', {}) &&
+          request.resource.data.get('appointmentId', '') == resource.data.get('appointmentId', '') &&
+          (resource.data.bookedCount == 0 ||
+              (request.resource.data.startTime == resource.data.startTime &&
+                  request.resource.data.endTime == resource.data.endTime)) &&
+          (isAdmin() || canManageOwnSlot())) || canBookSlot(slotId) ||
           canReleaseBookedSlot(slotId);
-      allow delete: if isAdmin() ||
-          isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(resource.data.workScheduleId)).data.doctorId);
+      allow delete: if isAdmin() && resource.data.bookedCount == 0;
     }
 
     match /LICH_HEN/{appointmentId} {
@@ -595,6 +645,32 @@ service cloud.firestore {
               request.resource.data.diff(resource.data).affectedKeys()
                   .hasOnly(['isRead']));
       allow delete: if isAdmin();
+    }
+
+    match /YEU_CAU_BAC_SI/{requestId} {
+      allow get: if hasActiveRole('doctor') &&
+          !exists(/databases/$(database)/documents/YEU_CAU_BAC_SI/$(requestId));
+      allow read: if isAdmin() ||
+          (hasActiveRole('doctor') && resource.data.senderId == request.auth.uid);
+      allow create: if request.resource.data.keys().hasOnly([
+            'senderId', 'doctorId', 'scheduleId', 'type', 'date', 'reason',
+            'description', 'status', 'createdAt', 'updatedAt'
+          ]) && request.resource.data.senderId == request.auth.uid &&
+          isDoctor(request.resource.data.doctorId) &&
+          request.resource.data.status == 'PENDING' &&
+          request.resource.data.type in ['Bận đột xuất', 'Sự cố lịch làm', 'Khác'] &&
+          request.resource.data.reason is string &&
+          request.resource.data.reason.size() > 0 && request.resource.data.reason.size() <= 200 &&
+          request.resource.data.description is string &&
+          request.resource.data.description.size() > 0 && request.resource.data.description.size() <= 1000 &&
+          request.resource.data.date is timestamp &&
+          get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.scheduleId)).data.doctorId == request.resource.data.doctorId &&
+          get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.scheduleId)).data.status == 'ACTIVE' &&
+          get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.scheduleId)).data.workDate == request.resource.data.date &&
+          request.resource.data.createdAt == request.time &&
+          request.resource.data.updatedAt == request.time;
+      // Reviews go through adminCommand, which derives reviewer identity from Auth.
+      allow update, delete: if false;
     }
 
     // Additional read-only datasets used by the administrator workspace.
