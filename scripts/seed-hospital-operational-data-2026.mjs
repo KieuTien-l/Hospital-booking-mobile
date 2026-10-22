@@ -9,8 +9,12 @@ import { resolve } from 'node:path';
 const PROJECT_ID = 'bookinghospitalapp';
 const SOURCE = 'SEED_HOSPITAL_OPERATIONAL_2026';
 const APPLY = process.argv.includes('--apply');
+const VERIFY = process.argv.includes('--verify');
 const START_DATE = argumentValue('--start-date') || '2026-09-08';
 const END_DATE = argumentValue('--end-date') || '2026-10-27';
+const DOCTORS_PER_SPECIALTY = Number(
+  argumentValue('--doctors-per-specialty') || '1',
+);
 const PATIENT_PASSWORD =
   argumentValue('--patient-password') || process.env.SEED_PATIENT_PASSWORD;
 const SERVICE_ACCOUNT_PATH =
@@ -18,6 +22,10 @@ const SERVICE_ACCOUNT_PATH =
 
 if (!isDateString(START_DATE) || !isDateString(END_DATE) || START_DATE > END_DATE) {
   throw new Error('Use an inclusive --start-date and --end-date in YYYY-MM-DD format.');
+}
+if (!Number.isInteger(DOCTORS_PER_SPECIALTY) || DOCTORS_PER_SPECIALTY < 1 ||
+    DOCTORS_PER_SPECIALTY > 5) {
+  throw new Error('Use --doctors-per-specialty between 1 and 5.');
 }
 if (APPLY && !PATIENT_PASSWORD) {
   throw new Error(
@@ -48,9 +56,10 @@ const dates = dateRange(START_DATE, END_DATE);
 const rangeStart = at(START_DATE, '00:00');
 const rangeEndExclusive = at(addVietnamDays(END_DATE, 1), '00:00');
 
-const [specialtiesSnapshot, doctorsSnapshot, schedulesSnapshot] = await Promise.all([
+const [specialtiesSnapshot, doctorsSnapshot, accountsSnapshot, schedulesSnapshot] = await Promise.all([
   firestore.collection('CHUYEN_KHOA').get(),
   firestore.collection('BAC_SI').get(),
+  firestore.collection('TAI_KHOAN').get(),
   firestore
       .collection('LICH_LAM_VIEC')
       .where('workDate', '>=', rangeStart)
@@ -63,10 +72,27 @@ const activeSpecialties = new Map(
       .filter((document) => isActive(document.data()))
       .map((document) => [document.id, specialtyName(document.data(), document.id)]),
 );
-const doctors = doctorsSnapshot.docs
+const doctorAccounts = new Set(
+  accountsSnapshot.docs
+      .filter((document) => stringValue(document.data().role).toLowerCase() === 'doctor')
+      .flatMap((document) => [document.id, stringValue(document.data().accountKey)])
+      .filter((value) => value !== ''),
+);
+const operationalDoctors = doctorsSnapshot.docs
     .filter((document) => isOperationalDoctor(document.id, document.data()))
-    .filter((document) => activeSpecialties.has(stringValue(document.data().specialtyId)))
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .filter((document) => activeSpecialties.has(stringValue(document.data().specialtyId)));
+const doctors = [];
+for (const specialtyId of activeSpecialties.keys()) {
+  const candidates = operationalDoctors
+      .filter((document) => stringValue(document.data().specialtyId) === specialtyId)
+      .sort((left, right) => {
+        const leftHasLogin = doctorAccounts.has(stringValue(left.data().userId));
+        const rightHasLogin = doctorAccounts.has(stringValue(right.data().userId));
+        if (leftHasLogin !== rightHasLogin) return leftHasLogin ? -1 : 1;
+        return left.id.localeCompare(right.id);
+      });
+  doctors.push(...candidates.slice(0, DOCTORS_PER_SPECIALTY));
+}
 
 if (doctors.length === 0) {
   throw new Error(
@@ -222,10 +248,15 @@ if (APPLY) {
   await writeInBatches(documents);
 }
 
+if (APPLY || VERIFY) {
+  await verifySeedData();
+}
+
 console.table([
   { item: 'Project', value: PROJECT_ID },
   { item: 'Date range (Asia/Ho_Chi_Minh)', value: `${START_DATE} → ${END_DATE}` },
   { item: 'Active specialties', value: activeSpecialties.size },
+  { item: 'Doctors per specialty limit', value: DOCTORS_PER_SPECIALTY },
   { item: 'Operational doctors selected', value: doctors.length },
   { item: 'Synthetic patient accounts', value: patients.length },
   { item: 'Firebase Auth users to create', value: authPlan.toCreate.length },
@@ -238,6 +269,8 @@ console.table([
 console.log(
   APPLY
     ? 'Operational sample data was written. Only documents labelled with this seed source were changed.'
+    : VERIFY
+    ? 'Verification completed without changing Firebase Auth or Firestore.'
     : 'Dry run completed. No Firebase Auth user or Firestore document was changed.',
 );
 
@@ -532,6 +565,78 @@ async function writeInBatches(records) {
       batch.set(record.reference, record.data, { merge: false });
     }
     await batch.commit();
+  }
+}
+
+async function verifySeedData() {
+  const [accountsSnapshot, patientsSnapshot, schedulesSnapshot, slotsSnapshot,
+    appointmentsSnapshot] = await Promise.all([
+    firestore.collection('TAI_KHOAN').where('source', '==', SOURCE).get(),
+    firestore.collection('BENH_NHAN').where('source', '==', SOURCE).get(),
+    firestore.collection('LICH_LAM_VIEC').where('source', '==', SOURCE).get(),
+    firestore.collection('CA_KHAM').where('source', '==', SOURCE).get(),
+    firestore.collection('LICH_HEN').where('source', '==', SOURCE).get(),
+  ]);
+  const accounts = new Map(accountsSnapshot.docs.map((entry) => [entry.id, entry.data()]));
+  const patients = new Map(patientsSnapshot.docs.map((entry) => [entry.id, entry.data()]));
+  const schedules = new Map(schedulesSnapshot.docs.map((entry) => [entry.id, entry.data()]));
+  const slots = new Map(slotsSnapshot.docs.map((entry) => [entry.id, entry.data()]));
+  const appointments = new Map(
+    appointmentsSnapshot.docs.map((entry) => [entry.id, entry.data()]),
+  );
+  const findings = [];
+
+  for (const [patientId, patient] of patients) {
+    const account = accounts.get(patient.authUserId);
+    if (!account || account.role !== 'patient' || account.email !== patient.email) {
+      findings.push(`Patient ${patientId} does not have its matching patient account.`);
+    }
+  }
+  for (const [slotId, slot] of slots) {
+    const schedule = schedules.get(slot.workScheduleId);
+    const reservationCounts = slot.reservationCounts;
+    const reserved = reservationCounts && typeof reservationCounts === 'object'
+        ? Object.values(reservationCounts).reduce(
+          (sum, value) => sum + (Number.isInteger(value) ? value : 0),
+          0,
+        )
+        : -1;
+    if (!schedule || schedule.doctorId !== slot.doctorId) {
+      findings.push(`Slot ${slotId} does not match its work schedule.`);
+    }
+    if (!Number.isInteger(slot.capacity) || !Number.isInteger(slot.bookedCount) ||
+        slot.capacity < 1 || slot.bookedCount < 0 || slot.bookedCount > slot.capacity) {
+      findings.push(`Slot ${slotId} has an invalid capacity or booked count.`);
+    }
+    if (reserved !== slot.bookedCount) {
+      findings.push(`Slot ${slotId} has a reservation count mismatch.`);
+    }
+    const expectedStatus = slot.bookedCount === slot.capacity ? 'BOOKED' : 'AVAILABLE';
+    if (slot.status !== expectedStatus) {
+      findings.push(`Slot ${slotId} has status ${slot.status}, expected ${expectedStatus}.`);
+    }
+  }
+  for (const [appointmentId, appointment] of appointments) {
+    const patient = patients.get(appointment.patientId);
+    const schedule = schedules.get(appointment.workScheduleId);
+    const slot = slots.get(appointment.timeSlotId);
+    if (!patient || !schedule || !slot || schedule.doctorId !== appointment.doctorId ||
+        slot.doctorId !== appointment.doctorId ||
+        slot.workScheduleId !== appointment.workScheduleId ||
+        slot.reservationCounts?.[appointmentId] !== appointment.peopleCount) {
+      findings.push(`Appointment ${appointmentId} has an invalid relationship.`);
+    }
+  }
+  console.table([
+    { item: 'Seed accounts verified', value: accounts.size },
+    { item: 'Seed patients verified', value: patients.size },
+    { item: 'Seed work schedules verified', value: schedules.size },
+    { item: 'Seed time slots verified', value: slots.size },
+    { item: 'Seed appointments verified', value: appointments.size },
+    { item: 'Relationship findings', value: findings.length },
+  ]);
+  if (findings.length > 0) {
+    throw new Error(`Seed verification failed: ${findings.slice(0, 5).join(' ')}`);
   }
 }
 

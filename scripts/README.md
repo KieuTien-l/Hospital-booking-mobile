@@ -171,7 +171,12 @@ are labelled `source: SEED_HOSPITAL_OPERATIONAL_2026` and `isTestData: true`.
 $env:SEED_PATIENT_PASSWORD = 'Choose-a-strong-test-password'
 npm run seed-hospital-2026:dry-run --prefix scripts
 npm run seed-hospital-2026:apply --prefix scripts
+npm run seed-hospital-2026:dry-run --prefix scripts -- --verify
 ```
+
+It selects one login-capable doctor per active specialty by default so the
+database stays practical for the mobile app. To add more coverage, specify up
+to five doctors per specialty, for example `-- --doctors-per-specialty=2`.
 
 ## Repair Patient data
 
