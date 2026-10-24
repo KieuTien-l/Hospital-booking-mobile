@@ -47,6 +47,12 @@ foreach ($qaName in @('flutter-regression.txt', 'flutter-analyze.txt', 'firebase
         [IO.File]::WriteAllText($qaTo, $qaLog, [Text.UTF8Encoding]::new($false))
     } else { Copy-Item -LiteralPath $qaFrom -Destination $qaTo -Force }
 }
+foreach ($qaName in @('deployment-smoke.json', 'android-install.txt', 'android-launch.txt', 'android-startup.json', 'android-login.png')) {
+    $qaFrom = Join-Path $qaRoot "build/sprint6-qa/$qaName"
+    if (Test-Path -LiteralPath $qaFrom) {
+        Copy-Item -LiteralPath $qaFrom -Destination (Join-Path $qaEvidence $qaName) -Force
+    }
+}
 Copy-Item -LiteralPath $qaApk -Destination (Join-Path $qaHandoff 'HealWay-Sprint6.apk') -Force
 $qaReport = Join-Path $qaRoot 'docs/qa/sprint6/report.md'
 $qaContent = [IO.File]::ReadAllText($qaReport)

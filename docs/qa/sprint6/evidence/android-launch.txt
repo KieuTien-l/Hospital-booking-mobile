@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.example.flutter_application_4/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.example.flutter_application_4/.MainActivity
+TotalTime: 5083
+WaitTime: 5125
+Complete

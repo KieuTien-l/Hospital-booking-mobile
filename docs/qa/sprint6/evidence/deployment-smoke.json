@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-10-24T16:47:31.781Z",
+  "note": "Read-only anonymous probes; corrected initial reserved document ID. No patient data or AI provider request.",
+  "results": [
+    {
+      "name": "Firestore account anonymous",
+      "url": "https://firestore.googleapis.com/v1/projects/bookinghospitalapp/databases/(default)/documents/TAI_KHOAN/sprint6-qa-missing-do-not-create",
+      "method": "GET",
+      "expected": 403,
+      "actual": 403,
+      "errorType": "PERMISSION_DENIED",
+      "result": "PASS"
+    },
+    {
+      "name": "Firestore transcript anonymous",
+      "url": "https://firestore.googleapis.com/v1/projects/bookinghospitalapp/databases/(default)/documents/LS_CHAT_AI/sprint6-qa-missing-do-not-create",
+      "method": "GET",
+      "expected": 403,
+      "actual": 403,
+      "errorType": "PERMISSION_DENIED",
+      "result": "PASS"
+    },
+    {
+      "name": "Existing chatbot anonymous (deployment version not confirmed)",
+      "url": "https://healway-chatbot.healway-hospital.workers.dev/chat",
+      "method": "POST",
+      "expected": 401,
+      "actual": 401,
+      "result": "PASS"
+    }
+  ]
+}

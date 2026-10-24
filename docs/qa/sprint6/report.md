@@ -1,5 +1,9 @@
 # Sprint 6 — tích hợp NgocVan và báo cáo QA
 
+> Trạng thái triển khai sau bàn giao được cập nhật tại
+> [deployment-status.md](deployment-status.md). Các kết quả kiểm thử bên dưới
+> thuộc bản mã có cùng cây source với commit GitHub `2d10fa8`.
+
 Ngày thực hiện: 24/10/2026, múi giờ Asia/Saigon. Nhánh làm việc: **NgocVan**.
 Nguồn tích hợp: `origin/QuocViet` tại `706b872b0e307f5f4c075fad039e156a80f5e46f`.
 QuocViet chỉ được đọc; không commit/push vào nhánh đó. NgocVan trước tích hợp: `50bedfd`.
@@ -103,8 +107,10 @@ mặc định có dịch vụ đang sử dụng; không dừng dịch vụ đó.
   nội dung y khoa không an toàn. Đây không phải chứng nhận an toàn y khoa.
 - `store:false` tắt lưu application state ở Responses; không đồng nghĩa nhà cung
   cấp không lưu dữ liệu theo chính sách. Không log prompt/token/API key.
-- Chưa deploy Worker/Rules/Function mới, chưa smoke test staging/production và
-  chưa cài APK lên thiết bị: `adb devices` không có thiết bị kết nối.
+- Tại thời điểm chạy bộ QA ban đầu chưa deploy Worker/Rules/Function mới.
+  Rules đã được triển khai trong lượt tiếp tục; xem trạng thái hiện tại tại
+  [deployment-status.md](deployment-status.md). Lượt tiếp tục đã cài và khởi động
+  APK thành công trên Pixel 7 emulator; chưa nghiệm thu trên điện thoại thật.
 - Các vấn đề đã báo ở đợt audit trước, ngoài phạm vi sửa chính lần này, vẫn cần
   theo dõi: thống kê gộp bác sĩ trùng tên; nhật ký chưa đầy đủ ở luồng duyệt account;
   lựa chọn ca quá hạn chỉ bị chặn khi submit; thông báo
