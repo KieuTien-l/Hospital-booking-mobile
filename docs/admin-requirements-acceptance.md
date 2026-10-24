@@ -1,5 +1,10 @@
 # Đối chiếu nghiệm thu ADM và giao diện chatbot
 
+> Cập nhật 24/10/2026: đã tích hợp chatbot Worker từ QuocViet trên NgocVan.
+> Báo cáo mới, bảng sáu yêu cầu, kết quả 344 Flutter/40 Firebase/58 Worker test
+> và giới hạn nghiệm thu nằm tại [QA Sprint 6](qa/sprint6/report.md).
+> Nội dung phía dưới là kết quả đợt 22/10, gồm mô tả chatbot cục bộ tại thời điểm đó.
+
 Phạm vi: ADM-02, ADM-05, ADM-08, ADM-12, ADM-15, ADM-18, ADM-20 và S6-08
 theo 8 ảnh yêu cầu ngày 22/10/2026. Thay đổi thực hiện trên nhánh NgocVan.
 

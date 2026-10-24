@@ -17,6 +17,7 @@ class AuthGate extends StatelessWidget {
     final auth = context.watch<AuthController>();
 
     if (auth.status == AuthStatus.authenticated && auth.currentUser != null) {
+      if (!auth.currentUser!.isActive) return const LoginPage();
       switch (auth.currentUser!.role) {
         case UserRole.patient:
           return PatientHomePage(useLiveCommunications: useLiveCommunications);

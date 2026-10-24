@@ -72,6 +72,9 @@ import 'features/notifications/data/datasources/notification_firebase_datasource
 import 'features/notifications/data/repositories/notification_repository_impl.dart';
 import 'features/notifications/domain/repositories/notification_repository.dart';
 import 'features/notifications/presentation/controllers/notification_controller.dart';
+import 'features/chatbot/data/repositories/worker_chatbot_repository.dart';
+import 'features/chatbot/domain/repositories/chatbot_repository.dart';
+import 'features/chatbot/presentation/controllers/chatbot_controller.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -131,6 +134,7 @@ class App extends StatelessWidget {
           create: (_) =>
               NotificationRepositoryImpl(NotificationFirebaseDatasource()),
         ),
+        Provider<ChatbotRepository>(create: (_) => WorkerChatbotRepository()),
         Provider<TestResultRepository>(
           create: (_) => TestResultRepositoryImpl(
             TestResultFirebaseDatasource(FirebaseFirestore.instance),
@@ -241,6 +245,13 @@ class App extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) =>
               NotificationController(context.read<NotificationRepository>()),
+        ),
+        ChangeNotifierProxyProvider<AuthController, ChatbotController>(
+          create: (context) =>
+              ChatbotController(context.read<ChatbotRepository>()),
+          update: (_, auth, chat) =>
+              chat!
+                ..bindUser(auth.isAuthenticated ? auth.currentUser?.id : null),
         ),
       ],
       child: MaterialApp(

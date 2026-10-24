@@ -449,8 +449,12 @@ extension _AdminActions on _AdminWorkspaceState {
           description: 'Tài khoản mới luôn có vai trò Bác sĩ. App tạo đăng nhập bằng phiên phụ nên phiên admin hiện tại được giữ nguyên, sau đó tạo TAI_KHOAN và BAC_SI trên Firestore rồi gửi email đặt mật khẩu.',
           fields: _editFields('BAC_SI', null),
           submitLabel: 'Tạo',
-          onSubmit: (values, _, _) async {
-            final provisioned = await _doctorProvisioner.provision(values);
+          onSubmit: (values, reason, requestId) async {
+            final provisioned = await _doctorProvisioner.provision(
+              values,
+              requestId: requestId,
+              reason: reason,
+            );
             return {
               'id': provisioned.doctorId,
               'loginEmail': provisioned.loginEmail,

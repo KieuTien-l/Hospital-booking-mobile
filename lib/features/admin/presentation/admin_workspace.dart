@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -118,9 +119,12 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
   late final AdminController _controller;
   late final AdminCommands? _commands;
   late final DoctorAccountProvisioner _doctorProvisioner =
-      widget.doctorProvisioner ?? FirebaseDoctorAccountProvisioner();
+      widget.doctorProvisioner ??
+      FirebaseDoctorAccountProvisioner(commands: _commands);
   final _search = TextEditingController();
   final _scroll = ScrollController();
+  Timer? _searchDebounce;
+  String _appliedSearch = '';
   int _selected = 0;
   int _page = 0;
   String _status = 'Tất cả';
@@ -138,6 +142,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
   @override
   void initState() {
     super.initState();
+    _search.addListener(_onSearchValueChanged);
     _commands =
         widget.commands ??
         (widget.repository == null ? FirebaseAdminCommands() : null);
@@ -148,6 +153,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _controller.dispose();
     if (_commands is FirebaseAdminCommands) {
       (_commands).dispose();
@@ -155,6 +161,24 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     _search.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Avoid rebuilding an entire admin section while a Vietnamese IME is still
+  /// composing a diacritic. The committed value is applied shortly after it
+  /// arrives, keeping both Telex and VNI input visible.
+  void _onSearchValueChanged() {
+    _searchDebounce?.cancel();
+    final composing = _search.value.composing;
+    if (composing.isValid && !composing.isCollapsed) return;
+    final value = _search.text;
+    _searchDebounce = Timer(const Duration(milliseconds: 160), () {
+      if (mounted) {
+        setState(() {
+          _appliedSearch = value;
+          _page = 0;
+        });
+      }
+    });
   }
 
   void _select(int index) {
@@ -171,6 +195,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
       _selected = index;
       final view = _views[index];
       _search.text = view?.query ?? '';
+      _appliedSearch = _search.text;
       _status = view?.status ?? 'Tất cả';
       _date = view?.date;
       _page = view?.page ?? 0;
@@ -546,7 +571,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
       statuses.add(_status);
     }
     final selectedStatus = _status;
-    final query = _search.text.trim().toLowerCase();
+    final query = _appliedSearch.trim().toLowerCase();
     final filtered = records.where((r) {
       if (_status == 'Đã thu' &&
           !{'PAID', 'SUCCESS'}.contains(adminStatus(r.data['status']))) {
@@ -690,7 +715,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                             hintText: 'Tìm tên, mã, số điện thoại…',
                             prefixIcon: Icon(Icons.search),
                           ),
-                          onChanged: (_) => setState(() => _page = 0),
                         ),
                       ),
                       if (statuses.isNotEmpty)
@@ -799,7 +823,9 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                           _listPeriod != null)
                         TextButton.icon(
                           onPressed: () => setState(() {
+                            _searchDebounce?.cancel();
                             _search.clear();
+                            _appliedSearch = '';
                             _status = 'Tất cả';
                             _date = null;
                             _listPeriod = null;

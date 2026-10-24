@@ -32,6 +32,37 @@ beforeEach(async () => {
 });
 after(async () => { await env?.cleanup(); await deleteApp(app); });
 
+test('ADM-20: legacy accountKey profiles can be edited but their account role cannot change', async () => {
+  await db.collection('TAI_KHOAN').doc('doctor').update({ accountKey: '161' });
+  await db.collection('BAC_SI').doc('doctor').update({ userId: '161' });
+  await command('save', { collection: 'BAC_SI', id: 'doctor', values: { fullName: 'BS cập nhật', phone: '0901234567' } });
+  assert.equal((await get('TAI_KHOAN', 'doctor')).fullName, 'BS cập nhật');
+  assert.equal((await get('BAC_SI', 'doctor')).phone, '0901234567');
+  for (const role of ['patient', 'admin']) {
+    await assert.rejects(command('accountAccess', { collection: 'TAI_KHOAN', id: 'doctor', values: { role, isActive: true } }));
+  }
+  await command('accountAccess', { collection: 'TAI_KHOAN', id: 'doctor', values: { role: 'doctor', isActive: false } });
+  assert.equal((await get('TAI_KHOAN', 'doctor')).isActive, false);
+});
+test('regression: re-enabling an overlapping schedule is rejected', async () => {
+  await db.collection('LICH_LAM_VIEC').doc('overlap').set({ doctorId: 'doctor', workDate: date(day), startTime: '09:00', endTime: '12:00', status: 'INACTIVE' });
+  await assert.rejects(command('setAvailability', { collection: 'LICH_LAM_VIEC', id: 'overlap', values: { enabled: true } }), /trùng giờ/);
+  assert.equal((await get('LICH_LAM_VIEC', 'overlap')).status, 'INACTIVE');
+});
+test('regression: editing a cancelled slot preserves its cancellation', async () => {
+  await db.collection('CA_KHAM').doc('slot').update({ status: 'CANCELLED' });
+  await command('saveSlot', { collection: 'CA_KHAM', id: 'slot', values: { startTime: '08:00', endTime: '08:30', capacity: 6 } });
+  assert.equal((await get('CA_KHAM', 'slot')).status, 'CANCELLED');
+});
+test('regression: requests prevent deleting their schedule or doctor', async () => {
+  await db.collection('YEU_CAU_BAC_SI').doc('request').set({ doctorId: 'doctor', scheduleId: 'schedule', status: 'PENDING' });
+  await assert.rejects(command('delete', { collection: 'LICH_LAM_VIEC', id: 'schedule' }), /dữ liệu liên quan/);
+  await db.collection('BAC_SI').doc('unused-doctor').set({ userId: 'doctor', status: 'ACTIVE' });
+  await db.collection('YEU_CAU_BAC_SI').doc('other-request').set({ doctorId: 'unused-doctor', scheduleId: 'historical', status: 'PENDING' });
+  await assert.rejects(command('delete', { collection: 'BAC_SI', id: 'unused-doctor' }), /dữ liệu liên quan/);
+  assert.ok(await get('LICH_LAM_VIEC', 'schedule')); assert.ok(await get('BAC_SI', 'unused-doctor'));
+});
+
 test('non-admin, locked admin and stale writes are rejected', async () => {
   await assert.rejects(command('create', { collection: 'CHUYEN_KHOA', values: { name: 'X' } }, 'doctor'), (e) => e.code === 'permission-denied');
   await db.collection('TAI_KHOAN').doc('admin').update({ isActive: false });

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_application_4/features/chatbot/presentation/controllers/chatbot_controller.dart';
+import 'package:flutter_application_4/features/chatbot/domain/entities/chat_message.dart';
+import 'package:flutter_application_4/features/chatbot/domain/repositories/chatbot_repository.dart';
 import 'package:flutter_application_4/features/appointments/presentation/pages/select_appointment_date_page.dart';
 import 'package:flutter_application_4/core/routes/auth_gate.dart';
 import 'package:flutter_application_4/features/auth/domain/entities/user_entity.dart';
@@ -21,6 +24,14 @@ class _HomeSpecialtyRepository implements SpecialtyRepository {
   Stream<List<Specialty>> watchSpecialties() => Stream.value(const [
     Specialty(id: 'skin', name: 'Da liễu', description: '', isActive: true),
   ]);
+}
+
+class _HomeChatRepository implements ChatbotRepository {
+  @override
+  Future<String> sendMessage({
+    required String message,
+    required List<ChatMessage> history,
+  }) async => 'Vào Đặt khám để chọn ca còn chỗ.';
 }
 
 class _HomeAuthRepository extends Fake implements AuthRepository {
@@ -311,8 +322,15 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => AuthController(authRepo: _HomeAuthRepository()),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => ChatbotController(_HomeChatRepository()),
+          ),
+        ],
         child: const MaterialApp(
           home: PatientHomePage(useLiveCommunications: false),
         ),
@@ -330,8 +348,16 @@ void main() {
     await tester.tap(chatbot);
     await tester.pumpAndSettle();
 
-    expect(find.text('Hỏi đáp HealWay'), findsOneWidget);
-    expect(find.text('Câu hỏi thường gặp'), findsOneWidget);
+    expect(find.text('Trợ lý HealWay'), findsOneWidget);
+    expect(find.text('Gợi ý dành cho bạn'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Hướng dẫn đặt khám');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Gửi tin nhắn'));
+    await tester.pumpAndSettle();
+    expect(find.text('Vào Đặt khám để chọn ca còn chỗ.'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -674,11 +674,37 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Each patient can read the chat history created under their own Firebase
+    // account. OpenAI is called by a Worker, and the client writes only its
+    // own bounded transcript after a response arrives.
+    match /LS_CHAT_AI/{chatId} {
+      allow read: if isAdmin() ||
+          (hasActiveAccount() && resource.data.authUserId == request.auth.uid);
+      allow create: if hasActiveAccount() &&
+          request.resource.data.keys().hasOnly([
+            'authUserId', 'userId', 'sessionId', 'userMessage', 'aiReply',
+            'source', 'timestamp'
+          ]) &&
+          request.resource.data.authUserId == request.auth.uid &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.sessionId is string &&
+          request.resource.data.sessionId.size() > 0 &&
+          request.resource.data.sessionId.size() <= 180 &&
+          request.resource.data.userMessage is string &&
+          request.resource.data.userMessage.size() > 0 &&
+          request.resource.data.userMessage.size() <= 2000 &&
+          request.resource.data.aiReply is string &&
+          request.resource.data.aiReply.size() > 0 &&
+          request.resource.data.aiReply.size() <= 4000 &&
+          request.resource.data.source == 'OPENAI_CLOUDFLARE' &&
+          request.resource.data.timestamp == request.time;
+      allow update, delete: if false;
+    }
+
     // Additional read-only datasets used by the administrator workspace.
     // Mutations are processed by the trusted adminCommand Cloud Function.
     match /{collection}/{recordId} {
       allow read: if collection in [
-            'LS_CHAT_AI',
             'CAU_HINH',
             'NHAT_KY_ADMIN',
             'ADMIN_PROVISIONING',

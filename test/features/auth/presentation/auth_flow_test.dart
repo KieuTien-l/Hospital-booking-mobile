@@ -52,16 +52,40 @@ class MemoryAuthRepository implements AuthRepository {
   }
 }
 
-UserEntity account(UserRole role) => UserEntity(
+UserEntity account(UserRole role, {bool isActive = true}) => UserEntity(
   id: 'user-1',
   email: 'user@example.com',
   fullName: 'Test User',
   phone: '0900000000',
   role: role,
-  isActive: true,
+  isActive: isActive,
 );
 
 void main() {
+  for (final role in UserRole.values) {
+    testWidgets('ADM-20: inactive $role never reaches a role workspace', (
+      tester,
+    ) async {
+      final repository = MemoryAuthRepository()
+        ..user = account(role, isActive: false);
+      final controller = AuthController(authRepo: repository);
+      addTearDown(controller.dispose);
+      addTearDown(repository.events.close);
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: controller,
+          child: const MaterialApp(
+            home: AuthGate(useLiveCommunications: false),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(LoginPage), findsOneWidget);
+      expect(find.byType(PatientHomePage), findsNothing);
+      expect(find.byType(AdminHomePage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final role in UserRole.values) {
     testWidgets('Login loads profile, routes $role, logout returns to Login', (
       tester,

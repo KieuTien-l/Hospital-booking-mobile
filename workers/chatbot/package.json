@@ -1,0 +1,14 @@
+{
+  "name": "healway-chatbot-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.js",
+    "test": "node --test test/*.test.js",
+    "test:runtime": "node test/runtime-smoke.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0",
+    "miniflare": "5.20261019.2-beta"
+  }
+}

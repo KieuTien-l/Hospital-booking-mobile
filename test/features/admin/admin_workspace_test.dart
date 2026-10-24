@@ -41,8 +41,10 @@ class _DoctorProvisioner implements DoctorAccountProvisioner {
 
   @override
   Future<DoctorAccountProvisioningResult> provision(
-    Map<String, dynamic> values,
-  ) async {
+    Map<String, dynamic> values, {
+    required String requestId,
+    required String reason,
+  }) async {
     calls.add(values);
     return const DoctorAccountProvisioningResult(
       doctorId: 'new-doctor',
@@ -518,7 +520,7 @@ void main() {
   );
 
   testWidgets(
-    'doctor creation provisions a fixed doctor role without a cloud function',
+    'doctor creation delegates fixed-role provisioning and preserves the admin session',
     (tester) async {
       final repository = _Repository(), commands = _Commands();
       final doctorProvisioner = _DoctorProvisioner();

@@ -51,6 +51,13 @@ class CommandContext {
     if (result.size > limit) fail('Có quá nhiều bản ghi liên quan; cần chia nhỏ thao tác.');
     return result.docs;
   }
+  async linkedAccount(userKey) {
+    const direct = await this.tx.get(this.ref('TAI_KHOAN', userKey));
+    if (direct.exists) return direct;
+    const legacy = await this.rows('TAI_KHOAN', 'accountKey', userKey, 2);
+    if (legacy.length !== 1) fail('Không xác định được tài khoản bác sĩ liên kết.');
+    return legacy[0];
+  }
   reservationCounts(slot, appointments) {
     // Rebuild from persisted appointments, including legacy slots without a
     // reservation map. These reads share the booking/cancellation transaction.
@@ -147,9 +154,9 @@ class CommandContext {
     this.reason();
     if (collection === 'BAC_SI') {
       if (fields.specialtyId) active(await this.get('CHUYEN_KHOA', fields.specialtyId), 'Chuyên khoa');
-      const account = before.userId ? await this.get('TAI_KHOAN', before.userId) : null;
+      const account = before.userId ? await this.linkedAccount(before.userId) : null;
       if (account && (fields.fullName || fields.phone != null)) {
-        this.tx.update(this.ref('TAI_KHOAN', before.userId), {
+        this.tx.update(account.ref, {
           ...(fields.fullName ? { fullName: fields.fullName } : {}),
           ...(fields.phone != null ? { phone: fields.phone } : {}), updatedAt: stamp(),
         });
@@ -163,8 +170,8 @@ class CommandContext {
     this.reason();
     const deps = {
       CHUYEN_KHOA: [['BAC_SI', 'specialtyId'], ['LICH_HEN', 'specialtyId']],
-      BAC_SI: [['LICH_HEN', 'doctorId'], ['LICH_LAM_VIEC', 'doctorId'], ['HO_SO_SUC_KHOE', 'doctorId'], ['KET_QUA_CLS', 'doctorId']],
-      LICH_LAM_VIEC: [['LICH_HEN', 'workScheduleId']],
+      BAC_SI: [['LICH_HEN', 'doctorId'], ['LICH_LAM_VIEC', 'doctorId'], ['HO_SO_SUC_KHOE', 'doctorId'], ['KET_QUA_CLS', 'doctorId'], ['YEU_CAU_BAC_SI', 'doctorId']],
+      LICH_LAM_VIEC: [['LICH_HEN', 'workScheduleId'], ['YEU_CAU_BAC_SI', 'scheduleId']],
       CA_KHAM: [['LICH_HEN', 'timeSlotId']], THONG_BAO: [],
     };
     await this.ensureUnused(collection, key, deps[collection]);
@@ -173,8 +180,8 @@ class CommandContext {
     if (collection === 'THONG_BAO' && before.status !== 'DRAFT') fail('Chỉ được xóa thông báo nháp.');
     if (collection === 'CA_KHAM' && before.bookedCount !== 0) fail('Ca khám còn chỗ đã giữ hoặc thiếu bộ đếm; không thể xóa.');
     if (collection === 'BAC_SI' && before.userId) {
-      await this.get('TAI_KHOAN', before.userId);
-      this.tx.update(this.ref('TAI_KHOAN', before.userId), { isActive: false, status: 'INACTIVE', updatedAt: stamp() });
+      const account = await this.linkedAccount(before.userId);
+      this.tx.update(account.ref, { isActive: false, status: 'INACTIVE', updatedAt: stamp() });
     }
     this.tx.create(this.db.collection('ADMIN_ARCHIVES').doc(this.requestId), { collection, id: key, data: before, actorId: this.uid, createdAt: stamp() });
     for (const slot of unusedSlots) this.tx.delete(slot.ref);
@@ -199,6 +206,16 @@ class CommandContext {
     if (collection === 'CA_KHAM') {
       const counts = capacityChange(before, 0);
       return this.updated(collection, key, before, { status: enabled ? counts.bookedCount >= before.capacity ? 'BOOKED' : 'AVAILABLE' : 'UNAVAILABLE' });
+    }
+    if (collection === 'LICH_LAM_VIEC' && enabled) {
+      active(await this.get('BAC_SI', before.doctorId), 'Bác sĩ');
+      future(before, before.startTime);
+      const schedules = await this.rows('LICH_LAM_VIEC', 'doctorId', before.doctorId);
+      if (schedules.some((s) => s.id !== key && s.data().status === 'ACTIVE' &&
+          dayKey(s.data().workDate) === dayKey(before.workDate) &&
+          minutes(before.startTime) < minutes(s.data().endTime) && minutes(before.endTime) > minutes(s.data().startTime))) {
+        fail('Lịch làm việc bị trùng giờ với lịch đang hoạt động.');
+      }
     }
     const affected = collection === 'LICH_LAM_VIEC' ? await this.rows('LICH_HEN', 'workScheduleId', key) : [];
     const result = this.updated(collection, key, before, { status: enabled ? 'ACTIVE' : 'INACTIVE', isActive: enabled });
@@ -260,7 +277,7 @@ class CommandContext {
     if (history.length && (v.startTime !== before.startTime || v.endTime !== before.endTime)) fail('Ca đã có lịch sử, không đổi giờ khám.');
     if (related.some((s) => s.id !== key && start < minutes(s.data().endTime) && end > minutes(s.data().startTime))) fail('Ca khám bị trùng giờ.');
     const booked = before ? number(before.bookedCount, 'Số chỗ', 0, capacity, true) : 0;
-    const fields = { workScheduleId: scheduleId, doctorId: schedule.doctorId, startTime: v.startTime, endTime: v.endTime, capacity, bookedCount: booked, status: before?.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : booked >= capacity ? 'BOOKED' : 'AVAILABLE', updatedAt: stamp() };
+    const fields = { workScheduleId: scheduleId, doctorId: schedule.doctorId, startTime: v.startTime, endTime: v.endTime, capacity, bookedCount: booked, status: ['UNAVAILABLE', 'CANCELLED'].includes(before?.status) ? before.status : booked >= capacity ? 'BOOKED' : 'AVAILABLE', updatedAt: stamp() };
     this.reason();
     this.tx.update(this.ref('LICH_LAM_VIEC', scheduleId), { adminVersion: FieldValue.increment(1), updatedAt: stamp() });
     if (before) this.tx.update(this.ref('CA_KHAM', key), fields);
@@ -347,7 +364,9 @@ class CommandContext {
     this.reason();
     if (key === this.uid) fail('Không tự khóa hoặc đổi quyền tài khoản đang đăng nhập.');
     const role = choice(v.role ?? before.role, ['patient', 'doctor', 'admin'], 'Vai trò');
-    const doctors = await this.rows('BAC_SI', 'userId', key, 2);
+    const direct = await this.rows('BAC_SI', 'userId', key, 2);
+    const legacy = before.accountKey && before.accountKey !== key ? await this.rows('BAC_SI', 'userId', before.accountKey, 2) : [];
+    const doctors = [...new Map([...direct, ...legacy].map((d) => [d.id, d])).values()];
     const patients = await this.rows('BENH_NHAN', 'authUserId', key);
     if (role === 'doctor' && doctors.length !== 1) fail('Tài khoản bác sĩ phải có đúng một hồ sơ bác sĩ liên kết.');
     if (role !== before.role && (doctors.length || patients.length)) fail('Không đổi vai trò tài khoản đã liên kết hồ sơ. Hãy tạo tài khoản nhân sự phù hợp.');

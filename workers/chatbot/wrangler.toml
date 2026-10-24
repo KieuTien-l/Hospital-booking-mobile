@@ -1,0 +1,17 @@
+name = "healway-chatbot"
+main = "src/index.js"
+compatibility_date = "2025-10-24"
+
+[vars]
+FIREBASE_PROJECT_ID = "bookinghospitalapp"
+# Firebase Hosting origins for the HealWay web build. Add a custom domain here
+# as a comma-separated value if one is configured later.
+ALLOWED_ORIGINS = "https://bookinghospitalapp.web.app,https://bookinghospitalapp.firebaseapp.com"
+
+[[durable_objects.bindings]]
+name = "CHAT_LIMITER"
+class_name = "ChatRateLimiter"
+
+[[migrations]]
+tag = "v1-chat-limit"
+new_sqlite_classes = ["ChatRateLimiter"]

@@ -1,0 +1,271 @@
+i  emulators: Starting emulators: auth, firestore
+i  emulators: Detected demo project ID "demo-healway-admin", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
++  firestore: Firestore Emulator UI websocket is running on 9351.
+i  Running script: node --test functions/test/*.test.js functions/test/emulator/*.test.js test/firestore_rules.test.mjs
+✔ ADM-20: legacy accountKey profiles can be edited but their account role cannot change (1811.2802ms)
+✔ regression: re-enabling an overlapping schedule is rejected (167.9005ms)
+✔ regression: editing a cancelled slot preserves its cancellation (240.005ms)
+✔ regression: requests prevent deleting their schedule or doctor (279.1115ms)
+✔ non-admin, locked admin and stale writes are rejected (153.9278ms)
+✔ doctor provisioning creates linked identities without touching admin, retries are idempotent (557.4594ms)
+✔ failed doctor profile commit rolls Auth user back; lost commit acknowledgement never deletes a valid user (309.564ms)
+✔ concurrent booking cannot overbook and exact retries do not duplicate notifications (3530.8825ms)
+✔ cancel returns exactly the group size and keeps locked slots locked (591.6038ms)
+✔ rescheduling is all-or-nothing and cannot move a completed appointment (624.8724ms)
+✔ admin booking, cancellation and rescheduling preserve reservations created by patient flow (557.5361ms)
+✔ referenced records cannot be deleted, appointments cannot be deleted at all (586.8456ms)
+✔ schedule creation generates slots, checks overlap, and cannot edit a booked schedule (465.1436ms)
+✔ unused schedule deletion removes only its unused generated slots and keeps an audit archive (268.8345ms)
+[2026-10-24T16:01:35.802Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x19400bae error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L617:24 for 'create' @ L617, false for 'create' @ L714, evaluation error at L624:32 for 'update' @ L624, false for 'update' @ L714, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "BENH_NHAN"
+  }
+  segments {
+    simple: "someone-else"
+  }
+}
+]. for 'create' @ L617, false for 'create' @ L714
+[2026-10-24T16:01:35.948Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x19400bb0 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L624:32 for 'update' @ L624, false for 'update' @ L714, false for 'update' @ L624, false for 'update' @ L714
+✔ patient feedback transaction is idempotent, cannot impersonate another patient, and receives admin response (279.2564ms)
+[2026-10-24T16:01:36.015Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x19400bb1 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L513:24 for 'update' @ L513, false for 'update' @ L714, false for 'update' @ L513, false for 'update' @ L714
+[2026-10-24T16:01:36.029Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x19400bb2 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L478:24 for 'update' @ L478, false for 'update' @ L714, false for 'update' @ L478, false for 'update' @ L714
+[2026-10-24T16:01:36.112Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x19400bb5 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L460, false for 'create' @ L714, evaluation error at L478:24 for 'update' @ L478, false for 'update' @ L714, false for 'create' @ L460, false for 'create' @ L714
+[2026-10-24T16:01:36.135Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x19400bb6 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L460:24 for 'create' @ L460, false for 'create' @ L714, evaluation error at L478:24 for 'update' @ L478, false for 'update' @ L714, false for 'create' @ L460, false for 'create' @ L714
+✔ doctor edits require admin, patient registration requires approval and existing patient profile edits remain allowed (174.7837ms)
+✔ internal notes stay outside appointments and cannot be read by doctors or patients (364.777ms)
+[2026-10-24T16:01:36.768Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x19400bba error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L643:24 for 'update' @ L643, false for 'update' @ L714, false for 'update' @ L643, false for 'update' @ L714
+✔ notification preview/draft is private; send is immutable and patient can only mark read (382.1406ms)
+✔ account guards prevent self-lock and linked-role changes; stopping bookings does not lock doctor access (397.1608ms)
+✔ review/refund requests cannot fake settlement and duplicate refunds are rejected (283.9838ms)
+[2026-10-24T16:01:26.842Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969940 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:26.915Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969942 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.059Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969946 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.098Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969947 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.129Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969948 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.161Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969949 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.192Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96994a error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.218Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96994b error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.252Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96994c error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.291Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96994d error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714
+[2026-10-24T16:01:27.326Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96994e error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+[2026-10-24T16:01:27.352Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96994f error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L701, false for 'update' @ L714
+[2026-10-24T16:01:27.374Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969950 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L701, false for 'delete' @ L714
+[2026-10-24T16:01:27.460Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969952 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L683:24 for 'create' @ L683, false for 'create' @ L714, false for 'update' @ L701, false for 'update' @ L714, false for 'create' @ L683, false for 'create' @ L714
+✔ AI-06/12: transcript ownership, schema, timestamps and immutable records (1928.6301ms)
+✔ ADM-02/05/08: admin queries real collections, empty data and revoked permissions (464.2258ms)
+[2026-10-24T16:01:28.068Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969960 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L492:32 for 'update' @ L492, false for 'update' @ L714, false for 'update' @ L492, false for 'update' @ L714
+[2026-10-24T16:01:28.091Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969961 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L492:32 for 'update' @ L492, false for 'update' @ L714, false for 'update' @ L492, false for 'update' @ L714
+[2026-10-24T16:01:28.139Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969963 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L513:24 for 'update' @ L513, false for 'update' @ L714, false for 'update' @ L513, false for 'update' @ L714
+[2026-10-24T16:01:28.163Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969964 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L513:24 for 'update' @ L513, false for 'update' @ L714, false for 'update' @ L513, false for 'update' @ L714
+[2026-10-24T16:01:28.189Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969965 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L513:24 for 'update' @ L513, false for 'update' @ L714, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "CHUYEN_KHOA"
+  }
+  segments {
+    simple: "missing"
+  }
+}
+]. for 'update' @ L513, false for 'update' @ L714
+✔ ADM-08/05: specialty and doctor writes respect schema and privilege (264.1389ms)
+[2026-10-24T16:01:28.338Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969968 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L552, false for 'create' @ L714, false for 'update' @ L554, false for 'update' @ L714
+[2026-10-24T16:01:28.369Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969969 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L552, false for 'create' @ L714, false for 'update' @ L554, false for 'update' @ L714
+[2026-10-24T16:01:28.392Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96996a error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L552, false for 'create' @ L714, false for 'update' @ L554, false for 'update' @ L714
+[2026-10-24T16:01:28.416Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96996b error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L552, false for 'create' @ L714, false for 'update' @ L554, false for 'update' @ L714
+[2026-10-24T16:01:28.437Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96996c error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L552, false for 'create' @ L714, false for 'update' @ L554, false for 'update' @ L714
+[2026-10-24T16:01:28.477Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96996d error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L552:24 for 'create' @ L552, false for 'create' @ L714, evaluation error at L554:24 for 'update' @ L554, false for 'update' @ L714, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "BAC_SI"
+  }
+  segments {
+    simple: "missing"
+  }
+}
+]. for 'create' @ L552, false for 'create' @ L714
+[2026-10-24T16:01:28.540Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96996f error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L562:24 for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.575Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969970 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L562:24 for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.597Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969971 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.628Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969972 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.680Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969973 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.718Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969974 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.750Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969975 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.786Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969976 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L562:24 for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, false for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.819Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969977 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L562:24 for 'create' @ L562, false for 'create' @ L714, evaluation error at L565:24 for 'update' @ L565, false for 'update' @ L714, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "LICH_LAM_VIEC"
+  }
+  segments {
+    simple: "missing"
+  }
+}
+]. for 'create' @ L562, false for 'create' @ L714
+[2026-10-24T16:01:28.864Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969978 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L565:24 for 'update' @ L565, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L714, Property appointmentId is undefined on object. for 'update' @ L565, false for 'update' @ L714
+[2026-10-24T16:01:28.902Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969979 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L565:24 for 'update' @ L565, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L714, Property appointmentId is undefined on object. for 'update' @ L565, false for 'update' @ L714
+[2026-10-24T16:01:28.934Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96997a error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L565:24 for 'update' @ L565, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L714, false for 'update' @ L565, false for 'update' @ L714
+[2026-10-24T16:01:28.963Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96997b error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L565:24 for 'update' @ L565, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L714, false for 'update' @ L565, false for 'update' @ L714
+[2026-10-24T16:01:28.994Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96997c error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L565:24 for 'update' @ L565, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L714, false for 'update' @ L565, false for 'update' @ L714
+[2026-10-24T16:01:29.028Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96997d error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L576:24 for 'delete' @ L576, false for 'delete' @ L714, false for 'delete' @ L576, false for 'delete' @ L714
+✔ ADM-12: schedules and slots reject bad ranges, missing parents and counter tampering (837.8552ms)
+[2026-10-24T16:01:29.333Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969984 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L583:24 for 'update' @ L583, false for 'update' @ L714, false for 'update' @ L583, false for 'update' @ L714
+✔ ADM-15: scoped appointment queries succeed; broad or foreign reads fail (304.8233ms)
+✔ ADM-15: an inactive doctor profile cannot read appointments even with an active login (88.2057ms)
+[2026-10-24T16:01:29.534Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969988 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:24 for 'create' @ L656, false for 'create' @ L714, false for 'update' @ L674, false for 'update' @ L714, false for 'create' @ L656, false for 'create' @ L714
+[2026-10-24T16:01:29.577Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969989 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:24 for 'create' @ L656, false for 'create' @ L714, false for 'update' @ L674, false for 'update' @ L714, false for 'create' @ L656, false for 'create' @ L714
+[2026-10-24T16:01:29.613Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96998a error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:24 for 'create' @ L656, false for 'create' @ L714, false for 'update' @ L674, false for 'update' @ L714, false for 'create' @ L656, false for 'create' @ L714
+[2026-10-24T16:01:29.636Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96998b error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:24 for 'create' @ L656, false for 'create' @ L714, false for 'update' @ L674, false for 'update' @ L714, false for 'create' @ L656, false for 'create' @ L714
+[2026-10-24T16:01:29.659Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96998c error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:24 for 'create' @ L656, false for 'create' @ L714, false for 'update' @ L674, false for 'update' @ L714, false for 'create' @ L656, false for 'create' @ L714
+[2026-10-24T16:01:29.685Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96998d error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:24 for 'create' @ L656, false for 'create' @ L714, false for 'update' @ L674, false for 'update' @ L714, false for 'create' @ L656, false for 'create' @ L714
+[2026-10-24T16:01:29.710Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f96998e error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:24 for 'create' @ L656, false for 'create' @ L714, false for 'update' @ L674, false for 'update' @ L714, false for 'create' @ L656, false for 'create' @ L714
+[2026-10-24T16:01:29.787Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969987 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L674, false for 'update' @ L714
+[2026-10-24T16:01:29.810Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969991 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L674, false for 'update' @ L714
+✔ ADM-18: request stores verified sender and rejects forged or edited submissions (388.4801ms)
+✔ ADM-18: backend review uses authenticated admin, replies and server time; exact retry is idempotent (334.5364ms)
+[2026-10-24T16:01:30.288Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969995 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L478:24 for 'update' @ L478, false for 'update' @ L714, false for 'update' @ L478, false for 'update' @ L714
+[2026-10-24T16:01:30.319Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969996 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L478:24 for 'update' @ L478, false for 'update' @ L714, false for 'update' @ L478, false for 'update' @ L714
+[2026-10-24T16:01:30.357Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969998 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L478:24 for 'update' @ L478, false for 'update' @ L714, false for 'update' @ L478, false for 'update' @ L714
+[2026-10-24T16:01:30.377Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x8f969999 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L478:24 for 'update' @ L478, false for 'update' @ L714, false for 'update' @ L478, false for 'update' @ L714
+✔ ADM-20: only admin reviews pending patients; clients cannot elevate roles (232.3974ms)
+✔ work schedules reject invalid times, Sundays and Saturday afternoons (3.0324ms)
+✔ capacity changes preserve locks and reject underflow, overflow or missing counters (1.6865ms)
+✔ administrative transitions cannot fake completion or reopen terminal appointments (1.0402ms)
+✔ doctor profile whitelist keeps login ownership and role out of editable fields (0.5232ms)
+✔ patient reads only their own appointment and notification (3515.921ms)
+[2026-10-24T16:01:23.154Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x22bf4ab5 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L643:24 for 'update' @ L643, false for 'update' @ L714, false for 'update' @ L643, false for 'update' @ L714
+✔ patient can mark only their own THONG_BAO notification as read (177.0219ms)
+✔ doctor accesses appointments assigned to their doctor profile only (164.4001ms)
+✔ admin can read every appointment (110.3061ms)
+[2026-10-24T16:01:23.589Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x22bf4abc error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L552:24 for 'create' @ L552, false for 'create' @ L714, evaluation error at L554:24 for 'update' @ L554, false for 'update' @ L714, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "BAC_SI"
+  }
+  segments {
+    simple: "missing-doctor"
+  }
+}
+]. for 'create' @ L552, false for 'create' @ L714
+✔ admin cannot save a schedule for a missing doctor (158.1845ms)
+✔ admin can save a schedule for an active doctor (99.8061ms)
+✔ anonymous users cannot access protected appointment data (100.0605ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21934.4551
++  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+!  Firestore Emulator has exited upon receiving signal: SIGINT
+i  auth: Stopping Authentication Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

@@ -43,6 +43,30 @@ beforeEach(async () => {
 });
 after(async () => { await env?.cleanup(); await deleteApp(app); });
 
+test('AI-06/12: transcript ownership, schema, timestamps and immutable records', async () => {
+  const transcript = { authUserId: 'patient', userId: 'patient', sessionId: 'session',
+    userMessage: 'Cách đặt khám?', aiReply: 'Vào Đặt khám.', source: 'OPENAI_CLOUDFLARE', timestamp: serverTimestamp() };
+  await assertSucceeds(setDoc(doc(client('patient'), 'LS_CHAT_AI', 'mine'), transcript));
+  await assertSucceeds(getDoc(doc(client('patient'), 'LS_CHAT_AI', 'mine')));
+  await assertSucceeds(getDoc(doc(client('admin'), 'LS_CHAT_AI', 'mine')));
+  for (const uid of ['doctor', 'locked']) {
+    await assertFails(getDoc(doc(client(uid), 'LS_CHAT_AI', 'mine')));
+    await assertFails(setDoc(doc(client(uid), 'LS_CHAT_AI', 'forged'), transcript));
+  }
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'LS_CHAT_AI', 'mine')));
+  await assertFails(getDocs(collection(client('patient'), 'LS_CHAT_AI')));
+  assert.equal((await assertSucceeds(getDocs(query(collection(client('patient'), 'LS_CHAT_AI'), where('authUserId', '==', 'patient'))))).size, 1);
+  for (const change of [{ authUserId: 'doctor' }, { userId: 'doctor' }, { userMessage: '' }, { userMessage: 'x'.repeat(2001) },
+    { aiReply: 'x'.repeat(4001) }, { sessionId: '' }, { source: 'FAKE' }, { timestamp: new Date(0) }, { privateField: 'forbidden' }]) {
+    await assertFails(setDoc(doc(client('patient'), 'LS_CHAT_AI', 'invalid'), { ...transcript, ...change }));
+  }
+  await assertFails(updateDoc(doc(client('patient'), 'LS_CHAT_AI', 'mine'), { aiReply: 'forged' }));
+  await assertFails(deleteDoc(doc(client('patient'), 'LS_CHAT_AI', 'mine')));
+  await db.collection('TAI_KHOAN').doc('patient').update({ isActive: false });
+  await assertFails(getDoc(doc(client('patient'), 'LS_CHAT_AI', 'mine')));
+  await assertFails(setDoc(doc(client('patient'), 'LS_CHAT_AI', 'locked'), transcript));
+});
+
 test('ADM-02/05/08: admin queries real collections, empty data and revoked permissions', async () => {
   for (const name of ['CHUYEN_KHOA', 'BAC_SI', 'LICH_HEN']) {
     const result = await assertSucceeds(getDocs(collection(client('admin'), name)));

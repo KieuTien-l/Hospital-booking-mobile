@@ -112,7 +112,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ẩn'), findsNothing);
     await tester.enterText(find.byType(TextField), 'DA LIEU');
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('DA LIỄU'), findsOneWidget);
     expect(find.text('TIM MẠCH'), findsNothing);
     await tester.tap(find.text('Xem thêm'));
@@ -126,8 +126,25 @@ void main() {
     await tester.pump();
     expect(selected?.id, 'skin');
     await tester.enterText(find.byType(TextField), 'khong co');
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('Không tìm thấy chuyên khoa phù hợp.'), findsOneWidget);
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'tim',
+        selection: TextSelection.collapsed(offset: 3),
+        composing: TextRange(start: 0, end: 3),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Không tìm thấy chuyên khoa phù hợp.'), findsOneWidget);
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'tim',
+        selection: TextSelection.collapsed(offset: 3),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('TIM MẠCH'), findsOneWidget);
     await tester.tap(find.byTooltip('Xóa tìm kiếm'));
     await tester.pump();
     expect(find.text('TIM MẠCH'), findsOneWidget);
