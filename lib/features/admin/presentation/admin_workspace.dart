@@ -127,6 +127,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
   String _appliedSearch = '';
   int _selected = 0;
   int _page = 0;
+  int _pendingPage = 0;
   String _status = 'Tất cả';
   DateTime? _date;
   DateTimeRange? _period;
@@ -907,10 +908,14 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
 
   Widget _pendingAccountsPanel(AdminAccountController controller) {
     final accounts = controller.pendingAccounts;
+    final pages = math.max(1, (accounts.length / 10).ceil());
+    final page = math.min(_pendingPage, pages - 1);
     return _panel(
       'Tài khoản chờ duyệt',
       controller.isLoading
           ? 'Đang tải danh sách từ Firestore'
+          : controller.hasError && accounts.isEmpty
+          ? 'Chưa xác định được danh sách chờ duyệt'
           : '${accounts.length} tài khoản cần admin xử lý',
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -924,59 +929,93 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
           ],
           if (controller.isLoading)
             const Center(child: CircularProgressIndicator())
-          else if (accounts.isEmpty)
+          else if (accounts.isEmpty && !controller.hasError)
             const Text('Không có tài khoản nào đang chờ duyệt.')
           else
-            for (final account in accounts.take(10))
+            for (final account in accounts.skip(page * 10).take(10))
               Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(Icons.person_outline, color: _blue),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              account.fullName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
+                      Row(
+                        children: [
+                          const Icon(Icons.person_outline, color: _blue),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  account.fullName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  account.email,
+                                  style: const TextStyle(color: _muted),
+                                ),
+                              ],
                             ),
-                            Text(
-                              account.email,
-                              style: const TextStyle(color: _muted),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      TextButton(
-                        onPressed: controller.isLoading
-                            ? null
-                            : () => _reviewPendingAccount(
-                                controller,
-                                account.id,
-                                approved: false,
-                              ),
-                        child: const Text('Từ chối'),
-                      ),
-                      FilledButton(
-                        onPressed: controller.isLoading
-                            ? null
-                            : () => _reviewPendingAccount(
-                                controller,
-                                account.id,
-                                approved: true,
-                              ),
-                        child: const Text('Duyệt'),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8,
+                        children: [
+                          TextButton(
+                            onPressed: controller.isLoading
+                                ? null
+                                : () => _reviewPendingAccount(
+                                    controller,
+                                    account.id,
+                                    approved: false,
+                                  ),
+                            child: const Text('Từ chối'),
+                          ),
+                          FilledButton(
+                            onPressed: controller.isLoading
+                                ? null
+                                : () => _reviewPendingAccount(
+                                    controller,
+                                    account.id,
+                                    approved: true,
+                                  ),
+                            child: const Text('Duyệt'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
+          if (accounts.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('Trang chờ duyệt ${page + 1}/$pages'),
+                IconButton(
+                  tooltip: 'Trang chờ duyệt trước',
+                  onPressed: page == 0 || controller.isLoading
+                      ? null
+                      : () => setState(() => _pendingPage = page - 1),
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                IconButton(
+                  tooltip: 'Trang chờ duyệt tiếp',
+                  onPressed: page >= pages - 1 || controller.isLoading
+                      ? null
+                      : () => setState(() => _pendingPage = page + 1),
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(

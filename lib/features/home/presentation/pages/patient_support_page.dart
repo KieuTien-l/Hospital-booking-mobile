@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/themes/app_colors.dart';
 import '../widgets/patient_home_background.dart';
@@ -13,9 +14,11 @@ class PatientSupportPage extends StatefulWidget {
     super.key,
     required this.kind,
     this.answerQuestion,
+    this.contactSettingsLoader,
   });
 
   final PatientSupportKind kind;
+  final Stream<Map<String, dynamic>> Function()? contactSettingsLoader;
 
   /// An asynchronous adapter can connect the same conversation UI to an AI service.
   /// Without one, HealWay provides local application guidance.
@@ -30,6 +33,23 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
   final _chatScroll = ScrollController();
   bool _sending = false;
   String? _failedQuestion;
+  late Stream<Map<String, dynamic>> _contactSettings = _loadContactSettings();
+
+  Stream<Map<String, dynamic>> _loadContactSettings() {
+    if (widget.contactSettingsLoader != null) {
+      return widget.contactSettingsLoader!();
+    }
+    try {
+      return FirebaseFirestore.instance
+          .collection('CAU_HINH')
+          .doc('general')
+          .snapshots()
+          .map((snapshot) => snapshot.data() ?? {});
+    } catch (error) {
+      return Stream.error(error);
+    }
+  }
+
   final _messages = <_SupportMessage>[
     const _SupportMessage(
       fromPatient: false,
@@ -329,23 +349,69 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
     ],
   );
 
-  Widget _contact() => _scrollCard(
-    title: 'Kênh hỗ trợ trong HealWay',
-    icon: Icons.support_agent_outlined,
-    sections: const [
-      _SupportSection(
-        'Đặt lịch và lịch hẹn',
-        'Dùng mục Đặt khám hoặc Lịch đặt khám để tạo, xem, thay đổi hay hủy lịch.',
-      ),
-      _SupportSection(
-        'Gửi phản hồi',
-        'Dùng mục Lắng nghe khách hàng để gửi góp ý trực tiếp kèm mức đánh giá.',
-      ),
-      _SupportSection(
-        'Thông tin liên hệ chính thức',
-        'Số điện thoại và email hỗ trợ sẽ được hiển thị tại đây khi bệnh viện cấu hình dữ liệu liên hệ.',
-      ),
-    ],
+  Widget _contact() => StreamBuilder<Map<String, dynamic>>(
+    stream: _contactSettings,
+    builder: (context, snapshot) => _scrollCard(
+      title: 'Kênh hỗ trợ trong HealWay',
+      icon: Icons.support_agent_outlined,
+      sections: [
+        const _SupportSection(
+          'Đặt lịch và lịch hẹn',
+          'Dùng mục Đặt khám hoặc Lịch đặt khám để tạo, xem, thay đổi hay hủy lịch.',
+        ),
+        const _SupportSection(
+          'Gửi phản hồi',
+          'Dùng mục Lắng nghe khách hàng để gửi góp ý trực tiếp kèm mức đánh giá.',
+        ),
+        if (snapshot.hasError)
+          const _SupportSection(
+            'Chưa tải được thông tin liên hệ',
+            'Kiểm tra kết nối và thử tải lại.',
+          )
+        else if (!snapshot.hasData)
+          const _SupportSection(
+            'Thông tin liên hệ chính thức',
+            'Đang tải thông tin liên hệ…',
+          )
+        else if (snapshot.data!.entries
+            .where(
+              (e) =>
+                  const [
+                    'hospitalName',
+                    'supportPhone',
+                    'supportEmail',
+                    'address',
+                  ].contains(e.key) &&
+                  e.value is String &&
+                  (e.value as String).trim().isNotEmpty,
+            )
+            .isEmpty)
+          const _SupportSection(
+            'Thông tin liên hệ chính thức',
+            'Bệnh viện chưa cấu hình thông tin liên hệ.',
+          )
+        else
+          for (final entry in const {
+            'hospitalName': 'Cơ sở',
+            'supportPhone': 'Điện thoại hỗ trợ',
+            'supportEmail': 'Email hỗ trợ',
+            'address': 'Địa chỉ',
+          }.entries)
+            if (snapshot.data![entry.key] is String &&
+                (snapshot.data![entry.key] as String).trim().isNotEmpty)
+              _SupportSection(
+                entry.value,
+                (snapshot.data![entry.key] as String).trim(),
+              ),
+      ],
+      footer: snapshot.hasError
+          ? TextButton(
+              onPressed: () =>
+                  setState(() => _contactSettings = _loadContactSettings()),
+              child: const Text('Tải lại thông tin liên hệ'),
+            )
+          : null,
+    ),
   );
 
   Widget _policy() => _scrollCard(
@@ -390,6 +456,7 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
     required String title,
     required IconData icon,
     required List<_SupportSection> sections,
+    Widget? footer,
   }) => ListView(
     padding: const EdgeInsets.all(16),
     children: [
@@ -439,6 +506,7 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
                 ),
               ),
             ],
+            ?footer,
           ],
         ),
       ),

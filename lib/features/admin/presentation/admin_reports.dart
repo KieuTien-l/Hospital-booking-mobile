@@ -140,15 +140,10 @@ extension _AdminReports on _AdminWorkspaceState {
               adminInPeriod(r.data['appointmentDate'], range.start, range.end),
         )
         .toList();
-    final groups = <String, List<AdminRecord>>{};
-    for (final record in records) {
-      groups
-          .putIfAbsent(
-            _controller.referenceName('doctorId', record.data['doctorId']),
-            () => [],
-          )
-          .add(record);
-    }
+    final groups = adminAppointmentsByDoctor(records);
+    String doctorLabel(String id) => id.isEmpty
+        ? 'Chưa có mã bác sĩ'
+        : '${_controller.referenceName('doctorId', id)} · $id';
     int count(List<AdminRecord> values, String status) =>
         values.where((r) => r.data['status'] == status).length;
     final csvRows = <List<String>>[
@@ -163,7 +158,7 @@ extension _AdminReports on _AdminWorkspaceState {
       ],
       for (final entry in groups.entries)
         [
-          entry.key,
+          doctorLabel(entry.key),
           '${entry.value.length}',
           for (final status in [
             'PENDING',
@@ -230,7 +225,7 @@ extension _AdminReports on _AdminWorkspaceState {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          entry.key,
+                          doctorLabel(entry.key),
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             color: _blue,

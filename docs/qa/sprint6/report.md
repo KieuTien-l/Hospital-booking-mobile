@@ -1,5 +1,9 @@
 # Sprint 6 — tích hợp NgocVan và báo cáo QA
 
+> Bản bổ sung 25/10/2026: [sửa lỗi và kết quả 349 Flutter, 42 Firebase + 3 HTTP](followup-2026-10-25.md).
+> Các số liệu 344/40 bên dưới thuộc lượt QA ban đầu; xem bản bổ sung để biết
+> trạng thái mã và điều kiện phát hành APK/Rules mới nhất.
+
 > Trạng thái triển khai sau bàn giao được cập nhật tại
 > [deployment-status.md](deployment-status.md). Các kết quả kiểm thử bên dưới
 > thuộc bản mã có cùng cây source với commit GitHub `2d10fa8`.
@@ -111,11 +115,10 @@ mặc định có dịch vụ đang sử dụng; không dừng dịch vụ đó.
   Rules và Worker đã được triển khai trong lượt tiếp tục; xem trạng thái hiện tại tại
   [deployment-status.md](deployment-status.md). Lượt tiếp tục đã cài và khởi động
   APK thành công trên Pixel 7 emulator; chưa nghiệm thu trên điện thoại thật.
-- Các vấn đề đã báo ở đợt audit trước, ngoài phạm vi sửa chính lần này, vẫn cần
-  theo dõi: thống kê gộp bác sĩ trùng tên; nhật ký chưa đầy đủ ở luồng duyệt account;
-  lựa chọn ca quá hạn chỉ bị chặn khi submit; thông báo
-  rỗng kèm lỗi quyền; panel duyệt chỉ 10 mục; hoàn tiền mới tạo yêu cầu; cấu hình
-  liên hệ chưa nối đầy đủ; phân trang vẫn tải toàn bộ collection.
+- Bản bổ sung đã sửa thống kê trùng tên, audit duyệt tài khoản, chọn ca quá hạn,
+  trạng thái rỗng kèm lỗi quyền, panel duyệt 10 mục và hiển thị liên hệ.
+  Hoàn tiền thực tế và phân trang server vẫn còn giới hạn; xem
+  [bản bổ sung](followup-2026-10-25.md).
 - Đã bỏ tạo/xóa secondary Auth user trên client. UI tạo bác sĩ hiện dùng
   `adminCommand(createDoctor)` với requestId/lý do của editor, có audit và receipt;
   retry dùng cùng mã. Lỗi email không xóa tài khoản đã tạo. Có test adapter Flutter
@@ -152,4 +155,4 @@ mô hình thật, xử lý các điểm còn tồn tại trước khi kết lu�
 
 APK: `build/sprint6-handoff/HealWay-Sprint6.apk`.
 Source ZIP: `build/sprint6-handoff/HealWay-Sprint6-source.zip` (snapshot commit bàn giao).
-APK SHA-256: `F93120D5669B721B8BF87179A0D6E0A75C9B125BE6E09725112D9A6946626F69`.
+APK SHA-256: `23E985FF49A4C25A2B849A35DC09F83DED6FD078EDF9824B5D5C8D102DD25E43`.

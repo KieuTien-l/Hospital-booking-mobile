@@ -23,6 +23,51 @@ bool adminInPeriod(Object? value, DateTime start, DateTime end) {
 
 String adminStatus(Object? value) => readString(value).toUpperCase();
 
+/// IDs remain separate even when two doctors share a display name.
+Map<String, List<AdminRecord>> adminAppointmentsByDoctor(
+  Iterable<AdminRecord> records,
+) {
+  final groups = <String, List<AdminRecord>>{};
+  for (final record in records) {
+    groups
+        .putIfAbsent(readReferenceId(record.data['doctorId']), () => [])
+        .add(record);
+  }
+  return groups;
+}
+
+bool adminCanBookSlot(
+  AdminRecord slot,
+  AdminRecord schedule, {
+  required DateTime now,
+}) {
+  final data = slot.data;
+  final date = adminVietnamDate(schedule.data['workDate']);
+  final time = readString(data['startTime']);
+  if (date == null ||
+      !RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(time) ||
+      data['status'] != 'AVAILABLE' ||
+      schedule.data['status'] != 'ACTIVE' ||
+      readReferenceId(data['workScheduleId']) != schedule.id ||
+      readReferenceId(data['doctorId']).isEmpty ||
+      readReferenceId(data['doctorId']) !=
+          readReferenceId(schedule.data['doctorId']) ||
+      data['capacity'] is! num ||
+      data['bookedCount'] is! num ||
+      readInt(data['capacity']) <= readInt(data['bookedCount'])) {
+    return false;
+  }
+  final parts = time.split(':');
+  final start = DateTime.utc(
+    date.year,
+    date.month,
+    date.day,
+    int.parse(parts[0]),
+    int.parse(parts[1]),
+  ).subtract(const Duration(hours: 7));
+  return start.isAfter(now.toUtc());
+}
+
 /// Revenue requires a successful status, an actual paidAt and a valid amount.
 /// createdAt is deliberately not used as a substitute for payment time.
 double adminCollectedTotal(

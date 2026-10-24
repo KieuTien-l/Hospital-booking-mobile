@@ -6,7 +6,7 @@ import { initializeApp, deleteApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { executeAdminCommand } from '../../src/commands.js';
 
 if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) throw new Error('Local emulators required.');
@@ -164,13 +164,65 @@ test('ADM-18: backend review uses authenticated admin, replies and server time; 
   await assert.rejects(command('admin2', { status: 'REJECTED', adminResponse: 'Duyệt lần hai' }));
 });
 
+const accountReview = (firestore, accountId, actorId, approved, extra = {}) => {
+  const status = approved ? 'APPROVED' : 'REJECTED';
+  const batch = writeBatch(firestore);
+  batch.update(doc(firestore, 'TAI_KHOAN', accountId), { status, isActive: approved, updatedAt: serverTimestamp() });
+  batch.set(doc(firestore, 'NHAT_KY_ADMIN', `account-review-${accountId}`), {
+    actorId, targetCollection: 'TAI_KHOAN', targetId: accountId, action: 'reviewAccount',
+    reason: status, before: { status: 'PENDING', isActive: false },
+    after: { status, isActive: approved }, createdAt: serverTimestamp(), ...extra,
+  });
+  return batch.commit();
+};
+
 test('ADM-20: only admin reviews pending patients; clients cannot elevate roles', async () => {
   await db.collection('TAI_KHOAN').doc('pending').set({ role: 'patient', isActive: false, status: 'PENDING', email: 'pending@example.com', fullName: 'Chờ duyệt', phone: '' });
   await assertSucceeds(getDocs(query(collection(client('admin'), 'TAI_KHOAN'), where('status', '==', 'PENDING'))));
   await assertFails(getDocs(collection(client('patient'), 'TAI_KHOAN')));
   await assertFails(updateDoc(doc(client('patient'), 'TAI_KHOAN', 'patient'), { role: 'admin' }));
   await assertFails(updateDoc(doc(client('pending'), 'TAI_KHOAN', 'pending'), { status: 'APPROVED', isActive: true }));
-  await assertSucceeds(updateDoc(doc(client('admin'), 'TAI_KHOAN', 'pending'), { status: 'APPROVED', isActive: true, updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(client('admin'), 'TAI_KHOAN', 'pending'), { status: 'APPROVED', isActive: true, updatedAt: serverTimestamp() }));
+  await assertSucceeds(accountReview(client('admin'), 'pending', 'admin', true));
   await assertFails(updateDoc(doc(client('admin'), 'TAI_KHOAN', 'pending'), { role: 'admin' }));
   await assertFails(updateDoc(doc(client('locked'), 'TAI_KHOAN', 'patient'), { role: 'admin' }));
+});
+
+test('ADM-20: account approval audit is atomic, immutable and cannot forge actor or time', async () => {
+  const seedPending = async () => db.collection('TAI_KHOAN').doc('pending').set({
+    role: 'patient', isActive: false, status: 'PENDING', email: 'pending@example.com', fullName: 'Chờ duyệt', phone: '',
+  });
+  await seedPending();
+  for (const [uid, actor, extra] of [
+    ['patient', 'patient', {}], ['locked', 'locked', {}], ['admin', 'admin2', {}],
+    ['admin', 'admin', { createdAt: new Date(0) }],
+    ['admin', 'admin', { before: { status: 'PENDING', isActive: true } }],
+    ['admin', 'admin', { after: { status: 'APPROVED', isActive: true } }],
+  ]) {
+    await assertFails(accountReview(client(uid), 'pending', actor, false, extra));
+    assert.equal((await db.collection('TAI_KHOAN').doc('pending').get()).data().status, 'PENDING');
+    assert.equal((await db.collection('NHAT_KY_ADMIN').get()).size, 0);
+  }
+  await assertSucceeds(accountReview(client('admin'), 'pending', 'admin', false));
+  const audit = doc(client('admin'), 'NHAT_KY_ADMIN', 'account-review-pending');
+  assert.equal((await assertSucceeds(getDoc(audit))).data().actorId, 'admin');
+  await assertFails(updateDoc(audit, { actorId: 'admin2' }));
+  await assertFails(deleteDoc(audit));
+  await assertFails(getDoc(doc(client('patient'), 'NHAT_KY_ADMIN', 'account-review-pending')));
+  await assertFails(accountReview(client('admin2'), 'pending', 'admin2', true));
+});
+
+test('support settings: active users get only general config and cannot list or write settings', async () => {
+  await db.collection('CAU_HINH').doc('general').set({ hospitalName: 'Cơ sở thử nghiệm', supportPhone: '0123456789', supportEmail: 'qa@example.com' });
+  await db.collection('CAU_HINH').doc('internal').set({ internalFlag: true });
+  for (const uid of ['patient', 'doctor', 'admin']) {
+    await assertSucceeds(getDoc(doc(client(uid), 'CAU_HINH', 'general')));
+  }
+  for (const firestore of [client('patient'), client('doctor'), client('locked'), env.unauthenticatedContext().firestore()]) {
+    await assertFails(getDocs(collection(firestore, 'CAU_HINH')));
+    await assertFails(getDoc(doc(firestore, 'CAU_HINH', 'internal')));
+    await assertFails(updateDoc(doc(firestore, 'CAU_HINH', 'general'), { supportPhone: 'fake' }));
+  }
+  await assertFails(getDoc(doc(client('locked'), 'CAU_HINH', 'general')));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'CAU_HINH', 'general')));
 });

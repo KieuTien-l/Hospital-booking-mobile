@@ -7,7 +7,7 @@ import { AdminError } from './policy.js';
 
 initializeApp();
 export const adminCommand = onCall({ region: 'asia-southeast1', timeoutSeconds: 60, maxInstances: 5 }, async (request) => {
-  if (!request.auth) throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập.');
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập.');
   try {
     return await executeAdminCommand(getFirestore(), getAuth(), request.auth.uid, request.data);
   } catch (error) {

@@ -44,7 +44,9 @@ void main() {
     _Repository repository, {
     double textScale = 1,
   }) async {
-    if (const bool.fromEnvironment('SPRINT6_CAPTURE')) {
+    // Layout must use the shipped font in ordinary runs as well as screenshots.
+    // Flutter's placeholder font can push long bubbles outside the scroll test.
+    {
       await tester.runAsync(() async {
         await (FontLoader('BeVietnamPro')..addFont(
               rootBundle.load(

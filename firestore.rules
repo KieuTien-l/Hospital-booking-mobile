@@ -440,7 +440,9 @@ service cloud.firestore {
 
     // Approval is a one-way review of a self-registered patient account. The
     // reviewer never receives permission to modify the role or profile fields.
-    function canReviewPendingAccount() {
+    function canReviewPendingAccount(accountId) {
+      let auditPath = /databases/$(database)/documents/NHAT_KY_ADMIN/$('account-review-' + accountId);
+      let audit = getAfter(auditPath).data;
       return isAdmin() &&
           resource.data.status == 'PENDING' &&
           request.resource.data.role == resource.data.role &&
@@ -449,6 +451,10 @@ service cloud.firestore {
           request.resource.data.phone == resource.data.phone &&
           request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['status', 'isActive', 'updatedAt']) &&
+          request.resource.data.updatedAt == request.time &&
+          !exists(auditPath) &&
+          audit.actorId == request.auth.uid && audit.targetId == accountId &&
+          audit.action == 'reviewAccount' && audit.createdAt == request.time &&
           ((request.resource.data.status == 'APPROVED' &&
               request.resource.data.isActive == true) ||
               (request.resource.data.status == 'REJECTED' &&
@@ -475,7 +481,7 @@ service cloud.firestore {
             request.resource.data.status == 'ACTIVE' &&
             request.resource.data.isActive == true
           );
-      allow update: if canReviewPendingAccount() ||
+      allow update: if canReviewPendingAccount(accountId) ||
           (signedIn() &&
               request.auth.uid == accountId &&
               resource.data.role == 'patient' &&
@@ -485,6 +491,32 @@ service cloud.firestore {
               request.resource.data.diff(resource.data).affectedKeys()
                   .hasOnly(['email', 'fullName', 'phone', 'updatedAt']));
       allow delete: if false;
+    }
+
+    // A client review log is immutable and can only accompany the matching
+    // pending-account transition. Other admin audit writes remain server-only.
+    match /NHAT_KY_ADMIN/{auditId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && validAccountReviewAudit(auditId);
+      allow update, delete: if false;
+    }
+
+    function validAccountReviewAudit(auditId) {
+      let d = request.resource.data;
+      let target = /databases/$(database)/documents/TAI_KHOAN/$(d.targetId);
+      let before = get(target).data;
+      let after = getAfter(target).data;
+      return d.keys().hasOnly(['actorId', 'targetCollection', 'targetId', 'action', 'reason', 'before', 'after', 'createdAt']) &&
+          auditId == 'account-review-' + d.targetId &&
+          d.targetCollection == 'TAI_KHOAN' && d.action == 'reviewAccount' &&
+          d.actorId == request.auth.uid && d.createdAt == request.time &&
+          before.status == 'PENDING' &&
+          after.status in ['APPROVED', 'REJECTED'] &&
+          after.isActive == (after.status == 'APPROVED') &&
+          after.updatedAt == request.time &&
+          d.reason == after.status &&
+          d.before == {'status': before.status, 'isActive': before.isActive} &&
+          d.after == {'status': after.status, 'isActive': after.isActive};
     }
 
     match /CHUYEN_KHOA/{specialtyId} {
@@ -703,6 +735,12 @@ service cloud.firestore {
 
     // Additional read-only datasets used by the administrator workspace.
     // Mutations are processed by the trusted adminCommand Cloud Function.
+    match /CAU_HINH/{configId} {
+      // Only the support/defaults document is visible to signed-in active users.
+      // Queries and every other configuration document remain admin-only.
+      allow get: if configId == 'general' && hasActiveAccount();
+    }
+
     match /{collection}/{recordId} {
       allow read: if collection in [
             'CAU_HINH',

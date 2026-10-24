@@ -3,6 +3,11 @@
 Cập nhật 25/10/2026 (Asia/Saigon). Đây là phần tiếp tục sau bộ QA tự động;
 các probe và phiên Android ghi thời gian UTC trong evidence.
 
+> Bản sửa bổ sung hiện **chỉ kiểm thử tự động/emulator** theo lựa chọn người dùng.
+> [Chi tiết và bằng chứng mới](followup-2026-10-25.md): 349 Flutter, 42 Firebase
+> và 3 Functions HTTP đạt. Rules bổ sung chưa triển khai production; APK mới cần
+> Rules cùng phiên bản cho audit duyệt tài khoản và trang liên hệ.
+
 | Hạng mục | Kết quả thực tế |
 | --- | --- |
 | GitHub `NgocVan` | Đã tích hợp mã qua kết nối GitHub, commit `2d10fa8e4f2572ecdd2a092a772b7f0312c519f4`. Báo cáo và evidence triển khai được bổ sung trong commit kế tiếp. |
@@ -49,8 +54,8 @@ Evidence: [deploy log](evidence/cloudflare-deploy.txt),
 
 ## Cài và mở APK trên Android emulator
 
-- Dùng riêng `emulator-5580`, AVD Pixel_7 với `-read-only`, không tải/lưu snapshot.
-- ADB install trả `Success`; `am start -W` trả `Status: ok`, cold start 5083 ms.
+- Bản APK bổ sung dùng riêng `emulator-5582`, AVD Pixel_7 với `-read-only`, không tải/lưu snapshot.
+- ADB install trả `Success`; `am start -W` trả `Status: ok`, cold start 4150 ms.
 - Đã xóa dữ liệu riêng của app trong phiên tạm trước khi mở, không dùng tài khoản cũ.
 - Đối chiếu APK SHA-256 với bản đã build/test; thấy màn đăng nhập HealWay,
   process còn hoạt động, không có log `FATAL EXCEPTION`/`Unhandled Exception`.

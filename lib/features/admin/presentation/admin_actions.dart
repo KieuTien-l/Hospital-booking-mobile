@@ -27,6 +27,7 @@ extension _AdminActions on _AdminWorkspaceState {
 
   Map<String, String> get _slotOptions {
     final result = <String, String>{};
+    final now = DateTime.now();
     for (final slot in _controller.dataset('CA_KHAM').records) {
       if (slot.data['status'] != 'AVAILABLE' ||
           slot.data['capacity'] is! num ||
@@ -35,8 +36,7 @@ extension _AdminActions on _AdminWorkspaceState {
         continue;
       }
       for (final schedule in _controller.dataset('LICH_LAM_VIEC').records) {
-        if (schedule.id != readReferenceId(slot.data['workScheduleId']) ||
-            schedule.data['status'] != 'ACTIVE') {
+        if (!adminCanBookSlot(slot, schedule, now: now)) {
           continue;
         }
         final date = adminVietnamDate(schedule.data['workDate']);

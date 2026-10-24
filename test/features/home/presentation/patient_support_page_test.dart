@@ -9,6 +9,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_4/features/home/presentation/pages/patient_support_page.dart';
 
 void main() {
+  testWidgets(
+    'contact reads configured fields and distinguishes failure from missing data',
+    (tester) async {
+      final stream = StreamController<Map<String, dynamic>>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PatientSupportPage(
+            kind: PatientSupportKind.contact,
+            contactSettingsLoader: () => stream.stream,
+          ),
+        ),
+      );
+      expect(find.text('Đang tải thông tin liên hệ…'), findsOneWidget);
+      stream.add({
+        'hospitalName': 'Cơ sở thử nghiệm',
+        'supportPhone': '0123456789',
+        'supportEmail': 'qa@example.com',
+        'privateNote': 'hidden',
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('0123456789'), findsOneWidget);
+      expect(find.text('qa@example.com'), findsOneWidget);
+      expect(find.text('hidden'), findsNothing);
+      stream.addError(StateError('offline'));
+      await tester.pumpAndSettle();
+      expect(find.text('Chưa tải được thông tin liên hệ'), findsOneWidget);
+      expect(
+        find.text('Bệnh viện chưa cấu hình thông tin liên hệ.'),
+        findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox());
+      await tester.runAsync(stream.close);
+    },
+  );
+
   Future<void> capture(WidgetTester tester, String name) async {
     if (!const bool.fromEnvironment('ADMIN_CAPTURE')) return;
     await tester.runAsync(() async {

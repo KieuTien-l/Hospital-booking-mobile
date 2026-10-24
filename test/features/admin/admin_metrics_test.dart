@@ -4,6 +4,59 @@ import 'package:flutter_application_4/features/admin/presentation/admin_metrics.
 
 void main() {
   test(
+    'doctor reports keep different ids separate even with the same name',
+    () {
+      final groups = adminAppointmentsByDoctor([
+        const AdminRecord('one', {
+          'doctorId': 'doctor-a',
+          'doctorName': 'Nguyễn An',
+        }),
+        const AdminRecord('two', {
+          'doctorId': 'doctor-b',
+          'doctorName': 'Nguyễn An',
+        }),
+        const AdminRecord('three', {'doctorId': 'doctor-a'}),
+      ]);
+      expect(groups['doctor-a']!.map((r) => r.id), ['one', 'three']);
+      expect(groups['doctor-b']!.single.id, 'two');
+    },
+  );
+
+  test('booking options exclude elapsed, full and mismatched slots in Vietnam time', () {
+    final now = DateTime.utc(2026, 10, 26, 1); // 08:00 in Vietnam.
+    final schedule = AdminRecord('schedule', {
+      'workDate': DateTime.utc(2026, 10, 25, 17),
+      'doctorId': 'doctor',
+      'status': 'ACTIVE',
+    });
+    final data = <String, dynamic>{
+      'workScheduleId': 'schedule',
+      'doctorId': 'doctor',
+      'status': 'AVAILABLE',
+      'capacity': 5,
+      'bookedCount': 1,
+      'startTime': '08:01',
+    };
+    bool allowed(Map<String, dynamic> change) => adminCanBookSlot(
+      AdminRecord('slot', {...data, ...change}),
+      schedule,
+      now: now,
+    );
+    expect(allowed({}), isTrue);
+    for (final change in [
+      {'startTime': '08:00'},
+      {'startTime': '07:59'},
+      {'startTime': 'bad'},
+      {'bookedCount': 5},
+      {'doctorId': 'other'},
+      {'workScheduleId': 'other'},
+      {'status': 'CANCELLED'},
+    ]) {
+      expect(allowed(change), isFalse, reason: '$change');
+    }
+  });
+
+  test(
     'Vietnam calendar periods include both edges and exclude missing dates',
     () {
       final day = DateTime.utc(2026, 10, 21);

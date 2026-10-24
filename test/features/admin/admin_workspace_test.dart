@@ -7,6 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_application_4/features/admin/domain/repositories/admin_account_repository.dart';
+import 'package:flutter_application_4/features/admin/presentation/controllers/admin_account_controller.dart';
+import 'package:flutter_application_4/features/auth/data/models/user_model.dart';
+import 'package:flutter_application_4/features/auth/domain/entities/user_entity.dart';
 import 'package:flutter_application_4/core/themes/app_theme.dart';
 import 'package:flutter_application_4/features/admin/data/admin_repository.dart';
 import 'package:flutter_application_4/features/admin/data/admin_commands.dart';
@@ -80,6 +85,12 @@ class _Repository implements AdminRepository {
   }
 }
 
+class _PendingAccounts extends Fake implements AdminAccountRepository {
+  final pending = StreamController<List<UserModel>>.broadcast();
+  @override
+  Stream<List<UserModel>> watchPendingAccounts() => pending.stream;
+}
+
 void main() {
   Future<void> capture(WidgetTester tester, String name) async {
     if (!const bool.fromEnvironment('ADMIN_CAPTURE')) return;
@@ -140,6 +151,7 @@ void main() {
     Size size, {
     AdminCommands? commands,
     DoctorAccountProvisioner? doctorProvisioner,
+    AdminAccountController? accountController,
   }) async {
     await tester.runAsync(() async {
       final font = FontLoader('BeVietnamPro')
@@ -159,15 +171,18 @@ void main() {
     await tester.pumpWidget(
       RepaintBoundary(
         key: const ValueKey('capture'),
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          home: AdminWorkspace(
-            userName: 'Admin',
-            onLogout: () {},
-            repository: repository,
-            commands: commands,
-            doctorProvisioner: doctorProvisioner,
+        child: ChangeNotifierProvider<AdminAccountController?>.value(
+          value: accountController,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            home: AdminWorkspace(
+              userName: 'Admin',
+              onLogout: () {},
+              repository: repository,
+              commands: commands,
+              doctorProvisioner: doctorProvisioner,
+            ),
           ),
         ),
       ),
@@ -190,6 +205,74 @@ void main() {
       await tester.pumpAndSettle();
     }
   }
+
+  testWidgets(
+    'pending accounts can reach page two and errors never claim an empty list',
+    (tester) async {
+      final repository = _Repository();
+      final accounts = _PendingAccounts();
+      final controller = AdminAccountController(accounts);
+      await controller.loadPendingAccounts();
+      await pumpWorkspace(
+        tester,
+        repository,
+        const Size(1440, 1000),
+        accountController: controller,
+      );
+      repository.emit('TAI_KHOAN', [
+        const AdminRecord('admin', {'role': 'admin', 'fullName': 'Admin'}),
+      ]);
+      accounts.pending.add(
+        List.generate(
+          11,
+          (i) => UserModel(
+            id: 'pending-$i',
+            email: 'pending-$i@example.com',
+            fullName: 'Pending $i',
+            phone: '',
+            role: UserRole.patient,
+            isActive: false,
+            status: 'PENDING',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.widgetWithText(ListTile, 'Tài khoản'),
+        250,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView).first,
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.widgetWithText(ListTile, 'Tài khoản'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pending 10'), findsNothing);
+      await tester.ensureVisible(find.byTooltip('Trang chờ duyệt tiếp'));
+      await tester.tap(find.byTooltip('Trang chờ duyệt tiếp'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pending 10'), findsOneWidget);
+      expect(find.text('Trang chờ duyệt 2/2'), findsOneWidget);
+      tester.view.physicalSize = const Size(320, 780);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      accounts.pending.addError(
+        FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Không có tài khoản nào đang chờ duyệt.'), findsNothing);
+      expect(
+        find.text('Chưa xác định được danh sách chờ duyệt'),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox());
+      controller.dispose();
+      await accounts.pending.close();
+      await repository.close();
+    },
+  );
 
   testWidgets(
     'desktop searches real records, filters status and opens details',

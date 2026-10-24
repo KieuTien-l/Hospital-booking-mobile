@@ -1,0 +1,364 @@
+i  emulators: Starting emulators: auth, functions, firestore
+i  emulators: Detected demo project ID "demo-healway-admin", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
++  firestore: Firestore Emulator UI websocket is running on 65107.
+i  functions: Watching "C:\Users\acer\Hospital-booking-mobile\functions" for Cloud Functions...
+!  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+!  functions: Please note that there will be breaking changes when you upgrade.
+!  functions: Your requested "node" version "22" doesn't match your global version "24". Using node@24 from host.
+Serving at port 8586
+
++  functions: Loaded functions definitions from source: adminCommand.
++  functions[asia-southeast1-adminCommand]: http function initialized (http://127.0.0.1:65108/demo-healway-admin/asia-southeast1/adminCommand).
+i  Running script: node --test functions/test/*.test.js functions/test/emulator/*.test.js test/firestore_rules.test.mjs && node --test functions/test/http/*.test.js
+✔ ADM-20: legacy accountKey profiles can be edited but their account role cannot change (4072.3351ms)
+✔ regression: re-enabling an overlapping schedule is rejected (182.0636ms)
+✔ regression: editing a cancelled slot preserves its cancellation (234.2501ms)
+✔ regression: requests prevent deleting their schedule or doctor (306.907ms)
+✔ non-admin, locked admin and stale writes are rejected (195.1938ms)
+✔ doctor provisioning creates linked identities without touching admin, retries are idempotent (373.719ms)
+✔ failed doctor profile commit rolls Auth user back; lost commit acknowledgement never deletes a valid user (394.8191ms)
+✔ concurrent booking cannot overbook and exact retries do not duplicate notifications (3574.4485ms)
+✔ cancel returns exactly the group size and keeps locked slots locked (694.4848ms)
+✔ rescheduling is all-or-nothing and cannot move a completed appointment (611.9359ms)
+✔ admin booking, cancellation and rescheduling preserve reservations created by patient flow (541.7539ms)
+✔ referenced records cannot be deleted, appointments cannot be deleted at all (640.6928ms)
+✔ schedule creation generates slots, checks overlap, and cannot edit a booked schedule (499.9138ms)
+✔ unused schedule deletion removes only its unused generated slots and keeps an audit archive (274.5587ms)
+[2026-10-24T17:56:42.549Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3aa8f5bf error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L649:24 for 'create' @ L649, false for 'create' @ L752, evaluation error at L656:32 for 'update' @ L656, false for 'update' @ L752, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "BENH_NHAN"
+  }
+  segments {
+    simple: "someone-else"
+  }
+}
+]. for 'create' @ L649, false for 'create' @ L752
+[2026-10-24T17:56:42.704Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3aa8f5c1 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L656:32 for 'update' @ L656, false for 'update' @ L752, false for 'update' @ L656, false for 'update' @ L752
+✔ patient feedback transaction is idempotent, cannot impersonate another patient, and receives admin response (320.9469ms)
+[2026-10-24T17:56:42.769Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3aa8f5c2 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L545:24 for 'update' @ L545, false for 'update' @ L752, false for 'update' @ L545, false for 'update' @ L752
+[2026-10-24T17:56:42.795Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3aa8f5c3 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:42.861Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3aa8f5c6 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L466, false for 'create' @ L752, evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'create' @ L466, false for 'create' @ L752
+[2026-10-24T17:56:42.894Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3aa8f5c7 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L466:24 for 'create' @ L466, false for 'create' @ L752, evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'create' @ L466, false for 'create' @ L752
+✔ doctor edits require admin, patient registration requires approval and existing patient profile edits remain allowed (177.5812ms)
+✔ internal notes stay outside appointments and cannot be read by doctors or patients (275.4797ms)
+[2026-10-24T17:56:43.435Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3aa8f5cb error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L675:24 for 'update' @ L675, false for 'update' @ L752, false for 'update' @ L675, false for 'update' @ L752
+✔ notification preview/draft is private; send is immutable and patient can only mark read (361.9631ms)
+✔ account guards prevent self-lock and linked-role changes; stopping bookings does not lock doctor access (392.0573ms)
+✔ review/refund requests cannot fake settlement and duplicate refunds are rejected (264.9754ms)
+[2026-10-24T17:56:33.518Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x307901fd error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:33.621Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x307901ff error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:33.814Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790203 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:33.860Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790204 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:33.897Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790205 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:33.941Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790206 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:33.985Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790207 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:34.022Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790208 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:34.067Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790209 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:34.111Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079020a error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752
+[2026-10-24T17:56:34.160Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079020b error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+[2026-10-24T17:56:34.187Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079020c error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L733, false for 'update' @ L752
+[2026-10-24T17:56:34.220Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079020d error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L733, false for 'delete' @ L752
+[2026-10-24T17:56:34.317Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079020f error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L715:24 for 'create' @ L715, false for 'create' @ L752, false for 'update' @ L733, false for 'update' @ L752, false for 'create' @ L715, false for 'create' @ L752
+✔ AI-06/12: transcript ownership, schema, timestamps and immutable records (4522.6921ms)
+✔ ADM-02/05/08: admin queries real collections, empty data and revoked permissions (508.2486ms)
+[2026-10-24T17:56:34.982Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079021d error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L524:32 for 'update' @ L524, false for 'update' @ L752, false for 'update' @ L524, false for 'update' @ L752
+[2026-10-24T17:56:35.009Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079021e error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L524:32 for 'update' @ L524, false for 'update' @ L752, false for 'update' @ L524, false for 'update' @ L752
+[2026-10-24T17:56:35.068Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790220 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L545:24 for 'update' @ L545, false for 'update' @ L752, false for 'update' @ L545, false for 'update' @ L752
+[2026-10-24T17:56:35.110Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790221 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L545:24 for 'update' @ L545, false for 'update' @ L752, false for 'update' @ L545, false for 'update' @ L752
+[2026-10-24T17:56:35.145Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790222 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L545:24 for 'update' @ L545, false for 'update' @ L752, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "CHUYEN_KHOA"
+  }
+  segments {
+    simple: "missing"
+  }
+}
+]. for 'update' @ L545, false for 'update' @ L752
+✔ ADM-08/05: specialty and doctor writes respect schema and privilege (316.6663ms)
+[2026-10-24T17:56:35.301Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790225 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L584, false for 'create' @ L752, false for 'update' @ L586, false for 'update' @ L752
+[2026-10-24T17:56:35.327Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790226 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L584, false for 'create' @ L752, false for 'update' @ L586, false for 'update' @ L752
+[2026-10-24T17:56:35.349Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790227 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L584, false for 'create' @ L752, false for 'update' @ L586, false for 'update' @ L752
+[2026-10-24T17:56:35.371Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790228 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L584, false for 'create' @ L752, false for 'update' @ L586, false for 'update' @ L752
+[2026-10-24T17:56:35.390Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790229 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L584, false for 'create' @ L752, false for 'update' @ L586, false for 'update' @ L752
+[2026-10-24T17:56:35.421Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079022a error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L584:24 for 'create' @ L584, false for 'create' @ L752, evaluation error at L586:24 for 'update' @ L586, false for 'update' @ L752, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "BAC_SI"
+  }
+  segments {
+    simple: "missing"
+  }
+}
+]. for 'create' @ L584, false for 'create' @ L752
+[2026-10-24T17:56:35.483Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079022c error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L594:24 for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.506Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079022d error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L594:24 for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.533Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079022e error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.564Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079022f error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.598Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790230 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.630Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790231 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.663Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790232 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.702Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790233 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L594:24 for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, false for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.746Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790234 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L594:24 for 'create' @ L594, false for 'create' @ L752, evaluation error at L597:24 for 'update' @ L597, false for 'update' @ L752, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "LICH_LAM_VIEC"
+  }
+  segments {
+    simple: "missing"
+  }
+}
+]. for 'create' @ L594, false for 'create' @ L752
+[2026-10-24T17:56:35.789Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790235 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L597:24 for 'update' @ L597, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L752, Property appointmentId is undefined on object. for 'update' @ L597, false for 'update' @ L752
+[2026-10-24T17:56:35.817Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790236 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L597:24 for 'update' @ L597, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L752, Property appointmentId is undefined on object. for 'update' @ L597, false for 'update' @ L752
+[2026-10-24T17:56:35.840Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790237 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L597:24 for 'update' @ L597, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L752, false for 'update' @ L597, false for 'update' @ L752
+[2026-10-24T17:56:35.863Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790238 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L597:24 for 'update' @ L597, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L752, false for 'update' @ L597, false for 'update' @ L752
+[2026-10-24T17:56:35.888Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790239 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L597:24 for 'update' @ L597, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L752, false for 'update' @ L597, false for 'update' @ L752
+[2026-10-24T17:56:35.913Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079023a error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L608:24 for 'delete' @ L608, false for 'delete' @ L752, false for 'delete' @ L608, false for 'delete' @ L752
+✔ ADM-12: schedules and slots reject bad ranges, missing parents and counter tampering (767.8976ms)
+[2026-10-24T17:56:36.173Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790241 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L615:24 for 'update' @ L615, false for 'update' @ L752, false for 'update' @ L615, false for 'update' @ L752
+✔ ADM-15: scoped appointment queries succeed; broad or foreign reads fail (259.7152ms)
+✔ ADM-15: an inactive doctor profile cannot read appointments even with an active login (71.99ms)
+[2026-10-24T17:56:36.356Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790245 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L688:24 for 'create' @ L688, false for 'create' @ L752, false for 'update' @ L706, false for 'update' @ L752, false for 'create' @ L688, false for 'create' @ L752
+[2026-10-24T17:56:36.373Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790246 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L688:24 for 'create' @ L688, false for 'create' @ L752, false for 'update' @ L706, false for 'update' @ L752, false for 'create' @ L688, false for 'create' @ L752
+[2026-10-24T17:56:36.396Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790247 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L688:24 for 'create' @ L688, false for 'create' @ L752, false for 'update' @ L706, false for 'update' @ L752, false for 'create' @ L688, false for 'create' @ L752
+[2026-10-24T17:56:36.412Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790248 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L688:24 for 'create' @ L688, false for 'create' @ L752, false for 'update' @ L706, false for 'update' @ L752, false for 'create' @ L688, false for 'create' @ L752
+[2026-10-24T17:56:36.443Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790249 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L688:24 for 'create' @ L688, false for 'create' @ L752, false for 'update' @ L706, false for 'update' @ L752, false for 'create' @ L688, false for 'create' @ L752
+[2026-10-24T17:56:36.462Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079024a error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L688:24 for 'create' @ L688, false for 'create' @ L752, false for 'update' @ L706, false for 'update' @ L752, false for 'create' @ L688, false for 'create' @ L752
+[2026-10-24T17:56:36.490Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079024b error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L688:24 for 'create' @ L688, false for 'create' @ L752, false for 'update' @ L706, false for 'update' @ L752, false for 'create' @ L688, false for 'create' @ L752
+[2026-10-24T17:56:36.563Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790244 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L706, false for 'update' @ L752
+[2026-10-24T17:56:36.583Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079024e error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L706, false for 'update' @ L752
+✔ ADM-18: request stores verified sender and rejects forged or edited submissions (337.7418ms)
+✔ ADM-18: backend review uses authenticated admin, replies and server time; exact retry is idempotent (305.9534ms)
+[2026-10-24T17:56:37.009Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790252 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:37.026Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790253 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:37.049Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790254 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, Service call error. Function: [getAfter], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "NHAT_KY_ADMIN"
+  }
+  segments {
+    simple: "account-review-pending"
+  }
+}
+]. for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:37.088Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790256 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:37.113Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790257 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+✔ ADM-20: only admin reviews pending patients; clients cannot elevate roles (223.9664ms)
+[2026-10-24T17:56:37.205Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790258 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, evaluation error at L500:24 for 'create' @ L500, false for 'create' @ L752, false for 'update' @ L501, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:37.257Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790259 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, evaluation error at L500:24 for 'create' @ L500, false for 'create' @ L752, false for 'update' @ L501, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:37.286Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079025a error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, evaluation error at L500:24 for 'create' @ L500, false for 'create' @ L752, false for 'update' @ L501, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+[2026-10-24T17:56:37.333Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079025b error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, false for 'create' @ L500, false for 'create' @ L752, false for 'update' @ L501, false for 'update' @ L752
+[2026-10-24T17:56:37.387Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079025c error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, evaluation error at L500:24 for 'create' @ L500, false for 'create' @ L752, false for 'update' @ L501, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752, false for 'create' @ L500, false for 'create' @ L752
+[2026-10-24T17:56:37.456Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079025d error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, evaluation error at L500:24 for 'create' @ L500, false for 'create' @ L752, false for 'update' @ L501, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752, false for 'create' @ L500, false for 'create' @ L752
+[2026-10-24T17:56:37.537Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790260 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L501, false for 'update' @ L752
+[2026-10-24T17:56:37.548Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790261 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L501, false for 'delete' @ L752
+[2026-10-24T17:56:37.599Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790263 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L484:24 for 'update' @ L484, false for 'update' @ L752, evaluation error at L500:24 for 'create' @ L500, false for 'create' @ L752, false for 'update' @ L501, false for 'update' @ L752, false for 'update' @ L484, false for 'update' @ L752
+✔ ADM-20: account approval audit is atomic, immutable and cannot forge actor or time (486.0746ms)
+[2026-10-24T17:56:37.791Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x30790268 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L752
+[2026-10-24T17:56:37.829Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079026a error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L752
+[2026-10-24T17:56:37.902Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079026c error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L752
+[2026-10-24T17:56:37.980Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x3079026e error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L752
+✔ support settings: active users get only general config and cannot list or write settings (445.4834ms)
+✔ work schedules reject invalid times, Sundays and Saturday afternoons (3.2634ms)
+✔ capacity changes preserve locks and reject underflow, overflow or missing counters (1.8864ms)
+✔ administrative transitions cannot fake completion or reopen terminal appointments (1.2906ms)
+✔ doctor profile whitelist keeps login ownership and role out of editable fields (0.635ms)
+✔ patient reads only their own appointment and notification (4168.6029ms)
+[2026-10-24T17:56:33.773Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x6385ea91 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L675:24 for 'update' @ L675, false for 'update' @ L752, false for 'update' @ L675, false for 'update' @ L752
+✔ patient can mark only their own THONG_BAO notification as read (223.3751ms)
+✔ doctor accesses appointments assigned to their doctor profile only (193.2845ms)
+✔ admin can read every appointment (98.0396ms)
+[2026-10-24T17:56:34.238Z]  @firebase/firestore: Firestore (13.0.0): GrpcConnection RPC 'Write' stream 0x6385ea98 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L584:24 for 'create' @ L584, false for 'create' @ L752, evaluation error at L586:24 for 'update' @ L586, false for 'update' @ L752, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "BAC_SI"
+  }
+  segments {
+    simple: "missing-doctor"
+  }
+}
+]. for 'create' @ L584, false for 'create' @ L752
+✔ admin cannot save a schedule for a missing doctor (172.5524ms)
+✔ admin can save a schedule for an active doctor (117.8413ms)
+✔ anonymous users cannot access protected appointment data (76.755ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15260.9444
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"MISSING"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 13.3541ms
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 3.4415ms
+✔ HTTP callable rejects absent and malformed authentication (2032.8673ms)
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 106.6925ms
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 11.8816ms
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 11.2289ms
+✔ HTTP callable denies patient, doctor and inactive admin tokens (139.793ms)
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 65.7405ms
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 65.9769ms
+i  functions: Beginning execution of "asia-southeast1-adminCommand"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "asia-southeast1-adminCommand" in 59.4248ms
+✔ HTTP admin mutation and retry share one receipt and audit; changed input is rejected (233.5646ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3610.98
++  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  functions: Stopping Functions Emulator
+i  firestore: Stopping Firestore Emulator
+!  Firestore Emulator has exited upon receiving signal: SIGINT
+i  auth: Stopping Authentication Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

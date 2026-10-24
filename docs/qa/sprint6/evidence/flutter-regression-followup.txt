@@ -1,0 +1,351 @@
+00:00 +0: loading C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_commands_test.dart
+00:00 +0: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_commands_test.dart: admin gateway sends a verified token and preserves idempotency key without signing in another user
+00:00 +1: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_commands_test.dart: missing auth, permission errors and undeployed backend never report success
+00:00 +2: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_commands_test.dart: uncertain requests and failed invitation keep separate truthful error states
+00:00 +3: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_doctor_provisioner_test.dart: ADM-20: production provisioner uses audited server command with editor request ID
+00:00 +4: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_doctor_provisioner_test.dart: ADM-20: acknowledgement loss keeps the same request ID on retry
+00:00 +5: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_doctor_provisioner_test.dart: ADM-20: failed invitation preserves provisioned identity and reports the email failure
+00:00 +6: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +7: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +8: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +9: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +10: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +11: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +12: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +13: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +14: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +15: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +16: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:00 +17: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +18: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +19: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +20: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +21: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +22: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +23: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +24: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +25: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +26: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +27: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +28: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +29: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +30: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +31: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +32: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +33: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +34: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +35: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +36: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +37: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +38: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +39: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +40: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:01 +41: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_editor_test.dart: editor validates, preserves input on errors, retries the same body using the same key
+00:02 +42: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:02 +43: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:02 +44: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:03 +45: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:03 +46: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:04 +47: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:04 +48: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:04 +49: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: pending accounts can reach page two and errors never claim an empty list
+00:04 +50: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:04 +51: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:04 +52: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:05 +53: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:05 +54: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:05 +55: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:05 +56: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:05 +57: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:05 +58: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:05 +59: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:06 +60: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:06 +61: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_flow_test.dart: Review passes original selections and payment method validates
+00:06 +62: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: desktop searches real records, filters status and opens details
+00:06 +63: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: desktop searches real records, filters status and opens details
+00:06 +64: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: desktop searches real records, filters status and opens details
+00:06 +65: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: desktop searches real records, filters status and opens details
+00:07 +66: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: desktop searches real records, filters status and opens details
+00:07 +67: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: desktop searches real records, filters status and opens details
+00:07 +68: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_history_page_test.dart: History filters and opens demo detail and receipt
+00:07 +69: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_history_page_test.dart: History filters and opens demo detail and receipt
+00:07 +70: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/payment_history_page_test.dart: History filters and opens demo detail and receipt
+00:07 +71: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:07 +72: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:07 +73: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +74: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +75: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +76: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +77: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +78: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +79: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +80: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +81: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +82: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +83: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:08 +84: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_date_page_test.dart: Continue passes specialty/date and back preserves calendar selection
+00:09 +85: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +86: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +87: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +88: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +89: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +90: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +91: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +92: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:09 +93: C:/Users/acer/Hospital-booking-mobile/test/features/appointments/presentation/select_appointment_time_page_test.dart: Unavailable slots are disabled and continue returns selection
+00:10 +94: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:10 +95: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:10 +96: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:10 +97: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:10 +98: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:10 +99: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:10 +100: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:11 +101: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:11 +102: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:11 +103: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:11 +104: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:11 +105: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +106: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +107: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +108: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +109: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +110: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +111: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +112: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +113: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +114: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +115: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +116: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +117: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +118: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +119: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +120: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +121: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +122: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +123: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +124: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +125: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +126: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +127: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +128: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +129: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +130: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +131: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +132: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:12 +133: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +134: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +135: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +136: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +137: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +138: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +139: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +140: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +141: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +142: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +143: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +144: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +145: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +146: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +147: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +148: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +149: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +150: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +151: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +152: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +153: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:13 +154: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:14 +155: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:14 +156: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:14 +157: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:14 +158: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:14 +159: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:14 +160: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:14 +161: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +162: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +163: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +164: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +165: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +166: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +167: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +168: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +169: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +170: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +171: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:15 +172: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +173: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +174: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +175: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +176: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +177: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +178: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +179: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:16 +180: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:17 +181: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:17 +182: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:17 +183: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:17 +184: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:17 +185: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:17 +186: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:18 +187: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: every admin section remains accessible on desktop and mobile
+00:18 +188: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/customer_feedback_page_test.dart: Validation blocks submission and draft survives tabs
+00:18 +189: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/customer_feedback_page_test.dart: Validation blocks submission and draft survives tabs
+00:19 +190: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/customer_feedback_page_test.dart: Validation blocks submission and draft survives tabs
+00:20 +191: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/customer_feedback_page_test.dart: Validation blocks submission and draft survives tabs
+00:21 +192: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Dashboard preview with actual font and mobile viewport
+00:21 +193: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Dashboard preview with actual font and mobile viewport
+00:21 +194: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Dashboard preview with actual font and mobile viewport
+00:21 +195: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_reports_integration_test.dart: Report preserves its draft on failure and retries once with the same key
+00:22 +196: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_reports_integration_test.dart: Report preserves its draft on failure and retries once with the same key
+00:22 +197: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:22 +198: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:22 +199: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:22 +200: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:22 +201: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +202: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +203: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +204: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +205: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +206: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +207: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +208: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +209: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:23 +210: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:24 +211: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:24 +212: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:24 +213: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:24 +214: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:24 +215: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:24 +216: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:24 +217: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:25 +218: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:25 +219: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:25 +220: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:25 +221: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +222: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +223: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +224: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +225: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +226: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +227: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +228: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +229: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +230: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +231: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +232: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +233: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +234: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +235: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +236: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +237: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +238: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +239: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +240: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +241: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +242: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +243: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +244: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +245: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +246: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +247: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +248: C:/Users/acer/Hospital-booking-mobile/test/features/admin/admin_workspace_test.dart: statistics dropdown applies calendar month, year and custom periods
+00:26 +249: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/patient_support_page_test.dart: contact reads configured fields and distinguishes failure from missing data
+00:26 +250: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:27 +251: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:27 +252: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:27 +253: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:27 +254: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:27 +255: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:27 +256: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:27 +257: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:28 +258: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:28 +259: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:28 +260: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:28 +261: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:28 +262: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:29 +263: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:29 +264: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:29 +265: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:29 +266: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:29 +267: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: All four procedures open correct steps and return
+00:29 +268: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_booking_history_page_test.dart: Statuses switch and empty history remains visible
+00:30 +269: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_booking_history_page_test.dart: Statuses switch and empty history remains visible
+00:30 +270: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_booking_history_page_test.dart: Statuses switch and empty history remains visible
+00:30 +271: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_clinical_profiles_page_test.dart: Selected profile reaches existing pages and back closes the sheet
+00:31 +272: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_clinical_profiles_page_test.dart: Selected profile reaches existing pages and back closes the sheet
+00:32 +273: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:32 +274: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:32 +275: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:32 +276: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:32 +277: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:32 +278: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:33 +279: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:33 +280: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:33 +281: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:33 +282: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:33 +283: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:33 +284: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/usage_guide_page_test.dart: FAQ filters, search, empty state and back preserve state
+00:34 +285: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Date picker updates selected day and tabs preserve the selection
+00:35 +286: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_health_records_page_test.dart: Tabs change guidance and preserve outpatient category
+00:35 +287: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_health_records_page_test.dart: Tabs change guidance and preserve outpatient category
+00:35 +288: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_health_records_page_test.dart: Tabs change guidance and preserve outpatient category
+00:35 +289: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_health_records_page_test.dart: Tabs change guidance and preserve outpatient category
+00:35 +290: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_imaging_page_test.dart: Imaging filters use selected patient, synchronize types and change year
+00:37 +291: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:37 +292: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:37 +293: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:37 +294: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:38 +295: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:38 +296: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:38 +297: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:38 +298: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profiles_page_test.dart: Profiles reuse cards, mask phones and keep taps on this page
+00:38 +299: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One nationalId is sufficient and empty documents are rejected
+00:38 +300: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One nationalId is sufficient and empty documents are rejected
+00:38 +301: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One nationalId is sufficient and empty documents are rejected
+00:38 +302: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One nationalId is sufficient and empty documents are rejected
+00:39 +303: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One nationalId is sufficient and empty documents are rejected
+00:39 +304: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One nationalId is sufficient and empty documents are rejected
+00:39 +305: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Profile uses auth, keeps fields read-only and previews default avatar
+00:39 +306: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Profile uses auth, keeps fields read-only and previews default avatar
+00:39 +307: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Profile uses auth, keeps fields read-only and previews default avatar
+00:39 +308: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Profile uses auth, keeps fields read-only and previews default avatar
+00:39 +309: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Profile uses auth, keeps fields read-only and previews default avatar
+00:39 +310: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One personalId is sufficient and empty documents are rejected
+00:39 +311: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One personalId is sufficient and empty documents are rejected
+00:40 +312: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: One personalId is sufficient and empty documents are rejected
+00:40 +313: C:/Users/acer/Hospital-booking-mobile/test/features/home/presentation/doctor_home_page_test.dart: Professional accordion matches Patient doctor detail sections without demo values
+00:40 +314: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:40 +315: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:40 +316: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:40 +317: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:40 +318: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:40 +319: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:40 +320: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:41 +321: C:/Users/acer/Hospital-booking-mobile/test/features/specialties/presentation/specialty_list_page_test.dart: Loading, empty, error and retry use the existing controller
+00:41 +322: C:/Users/acer/Hospital-booking-mobile/test/functions_page_test.dart: Functions scroll and respond at width 320.0
+00:41 +323: C:/Users/acer/Hospital-booking-mobile/test/notification_detail_page_test.dart: Opens selected detail and preserves read status on back
+00:42 +324: C:/Users/acer/Hospital-booking-mobile/test/notification_detail_page_test.dart: Opens selected detail and preserves read status on back
+00:42 +325: C:/Users/acer/Hospital-booking-mobile/test/notification_detail_page_test.dart: Opens selected detail and preserves read status on back
+00:42 +326: C:/Users/acer/Hospital-booking-mobile/test/onboarding_test.dart: Splash opens login with onboarding flag null
+00:42 +327: C:/Users/acer/Hospital-booking-mobile/test/onboarding_test.dart: Splash opens login with onboarding flag null
+00:42 +328: C:/Users/acer/Hospital-booking-mobile/test/onboarding_test.dart: Splash opens login with onboarding flag null
+00:42 +329: C:/Users/acer/Hospital-booking-mobile/test/onboarding_test.dart: Splash opens login with onboarding flag null
+00:42 +330: C:/Users/acer/Hospital-booking-mobile/test/onboarding_test.dart: Splash opens login with onboarding flag null
+00:43 +331: C:/Users/acer/Hospital-booking-mobile/test/onboarding_test.dart: Splash opens login with onboarding flag null
+00:43 +332: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Live appointment history opens from Home and returns with Back
+00:43 +333: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Live appointment history opens from Home and returns with Back
+00:43 +334: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Live appointment history opens from Home and returns with Back
+00:44 +335: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Live appointment history opens from Home and returns with Back
+00:44 +336: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: Form validates all selections, date picker and keyboard layout
+00:45 +337: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: Form validates all selections, date picker and keyboard layout
+00:45 +338: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: Form validates all selections, date picker and keyboard layout
+00:45 +339: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: Form validates all selections, date picker and keyboard layout
+00:45 +340: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Usage guide opens from Home and returns with Back
+00:46 +341: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: A signed-in user saves the completed profile
+00:46 +342: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: A signed-in user saves the completed profile
+00:46 +343: C:/Users/acer/Hospital-booking-mobile/test/features/profile/presentation/patient_profile_flow_test.dart: A signed-in user saves the completed profile
+00:47 +344: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Profile uses auth data and existing navigation and logout
+00:47 +345: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Profile uses auth data and existing navigation and logout
+00:47 +346: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Functions tab shares navigation and booking actions
+00:49 +347: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Chatbot is a usable support page from the Functions tab
+00:50 +348: C:/Users/acer/Hospital-booking-mobile/test/patient_home_test.dart: Patient home supports small screens, search and navigation
+00:50 +349: All tests passed!

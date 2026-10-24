@@ -5,6 +5,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_4/features/admin/data/repositories/admin_management_repository_impl.dart';
+import 'package:flutter_application_4/features/admin/data/repositories/admin_account_repository_impl.dart';
 import 'package:flutter_application_4/features/doctors/data/datasources/doctor_firebase_datasource.dart';
 import 'package:flutter_application_4/features/specialties/data/datasources/specialty_firebase_datasource.dart';
 import 'package:flutter_application_4/features/home/data/repositories/firestore_doctor_workspace_repository.dart';
@@ -57,6 +58,36 @@ void main() {
       },
     });
   });
+
+  test(
+    'account review writes an audit with the reviewer in the same transaction',
+    () async {
+      store.rows['TAI_KHOAN/pending'] = {
+        'role': 'patient',
+        'status': 'PENDING',
+        'isActive': false,
+        'email': 'pending@example.com',
+        'fullName': 'Chờ duyệt',
+        'phone': '',
+      };
+      final repository = AdminAccountRepositoryImpl(
+        firestore: store,
+        reviewerIdProvider: () => 'admin',
+      );
+      final result = await repository.approveAccount('pending');
+      expect(result.status, 'APPROVED');
+      final audit = store.rows['NHAT_KY_ADMIN/account-review-pending']!;
+      expect(audit['actorId'], 'admin');
+      expect(audit['targetId'], 'pending');
+      expect(audit['before'], {'status': 'PENDING', 'isActive': false});
+      expect(audit['after'], {'status': 'APPROVED', 'isActive': true});
+      expect(audit['createdAt'], isA<Timestamp>());
+      await expectLater(
+        repository.approveAccount('pending'),
+        throwsA(isA<Exception>()),
+      );
+    },
+  );
 
   test(
     'ADM-05: maps document ids, missing fields and inactive history correctly',

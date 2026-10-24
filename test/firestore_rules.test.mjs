@@ -143,7 +143,7 @@ test('admin cannot save a schedule for a missing doctor', async () => {
   await assertFails(
     setDoc(doc(adminDatabase(), 'LICH_LAM_VIEC', 'invalid-schedule'), {
       doctorId: 'missing-doctor',
-      workDate: new Date(),
+      workDate: new Date('2026-11-02T00:00:00+07:00'),
       startTime: '08:00',
       endTime: '12:00',
       status: 'ACTIVE',
@@ -155,7 +155,7 @@ test('admin can save a schedule for an active doctor', async () => {
   await assertSucceeds(
     setDoc(doc(adminDatabase(), 'LICH_LAM_VIEC', 'valid-schedule'), {
       doctorId: 'doctor-1',
-      workDate: new Date(),
+      workDate: new Date('2026-11-02T00:00:00+07:00'),
       startTime: '08:00',
       endTime: '12:00',
       status: 'ACTIVE',

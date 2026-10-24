@@ -47,10 +47,14 @@ foreach ($qaName in @('flutter-regression.txt', 'flutter-analyze.txt', 'firebase
         [IO.File]::WriteAllText($qaTo, $qaLog, [Text.UTF8Encoding]::new($false))
     } else { Copy-Item -LiteralPath $qaFrom -Destination $qaTo -Force }
 }
-foreach ($qaName in @('deployment-smoke.json', 'cloudflare-deploy.txt', 'cloudflare-live-smoke.json', 'android-install.txt', 'android-launch.txt', 'android-startup.json', 'android-login.png')) {
+foreach ($qaName in @('deployment-smoke.json', 'cloudflare-deploy.txt', 'cloudflare-live-smoke.json', 'flutter-analyze-followup.txt', 'flutter-regression-followup.txt', 'firebase-followup.txt', 'apk-build-followup.txt', 'android-install.txt', 'android-launch.txt', 'android-startup.json', 'android-login.png')) {
     $qaFrom = Join-Path $qaRoot "build/sprint6-qa/$qaName"
     if (Test-Path -LiteralPath $qaFrom) {
-        Copy-Item -LiteralPath $qaFrom -Destination (Join-Path $qaEvidence $qaName) -Force
+        $qaTo = Join-Path $qaEvidence $qaName
+        if ($qaName.EndsWith('.txt')) {
+            $qaLog = [regex]::Replace([IO.File]::ReadAllText($qaFrom), '[ \t]+(?=\r?$)', '', [Text.RegularExpressions.RegexOptions]::Multiline)
+            [IO.File]::WriteAllText($qaTo, $qaLog, [Text.UTF8Encoding]::new($false))
+        } else { Copy-Item -LiteralPath $qaFrom -Destination $qaTo -Force }
     }
 }
 Copy-Item -LiteralPath $qaApk -Destination (Join-Path $qaHandoff 'HealWay-Sprint6.apk') -Force

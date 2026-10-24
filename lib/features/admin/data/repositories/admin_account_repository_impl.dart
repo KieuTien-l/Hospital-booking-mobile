@@ -1,14 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../auth/data/models/user_model.dart';
 import '../../domain/exceptions/admin_management_exception.dart';
 import '../../domain/repositories/admin_account_repository.dart';
 
 class AdminAccountRepositoryImpl implements AdminAccountRepository {
-  AdminAccountRepositoryImpl({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  AdminAccountRepositoryImpl({
+    FirebaseFirestore? firestore,
+    String? Function()? reviewerIdProvider,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _reviewerIdProvider =
+           reviewerIdProvider ?? (() => FirebaseAuth.instance.currentUser?.uid);
 
   final FirebaseFirestore _firestore;
+  final String? Function() _reviewerIdProvider;
   CollectionReference<Map<String, dynamic>> get _accounts =>
       _firestore.collection('TAI_KHOAN');
 
@@ -37,6 +43,12 @@ class AdminAccountRepositoryImpl implements AdminAccountRepository {
     if (id.isEmpty) {
       throw const AdminManagementException('Mã tài khoản là bắt buộc.');
     }
+    final reviewerId = _reviewerIdProvider();
+    if (reviewerId == null || reviewerId.isEmpty) {
+      throw const AdminManagementException(
+        'Vui lòng đăng nhập lại để duyệt tài khoản.',
+      );
+    }
     final reference = _accounts.doc(id);
     return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(reference);
@@ -50,6 +62,19 @@ class AdminAccountRepositoryImpl implements AdminAccountRepository {
         );
       }
       final status = approved ? 'APPROVED' : 'REJECTED';
+      transaction.set(
+        _firestore.collection('NHAT_KY_ADMIN').doc('account-review-$id'),
+        {
+          'actorId': reviewerId,
+          'targetCollection': 'TAI_KHOAN',
+          'targetId': id,
+          'action': 'reviewAccount',
+          'reason': status,
+          'before': {'status': account.status, 'isActive': account.isActive},
+          'after': {'status': status, 'isActive': approved},
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
       transaction.update(reference, {
         'status': status,
         'isActive': approved,

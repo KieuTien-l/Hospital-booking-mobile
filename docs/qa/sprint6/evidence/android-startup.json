@@ -1,15 +1,15 @@
 {
-  "checkedAt": "2026-10-24T16:56:22.717Z",
-  "serial": "emulator-5580",
+  "checkedAt": "2026-10-24T18:03:42.138Z",
+  "serial": "emulator-5582",
   "avd": "Pixel_7",
-  "session": "read-only ephemeral, no snapshot saved",
+  "session": "read-only ephemeral; no snapshot saved",
   "android": "17",
   "sdk": "37",
   "packageName": "com.example.flutter_application_4",
   "processRunning": true,
-  "foreground": [],
   "fatalErrorMatches": [],
-  "apkSHA256": "F93120D5669B721B8BF87179A0D6E0A75C9B125BE6E09725112D9A6946626F69",
-  "scope": "Install/cold start/unauthenticated first screen only; no signed-in role or live-model validation",
-  "observedScreen": "HealWay login screen, verified from emulator screenshot"
+  "apkSHA256": "23E985FF49A4C25A2B849A35DC09F83DED6FD078EDF9824B5D5C8D102DD25E43",
+  "scope": "Follow-up APK install/cold start/unauthenticated screen only. No production login, AI call, or role workflow.",
+  "observedScreen": "HealWay login screen, verified visually after splash",
+  "observedAt": "2026-10-24T18:04:35.860Z"
 }
