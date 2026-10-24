@@ -1,0 +1,8 @@
+name = "healway-chatbot"
+main = "src/index.js"
+compatibility_date = "2025-10-24"
+
+[vars]
+FIREBASE_PROJECT_ID = "bookinghospitalapp"
+# Set this to the deployed Flutter web origin if the web app is used.
+ALLOWED_ORIGIN = ""

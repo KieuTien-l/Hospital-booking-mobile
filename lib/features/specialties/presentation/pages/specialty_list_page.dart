@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -19,6 +21,8 @@ class SpecialtyListPage extends StatefulWidget {
 
 class _SpecialtyListPageState extends State<SpecialtyListPage> {
   final _search = TextEditingController();
+  Timer? _searchDebounce;
+  String _queryText = '';
   Specialty? _selected;
 
   @override
@@ -31,8 +35,27 @@ class _SpecialtyListPageState extends State<SpecialtyListPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  /// Vietnamese IMEs emit intermediate composing values (for example `a` then
+  /// `â`). Rebuilding the page for an intermediate value can make that value
+  /// disappear on some Android keyboards, so wait until composition is done.
+  void _onSearchChanged(String value) {
+    final composing = _search.value.composing;
+    if (composing.isValid && !composing.isCollapsed) return;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 160), () {
+      if (mounted) setState(() => _queryText = value);
+    });
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _search.clear();
+    setState(() => _queryText = '');
   }
 
   void _select(Specialty specialty) {
@@ -49,7 +72,7 @@ class _SpecialtyListPageState extends State<SpecialtyListPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<SpecialtyController>();
-    final query = normalizeSpecialtySearch(_search.text);
+    final query = normalizeSpecialtySearch(_queryText);
     final matches = controller.specialties
         .where(
           (specialty) =>
@@ -83,17 +106,17 @@ class _SpecialtyListPageState extends State<SpecialtyListPage> {
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                       child: TextField(
                         controller: _search,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: _onSearchChanged,
                         textInputAction: TextInputAction.search,
                         decoration: InputDecoration(
                           hintText: 'Tìm nhanh chuyên khoa',
                           prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _search.text.isEmpty
+                          suffixIcon: _queryText.isEmpty
                               ? null
                               : IconButton(
                                   tooltip: 'Xóa tìm kiếm',
                                   icon: const Icon(Icons.close),
-                                  onPressed: () => setState(_search.clear),
+                                  onPressed: _clearSearch,
                                 ),
                         ),
                       ),

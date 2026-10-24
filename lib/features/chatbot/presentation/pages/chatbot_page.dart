@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../controllers/chatbot_controller.dart';
 
 const _blue = Color(0xFF0065B8);
 const _ink = Color(0xFF163958);
 const _muted = Color(0xFF5685A6);
 
-/// Presentation-only preview. Messages stay in memory for this route.
 class ChatbotPage extends StatefulWidget {
   const ChatbotPage({super.key});
 
@@ -16,7 +18,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final _focus = FocusNode();
-  final _messages = <String>[];
 
   static const _suggestions = [
     (
@@ -57,11 +58,12 @@ class _ChatbotPageState extends State<ChatbotPage> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send(ChatbotController controller) async {
     final message = _input.text.trim();
     if (message.isEmpty) return;
-    setState(() => _messages.add(message));
     _input.clear();
+    await controller.send(message);
+    if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
       _scroll.animateTo(
@@ -72,163 +74,165 @@ class _ChatbotPageState extends State<ChatbotPage> {
     });
   }
 
-  void _reset() {
-    setState(() {
-      _messages.clear();
-      _input.clear();
-    });
+  void _reset(ChatbotController controller) {
+    controller.reset();
+    _input.clear();
     _focus.unfocus();
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: Theme.of(context).copyWith(
-      textTheme: Theme.of(context).textTheme.apply(
-        fontFamily: 'BeVietnamPro',
-        bodyColor: _ink,
-        displayColor: _ink,
-      ),
-    ),
-    child: DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFEAF5FF), Color(0xFFF7FAFD), Color(0xFFF7FAFD)],
-          stops: [0, .45, 1],
+  Widget build(BuildContext context) {
+    final controller = context.watch<ChatbotController>();
+    final messages = controller.messages;
+    return Theme(
+      data: Theme.of(context).copyWith(
+        textTheme: Theme.of(context).textTheme.apply(
+          fontFamily: 'BeVietnamPro',
+          bodyColor: _ink,
+          displayColor: _ink,
         ),
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          foregroundColor: _ink,
-          toolbarHeight: 68,
-          titleSpacing: 0,
-          bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(1),
-            child: Divider(height: 1, thickness: 1, color: Color(0xFFAEBCC8)),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFEAF5FF), Color(0xFFF7FAFD), Color(0xFFF7FAFD)],
+            stops: [0, .45, 1],
           ),
-          title: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Trợ lý HealWay',
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+        ),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: _ink,
+            toolbarHeight: 68,
+            titleSpacing: 0,
+            bottom: const PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Divider(height: 1, thickness: 1, color: Color(0xFFAEBCC8)),
+            ),
+            title: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Trợ lý HealWay',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Đồng hành cùng sức khỏe của bạn',
+                  style: TextStyle(fontSize: 11, color: _muted),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton.outlined(
+                onPressed:
+                    controller.isSending ||
+                        (messages.isEmpty && _input.text.isEmpty)
+                    ? null
+                    : () => _reset(controller),
+                tooltip: 'Cuộc trò chuyện mới',
+                style: IconButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFD5E6F3)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  backgroundColor: Colors.white.withValues(alpha: .7),
+                ),
+                icon: const Icon(Icons.edit_square, size: 21),
               ),
-              SizedBox(height: 4),
-              Text(
-                'Đồng hành cùng sức khỏe của bạn',
-                style: TextStyle(fontSize: 11, color: _muted),
-              ),
+              const SizedBox(width: 16),
             ],
           ),
-          actions: [
-            IconButton.outlined(
-              onPressed: _messages.isEmpty && _input.text.isEmpty
-                  ? null
-                  : _reset,
-              tooltip: 'Cuộc trò chuyện mới',
-              style: IconButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFD5E6F3)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                backgroundColor: Colors.white.withValues(alpha: .7),
-              ),
-              icon: const Icon(Icons.edit_square, size: 21),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-        body: SafeArea(
-          top: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 680),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView(
-                      controller: _scroll,
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                      children: [
-                        if (_messages.isEmpty) ...[
-                          _welcome(),
-                          const SizedBox(height: 26),
-                          const Text(
-                            'Gợi ý dành cho bạn',
-                            style: TextStyle(
-                              fontSize: 17,
-                              color: _ink,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Chọn một chủ đề để bắt đầu trò chuyện',
-                            style: TextStyle(fontSize: 12, color: _muted),
-                          ),
-                          const SizedBox(height: 16),
-                          _suggestionCards(),
-                          const SizedBox(height: 20),
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                size: 14,
-                                color: _muted,
+          body: SafeArea(
+            top: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        controller: _scroll,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                        children: [
+                          if (messages.isEmpty) ...[
+                            _welcome(),
+                            const SizedBox(height: 26),
+                            const Text(
+                              'Gợi ý dành cho bạn',
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: _ink,
+                                fontWeight: FontWeight.w700,
                               ),
-                              SizedBox(width: 7),
-                              Flexible(
-                                child: Text(
-                                  'Hoặc nhập câu hỏi của riêng bạn bên dưới',
-                                  style: TextStyle(fontSize: 11, color: _muted),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Chọn một chủ đề để bắt đầu trò chuyện',
+                              style: TextStyle(fontSize: 12, color: _muted),
+                            ),
+                            const SizedBox(height: 16),
+                            _suggestionCards(),
+                            const SizedBox(height: 20),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                  size: 14,
+                                  color: _muted,
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (_messages.isNotEmpty)
-                          const _MessageBubble(
-                            text:
-                                'Xin chào! Mình là trợ lý HealWay. '
-                                'Bạn muốn được hỗ trợ nội dung nào hôm nay?',
-                          ),
-                        for (final message in _messages) ...[
-                          const SizedBox(height: 16),
-                          _MessageBubble(text: message, isUser: true),
-                        ],
-                        if (_messages.isNotEmpty) ...[
-                          const SizedBox(height: 18),
-                          const Text(
-                            'Tin nhắn chỉ hiển thị trong bản xem trước. '
-                            'Trợ lý AI chưa được kết nối.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: _muted,
-                              fontSize: 12,
-                              height: 1.6,
+                                SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    'Hoặc nhập câu hỏi của riêng bạn bên dưới',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: _muted,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                          ],
+                          for (final message in messages) ...[
+                            const SizedBox(height: 16),
+                            _MessageBubble(
+                              text: message.text,
+                              isUser: message.isUser,
+                            ),
+                          ],
+                          if (controller.isSending) ...[
+                            const SizedBox(height: 16),
+                            const _TypingBubble(),
+                          ],
+                          if (controller.errorMessage != null) ...[
+                            const SizedBox(height: 18),
+                            _ErrorNotice(
+                              message: controller.errorMessage!,
+                              onRetry: controller.retry,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  _composer(),
-                ],
+                    _composer(controller),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _welcome() => Padding(
     padding: const EdgeInsets.fromLTRB(8, 16, 8, 4),
@@ -384,7 +388,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     );
   }
 
-  Widget _composer() => Container(
+  Widget _composer(ChatbotController controller) => Container(
     padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
     decoration: BoxDecoration(color: const Color(0xFFF7FAFD)),
     child: Column(
@@ -415,6 +419,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
                   maxLines: 4,
                   maxLength: 2000,
                   onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _send(controller),
+                  textInputAction: TextInputAction.send,
                   style: const TextStyle(fontSize: 14, color: _ink),
                   decoration: InputDecoration(
                     hintText: 'Nhập câu hỏi của bạn…',
@@ -430,8 +436,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
               ),
               const SizedBox(width: 4),
               IconButton.filled(
-                onPressed: _input.text.trim().isEmpty ? null : _send,
-                tooltip: 'Gửi tin nhắn xem trước',
+                onPressed: _input.text.trim().isEmpty || controller.isSending
+                    ? null
+                    : () => _send(controller),
+                tooltip: 'Gửi tin nhắn',
                 style: IconButton.styleFrom(
                   backgroundColor: _blue,
                   foregroundColor: Colors.white,
@@ -446,7 +454,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ),
         const SizedBox(height: 9),
         const Text(
-          'Bản xem trước · Chưa kết nối AI',
+          'Trợ lý có thể nhầm lẫn. Không dùng để chẩn đoán hay cấp cứu.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 10, height: 1.5, color: _muted),
         ),
@@ -496,6 +504,65 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    ),
+  );
+}
+
+class _TypingBubble extends StatelessWidget {
+  const _TypingBubble();
+
+  @override
+  Widget build(BuildContext context) => const Row(
+    children: [
+      CircleAvatar(
+        radius: 16,
+        backgroundColor: Colors.white,
+        child: Icon(Icons.smart_toy_outlined, color: _blue, size: 19),
+      ),
+      SizedBox(width: 8),
+      DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Text(
+            'Trợ lý đang soạn câu trả lời…',
+            style: TextStyle(color: _muted, fontSize: 13),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _ErrorNotice extends StatelessWidget {
+  const _ErrorNotice({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF4F1),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFF2B8AC)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.error_outline_rounded, color: Color(0xFFC83E2A)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(color: _ink, fontSize: 12),
+          ),
+        ),
+        TextButton(onPressed: onRetry, child: const Text('Thử lại')),
       ],
     ),
   );
