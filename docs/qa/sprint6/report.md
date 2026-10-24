@@ -108,7 +108,7 @@ mặc định có dịch vụ đang sử dụng; không dừng dịch vụ đó.
 - `store:false` tắt lưu application state ở Responses; không đồng nghĩa nhà cung
   cấp không lưu dữ liệu theo chính sách. Không log prompt/token/API key.
 - Tại thời điểm chạy bộ QA ban đầu chưa deploy Worker/Rules/Function mới.
-  Rules đã được triển khai trong lượt tiếp tục; xem trạng thái hiện tại tại
+  Rules và Worker đã được triển khai trong lượt tiếp tục; xem trạng thái hiện tại tại
   [deployment-status.md](deployment-status.md). Lượt tiếp tục đã cài và khởi động
   APK thành công trên Pixel 7 emulator; chưa nghiệm thu trên điện thoại thật.
 - Các vấn đề đã báo ở đợt audit trước, ngoài phạm vi sửa chính lần này, vẫn cần

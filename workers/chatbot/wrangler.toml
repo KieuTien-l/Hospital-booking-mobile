@@ -1,4 +1,5 @@
 name = "healway-chatbot"
+account_id = "f1895a598232f4c0ee568e577be47941"
 main = "src/index.js"
 compatibility_date = "2025-10-24"
 

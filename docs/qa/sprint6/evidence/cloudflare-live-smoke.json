@@ -1,0 +1,64 @@
+{
+  "checkedAt": "2026-10-24T17:27:28.696Z",
+  "endpoint": "https://healway-chatbot.healway-hospital.workers.dev",
+  "accountId": "f1895a598232f4c0ee568e577be47941",
+  "sourceCommit": "d373255bfbc357c056cba08e3e64202c54faab2c",
+  "previousVersion": "f1fedfdf-1805-426a-8944-8bfeb5a442b8",
+  "deployedVersion": "424a04dd-8ee5-42b7-8ba8-14a50d3a04d8",
+  "secretNamesConfirmed": [
+    "OPENAI_API_KEY"
+  ],
+  "scope": "Anonymous and malformed-auth routing/CORS only. No real user data, Firestore writes, model request, or authenticated end-to-end validation.",
+  "results": [
+    {
+      "name": "anonymous chat",
+      "method": "POST",
+      "path": "/chat",
+      "expected": 401,
+      "actual": 401,
+      "allowOrigin": null,
+      "body": "{\"error\":\"Bạn cần đăng nhập để dùng trợ lý HealWay.\"}",
+      "result": "PASS"
+    },
+    {
+      "name": "malformed token",
+      "method": "POST",
+      "path": "/chat",
+      "expected": 401,
+      "actual": 401,
+      "allowOrigin": null,
+      "body": "{\"error\":\"Phiên đăng nhập không hợp lệ.\"}",
+      "result": "PASS"
+    },
+    {
+      "name": "untrusted browser origin",
+      "method": "POST",
+      "path": "/chat",
+      "expected": 403,
+      "actual": 403,
+      "allowOrigin": null,
+      "body": "{\"error\":\"Nguồn truy cập không được phép.\"}",
+      "result": "PASS"
+    },
+    {
+      "name": "allowed preflight",
+      "method": "OPTIONS",
+      "path": "/chat",
+      "expected": 204,
+      "actual": 204,
+      "allowOrigin": "https://bookinghospitalapp.web.app",
+      "body": "",
+      "result": "PASS"
+    },
+    {
+      "name": "unknown route",
+      "method": "GET",
+      "path": "/",
+      "expected": 404,
+      "actual": 404,
+      "allowOrigin": null,
+      "body": "{\"error\":\"Không tìm thấy dịch vụ.\"}",
+      "result": "PASS"
+    }
+  ]
+}

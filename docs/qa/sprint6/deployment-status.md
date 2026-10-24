@@ -11,7 +11,7 @@ các probe và phiên Android ghi thời gian UTC trong evidence.
 | Local | Đã đồng bộ `NgocVan` với GitHub; commit local trước đó còn ở `refs/codex/sprint6-local-snapshot`. |
 | Firestore Rules | **Đã triển khai thành công** trên project `bookinghospitalapp`. CLI xác nhận compiled, uploaded, released và Deploy complete. |
 | `adminCommand` | **Chưa triển khai**. Firebase CLI yêu cầu Blaze để bật Artifact Registry; người dùng đã chọn **giữ gói hiện tại, chưa triển khai Functions**. Không tự nâng cấp hoặc bật thanh toán. |
-| Chatbot Worker mới | OAuth đã thành công bằng OS keychain. Account vừa đăng nhập không có Worker `healway-chatbot`; account cache từ nguồn là account khác, không có quyền truy cập. Đang chờ chọn Worker riêng hoặc quyền vào account Worker hiện tại; chưa deploy Worker mới. |
+| Chatbot Worker mới | **Đã triển khai** lên Worker hiện có `healway-chatbot` trong account Việt sau khi làm mới OAuth nhận quyền mới. Version `424a04dd-8ee5-42b7-8ba8-14a50d3a04d8` đang phục vụ 100% lưu lượng. Giữ URL và secret `OPENAI_API_KEY` hiện có; không đọc/đổi giá trị secret. |
 | APK | Đã cài thành công và cold start tới màn đăng nhập trên Pixel 7 emulator, Android 17/API 37; không thấy fatal error trong log app. Chưa nghiệm thu trên điện thoại thật hoặc luồng có đăng nhập. |
 | Source ZIP | Đóng gói lại từ commit GitHub; `build/sprint6-handoff/manifest.json` ghi commit/checksum thực tế. Không chứa `.git` hoặc `node_modules`. |
 
@@ -27,6 +27,25 @@ Xem [deployment-smoke.json](evidence/deployment-smoke.json):
 Không đọc hồ sơ bệnh nhân thật, không ghi dữ liệu production và không gọi mô hình
 AI trong các probe này. Hai URI thử đầu tiên dùng ID dành riêng của Firestore
 nên trả 400; đã sửa URI và thực hiện lại bằng ID hợp lệ như evidence.
+
+## Triển khai chatbot sau khi cấp quyền
+
+- OAuth mới xác nhận account Việt `f1895a598232f4c0ee568e577be47941`
+  và quyền `workers_scripts:write`. Cấu hình Wrangler ghi rõ account này để
+  lần deploy tiếp theo không phụ thuộc account cache cục bộ.
+- Mã Worker triển khai từ `d373255`; thay đổi cấu hình tiếp theo chỉ ghi rõ
+  account đích, không đổi mã xử lý hoặc URL ứng dụng.
+- URL giữ nguyên: `https://healway-chatbot.healway-hospital.workers.dev`.
+- CLI xác nhận upload, trigger deployment và binding `CHAT_LIMITER`.
+  `deployments status` xác nhận version mới nhận 100% lưu lượng.
+- Version trước: `f1fedfdf-1805-426a-8944-8bfeb5a442b8`.
+- Kiểm tra endpoint mới: **5/5 PASS** — thiếu token 401, token sai định dạng 401,
+  origin lạ 403, preflight origin hợp lệ 204 kèm CORS đúng, tuyến không tồn tại 404.
+- Chỉ xác nhận tên secret tồn tại; chưa kiểm tra tính hợp lệ/hạn mức OpenAI key
+  hoặc phản hồi mô hình thật. Không dùng tài khoản bệnh nhân để chạy probe.
+
+Evidence: [deploy log](evidence/cloudflare-deploy.txt),
+[live smoke JSON](evidence/cloudflare-live-smoke.json).
 
 ## Cài và mở APK trên Android emulator
 
@@ -45,9 +64,8 @@ Evidence: [install](evidence/android-install.txt), [launch](evidence/android-lau
 
 - Các thao tác admin gọi `adminCommand`, gồm tạo bác sĩ, vẫn cần backend Function.
   Việc có APK và Rules không làm các thao tác này hoạt động khi Function chưa có.
-- Đã đăng nhập Cloudflare; cần người dùng chọn tạo Worker riêng hoặc cấp quyền
-  vào account Worker hiện tại trước khi triển khai. Worker riêng cần cấu hình
-  secret riêng qua Cloudflare; không gửi API key trong chat.
+- Worker đã triển khai và giữ secret hiện có. Cần kiểm tra chatbot có đăng nhập
+  bằng tài khoản thử còn hoạt động để xác nhận luồng Firestore/quota/mô hình thật.
 - Cần kiểm thử có đăng nhập với tài khoản thử của Patient/Doctor/Admin, chạy AI
   thật và cài APK để kết luận nghiệm thu end-to-end. Bộ 344 Flutter/40 Firebase/
   58 Worker test vẫn là bằng chứng tự động, không thay thế các bước đó.
