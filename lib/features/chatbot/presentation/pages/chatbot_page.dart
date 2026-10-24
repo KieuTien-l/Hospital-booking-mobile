@@ -274,10 +274,12 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Tìm hiểu thông tin khám bệnh và sử dụng\nHealWay dễ dàng hơn cùng trợ lý của bạn.',
+          'Hỗ trợ sử dụng HealWay, đặt lịch khám\nvà thông tin sức khỏe phổ thông.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, height: 1.7, color: _muted),
         ),
+        const SizedBox(height: 12),
+        const _SafetyNotice(),
       ],
     ),
   );
@@ -454,9 +456,37 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ),
         const SizedBox(height: 9),
         const Text(
-          'Trợ lý có thể nhầm lẫn. Không dùng để chẩn đoán hay cấp cứu.',
+          'Chỉ hỗ trợ HealWay và sức khỏe phổ thông. Không chẩn đoán, kê đơn hoặc xử lý cấp cứu.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 10, height: 1.5, color: _muted),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SafetyNotice extends StatelessWidget {
+  const _SafetyNotice();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF2F8FD),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFC8DDEC)),
+    ),
+    child: const Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.health_and_safety_outlined, color: _blue, size: 17),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Nếu đau ngực dữ dội, khó thở, ngất hoặc chảy máu nhiều, hãy gọi cấp cứu hoặc đến cơ sở y tế gần nhất ngay.',
+            style: TextStyle(fontSize: 11, height: 1.45, color: _ink),
+          ),
         ),
       ],
     ),
