@@ -1,6 +1,8 @@
 const maxMessageLength = 2000;
 const maxHistoryItems = 12;
-const maxReplyLength = 4000;
+// Every history item is validated against maxMessageLength on the next turn,
+// so replies must use the same ceiling.
+const maxReplyLength = maxMessageLength;
 const requestWindowMs = 60 * 1000;
 const maxRequestsPerMinute = 10;
 const minRequestIntervalMs = 2000;
@@ -18,13 +20,14 @@ const clearlyOutOfScopePatterns = [
   /\b(giai bai|bai tap|toan hoc|nau an|cong thuc mon|du lich)\b/,
 ];
 
-const emergencyPatterns = /\b(dau nguc du doi|dau nguc va kho tho|kho tho nhieu|ngat|bat tinh|khong tinh|yeu liet dot ngot|liet mat|noi kho|chay mau nhieu|tu sat|tu lam hai|minh muon chet)\b/;
+const emergencyPatterns = /\b(dau nguc|dau that nguc|tuc nguc|kho tho|ngat|bat tinh|khong tinh|yeu liet dot ngot|liet mat|noi kho|chay mau nhieu|tu sat|tu lam hai|minh muon chet)\b/;
 const medicineOrDiagnosisPatterns = /\b(chan doan|doan benh|bi benh gi|mac benh gi|ke don|ke thuoc|lieu (dung|thuoc)|bao nhieu vien|uong .* (vien|lan)|dung thuoc gi|tu dieu tri)\b/;
 const sensitiveInfoPatterns = /\b(mat khau|password|ma otp|otp|ma xac thuc|so the|the ngan hang|cvv|benh an|ho so benh an)\b/;
 // Default-deny scope gate: a question must clearly concern either HealWay or
 // general health before it can be sent to the model. This intentionally keeps
 // unrelated topics out even when a keyword list does not recognize them.
 const healthOrHealwayPatterns = /\b(healway|dat lich|lich hen|doi lich|huy lich|lich su kham|thong bao|ho so (benh nhan|suc khoe)|benh vien|phong kham|co so y te|bac si|chuyen khoa|kham (benh|tong quat)?|suc khoe|benh|trieu chung|chan thuong|dau|sot|ho|kho tho|chong mat|buon non|non mua|non oi|oi mua|tieu chay|tao bon|di ung|phat ban|ngat|chay mau|thuoc|tiem (chung|ngua)?|vac xin|dinh duong|an uong|van dong|the duc|giac ngu|ngu|stress|tam ly|tinh than|thai|mang thai|kinh nguyet|tre em|em be|so sinh|nguoi gia|health|hospital|doctor|appointment|symptom|fever|cough|medicine|vaccine|nutrition|sleep)\b/;
+const healthFollowUpPatterns = /\b(co nguy hiem khong|nen lam gi|lam sao|co can di kham khong|khi nao can di kham|co sao khong)\b/;
 
 const localLimits = new Map();
 let signingKeyCache = { expiresAt: 0, values: [] };
@@ -34,6 +37,8 @@ const instructions = `Bạn là Trợ lý HealWay bằng tiếng Việt. Chỉ h
 - Đặt lịch: gợi ý chuyên khoa phù hợp ở mức phổ thông, chuẩn bị trước buổi khám và điều hướng trong ứng dụng.
 - Kiến thức sức khỏe phổ thông: phòng bệnh, dinh dưỡng, vận động, giấc ngủ và triệu chứng thường gặp.
 - Thông tin trong HealWay chỉ khi đã có dữ liệu được cung cấp. Không bịa thông tin về bác sĩ, cơ sở y tế, lịch trống, chi phí hay kết quả khám.
+
+Với câu hỏi về một cơ sở, bác sĩ, giá, lịch trống, lịch hẹn hoặc kết quả cụ thể, chỉ xác nhận khi dữ liệu đó xuất hiện rõ trong ngữ cảnh được cung cấp. Nếu không có, nói rằng HealWay chưa cung cấp dữ liệu đó trong cuộc trò chuyện và hướng dẫn người dùng kiểm tra trong ứng dụng; không suy đoán hay tự tạo tên, lịch hoặc số liệu.
 
 Ngoài phạm vi trên (lập trình, tài chính, chính trị, giải trí, thể thao, bài tập, tin tức hoặc chủ đề khác), hoặc khi không chắc câu hỏi có liên quan đến y tế/HealWay, chỉ trả lời đúng câu này: "Mình chỉ hỗ trợ sử dụng HealWay, đặt lịch khám và thông tin sức khỏe phổ thông. Bạn có thể hỏi về chuyên khoa, lịch hẹn hoặc triệu chứng cần đi khám."
 
@@ -52,8 +57,15 @@ export default {
       const uid = await authenticatedUser(request, env.FIREBASE_PROJECT_ID);
       const input = await validatedInput(request);
       await enforceRateLimit(uid, env);
-      const protectedReply = safetyReplyFor(input.message);
-      if (protectedReply) return json({ reply: protectedReply }, 200, headers);
+      const protectedReply = safetyReplyFor(input.message, input.history);
+      if (protectedReply) {
+        // Return an error for secrets so even older mobile builds do not save
+        // the submitted content to Firestore after treating it as a success.
+        if (protectedReply === sensitiveInfoReply) {
+          return json({ error: protectedReply }, 422, headers);
+        }
+        return json({ reply: protectedReply }, 200, headers);
+      }
       const reply = await askOpenAi(input.history, env.OPENAI_API_KEY);
       return json({ reply }, 200, headers);
     } catch (error) {
@@ -146,7 +158,7 @@ async function validatedInput(request) {
   return { message, history };
 }
 
-export function safetyReplyFor(message) {
+export function safetyReplyFor(message, history = []) {
   const normalized = normalizeForSafetyCheck(message);
   if (emergencyPatterns.test(normalized)) return emergencyReply;
   if (sensitiveInfoPatterns.test(normalized)) return sensitiveInfoReply;
@@ -154,8 +166,19 @@ export function safetyReplyFor(message) {
     return outOfScopeReply;
   }
   if (medicineOrDiagnosisPatterns.test(normalized)) return medicineOrDiagnosisReply;
-  if (!healthOrHealwayPatterns.test(normalized)) return outOfScopeReply;
+  if (!healthOrHealwayPatterns.test(normalized) && !isHealthFollowUp(normalized, history)) {
+    return outOfScopeReply;
+  }
   return null;
+}
+
+function isHealthFollowUp(message, history) {
+  if (!healthFollowUpPatterns.test(message) || !Array.isArray(history)) return false;
+  return history.some((item) =>
+    item?.role === 'user' &&
+    typeof item.text === 'string' &&
+    healthOrHealwayPatterns.test(normalizeForSafetyCheck(item.text)),
+  );
 }
 
 function normalizeForSafetyCheck(message) {
@@ -246,7 +269,11 @@ function corsHeaders(request, env) {
     'Vary': 'Origin',
   });
   const origin = request.headers.get('Origin');
-  if (origin && env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN) {
+  const allowedOrigins = String(env.ALLOWED_ORIGINS ?? env.ALLOWED_ORIGIN ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (origin && allowedOrigins.includes(origin)) {
     headers.set('Access-Control-Allow-Origin', origin);
   }
   return headers;

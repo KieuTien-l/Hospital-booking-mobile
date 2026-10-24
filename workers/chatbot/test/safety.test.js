@@ -14,6 +14,7 @@ test('declines requests outside HealWay and general health', () => {
 
 test('routes urgent symptoms to emergency care', () => {
   assert.match(safetyReplyFor('Tôi đau ngực dữ dội và khó thở'), /cấp cứu/i);
+  assert.match(safetyReplyFor('Tôi đau thắt ngực, khó thở'), /cấp cứu/i);
   assert.match(safetyReplyFor('Người nhà bị ngất và không tỉnh'), /cấp cứu/i);
 });
 
@@ -28,4 +29,21 @@ test('allows ordinary health and HealWay questions to be answered by the assista
   assert.equal(safetyReplyFor('Tôi bị nôn mửa, cần làm gì?'), null);
   assert.equal(safetyReplyFor('Tôi bị ói mửa từ sáng nay'), null);
   assert.equal(safetyReplyFor('Hướng dẫn tôi đổi lịch khám'), null);
+});
+
+test('allows a narrowly defined health follow-up when its user context is medical', () => {
+  assert.equal(
+    safetyReplyFor('Có nguy hiểm không?', [
+      { role: 'user', text: 'Tôi bị tiêu chảy hai ngày.' },
+      { role: 'assistant', text: 'Bạn nên theo dõi triệu chứng.' },
+      { role: 'user', text: 'Có nguy hiểm không?' },
+    ]),
+    null,
+  );
+  assert.match(
+    safetyReplyFor('Thủ đô của Pháp là gì?', [
+      { role: 'user', text: 'Tôi bị tiêu chảy hai ngày.' },
+    ]),
+    /chỉ hỗ trợ sử dụng HealWay/i,
+  );
 });

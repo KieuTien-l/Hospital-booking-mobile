@@ -42,6 +42,11 @@ class WorkerChatbotRepository implements ChatbotRepository {
     required String message,
     required List<ChatMessage> history,
   }) async {
+    if (_containsSensitiveInfo(message)) {
+      throw const ChatbotException(
+        'Để bảo vệ quyền riêng tư, không gửi mật khẩu, mã OTP/xác thực, số thẻ hoặc bệnh án trong chat.',
+      );
+    }
     if (_workerUrl.isEmpty) {
       throw const ChatbotException(
         'Dịch vụ trợ lý chưa được cấu hình. Vui lòng thử lại sau.',
@@ -157,4 +162,10 @@ class WorkerChatbotRepository implements ChatbotRepository {
       _ => 'Không thể gửi tin nhắn lúc này. Vui lòng thử lại.',
     };
   }
+
+  bool _containsSensitiveInfo(String value) => RegExp(
+    r'(mật khẩu|mat khau|password|mã otp|ma otp|otp|mã xác thực|ma xac thuc|số thẻ|so the|thẻ ngân hàng|the ngan hang|cvv|bệnh án|benh an|hồ sơ bệnh án|ho so benh an)',
+    caseSensitive: false,
+    unicode: true,
+  ).hasMatch(value);
 }

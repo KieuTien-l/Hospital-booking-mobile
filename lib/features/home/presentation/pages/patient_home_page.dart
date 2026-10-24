@@ -60,9 +60,8 @@ class _PatientHomePageState extends State<PatientHomePage> {
   void _open(String title, [String? content]) {
     if (title == 'Hỏi - đáp (Chatbot)') {
       FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => const ChatbotPage()),
-      );
+      Navigator.of(context)
+          .push<void>(MaterialPageRoute(builder: (_) => const ChatbotPage()));
       return;
     }
     if (title == 'Lắng nghe khách hàng') {
@@ -73,16 +72,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
           builder: (_) => widget.useLiveCommunications && userId != null
               ? LiveCustomerFeedbackPage(userId: userId)
               : const CustomerFeedbackPage(),
-        ),
-      );
-      return;
-    }
-    if (title == 'Hỏi - đáp (Chatbot)') {
-      FocusScope.of(context).unfocus();
-      Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) =>
-              const PatientSupportPage(kind: PatientSupportKind.chatbot),
         ),
       );
       return;

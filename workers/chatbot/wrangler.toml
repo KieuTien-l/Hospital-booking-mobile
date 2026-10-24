@@ -4,5 +4,10 @@ compatibility_date = "2025-10-24"
 
 [vars]
 FIREBASE_PROJECT_ID = "bookinghospitalapp"
-# Set this to the deployed Flutter web origin if the web app is used.
-ALLOWED_ORIGIN = ""
+# Firebase Hosting origins for the HealWay web build. Add a custom domain here
+# as a comma-separated value if one is configured later.
+ALLOWED_ORIGINS = "https://bookinghospitalapp.web.app,https://bookinghospitalapp.firebaseapp.com"
+
+[[kv_namespaces]]
+binding = "CHAT_RATE_LIMIT"
+id = "05456748a57a49afb060fcb6f8bb1220"

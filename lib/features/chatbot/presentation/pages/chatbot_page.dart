@@ -60,7 +60,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
 
   Future<void> _send(ChatbotController controller) async {
     final message = _input.text.trim();
-    if (message.isEmpty) return;
+    if (message.isEmpty || controller.isSending) return;
     _input.clear();
     await controller.send(message);
     if (!mounted) return;
