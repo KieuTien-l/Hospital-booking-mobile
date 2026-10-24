@@ -22,6 +22,7 @@ import '../../../specialties/presentation/pages/specialty_list_page.dart';
 import 'functions_page.dart';
 import 'usage_guide_page.dart';
 import 'customer_feedback_page.dart';
+import '../../../chatbot/presentation/pages/chatbot_page.dart';
 import 'live_customer_feedback_page.dart';
 import 'patient_support_page.dart';
 import '../widgets/quick_functions_section.dart';
@@ -57,6 +58,13 @@ class _PatientHomePageState extends State<PatientHomePage> {
   }
 
   void _open(String title, [String? content]) {
+    if (title == 'Hỏi - đáp (Chatbot)') {
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const ChatbotPage()),
+      );
+      return;
+    }
     if (title == 'Lắng nghe khách hàng') {
       FocusScope.of(context).unfocus();
       final userId = context.read<AuthController>().currentUser?.id;
