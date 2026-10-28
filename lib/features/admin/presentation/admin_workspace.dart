@@ -10,9 +10,7 @@ import '../../../core/themes/app_colors.dart';
 import '../../../core/utils/model_value_parser.dart';
 import '../../appointments/domain/entities/appointment.dart';
 import '../../home/presentation/widgets/patient_home_background.dart';
-import '../data/admin_doctor_provisioner.dart';
 import '../data/admin_repository.dart';
-import 'controllers/admin_account_controller.dart';
 import 'controllers/admin_appointment_controller.dart';
 import 'controllers/admin_dashboard_controller.dart';
 import '../data/admin_commands.dart';
@@ -102,13 +100,11 @@ class AdminWorkspace extends StatefulWidget {
     required this.onLogout,
     this.repository,
     this.commands,
-    this.doctorProvisioner,
   });
   final String userName;
   final VoidCallback onLogout;
   final AdminRepository? repository;
   final AdminCommands? commands;
-  final DoctorAccountProvisioner? doctorProvisioner;
 
   @override
   State<AdminWorkspace> createState() => _AdminWorkspaceState();
@@ -117,7 +113,6 @@ class AdminWorkspace extends StatefulWidget {
 class _AdminWorkspaceState extends State<AdminWorkspace> {
   late final AdminController _controller;
   late final AdminCommands? _commands;
-  late final DoctorAccountProvisioner _doctorProvisioner;
   final _search = TextEditingController();
   final _scroll = ScrollController();
   Timer? _searchDebounce;
@@ -142,8 +137,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     _commands =
         widget.commands ??
         (widget.repository == null ? FirebaseAdminCommands() : null);
-    _doctorProvisioner =
-        widget.doctorProvisioner ?? FirebaseDoctorAccountProvisioner();
     _controller = AdminController(
       widget.repository ?? FirestoreAdminRepository(),
     )..start();
@@ -498,9 +491,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     if (_selected == 18) return _reportsPanel();
     if (section.collection == null) return _settings();
     final dataset = _controller.dataset(section.collection!);
-    final accountController = section.collection == 'TAI_KHOAN'
-        ? context.watch<AdminAccountController?>()
-        : null;
     final appointmentController = section.collection == 'LICH_HEN'
         ? context.watch<AdminAppointmentController?>()
         : null;
@@ -632,10 +622,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
       children: [
         _sectionIntro(section, dataset),
         const SizedBox(height: 18),
-        if (accountController != null) ...[
-          _pendingAccountsPanel(accountController),
-          const SizedBox(height: 18),
-        ],
         if (appointmentController != null) ...[
           _appointmentAuditPanel(appointmentController),
           const SizedBox(height: 18),
@@ -900,115 +886,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _pendingAccountsPanel(AdminAccountController controller) {
-    final accounts = controller.pendingAccounts;
-    return _panel(
-      'Tài khoản chờ duyệt',
-      controller.isLoading
-          ? 'Đang tải danh sách từ Firestore'
-          : '${accounts.length} tài khoản cần admin xử lý',
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (controller.hasError) ...[
-            _notice(
-              controller.errorMessage ?? 'Không tải được tài khoản chờ duyệt.',
-              error: true,
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (controller.isLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (accounts.isEmpty)
-            const Text('Không có tài khoản nào đang chờ duyệt.')
-          else
-            for (final account in accounts.take(10))
-              Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person_outline, color: _blue),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              account.fullName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              account.email,
-                              style: const TextStyle(color: _muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: controller.isLoading
-                            ? null
-                            : () => _reviewPendingAccount(
-                                controller,
-                                account.id,
-                                approved: false,
-                              ),
-                        child: const Text('Từ chối'),
-                      ),
-                      FilledButton(
-                        onPressed: controller.isLoading
-                            ? null
-                            : () => _reviewPendingAccount(
-                                controller,
-                                account.id,
-                                approved: true,
-                              ),
-                        child: const Text('Duyệt'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: controller.isLoading
-                  ? null
-                  : controller.loadPendingAccounts,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Làm mới danh sách'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _reviewPendingAccount(
-    AdminAccountController controller,
-    String accountId, {
-    required bool approved,
-  }) async {
-    final saved = approved
-        ? await controller.approveAccount(accountId)
-        : await controller.rejectAccount(accountId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          saved == null
-              ? controller.errorMessage ?? 'Không thể cập nhật tài khoản.'
-              : approved
-              ? 'Đã duyệt tài khoản.'
-              : 'Đã từ chối tài khoản.',
-        ),
-      ),
     );
   }
 

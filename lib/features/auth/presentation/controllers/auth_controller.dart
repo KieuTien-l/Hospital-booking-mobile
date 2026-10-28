@@ -22,6 +22,9 @@ class AuthController extends ChangeNotifier {
   UserEntity? _currentUser;
   String? _errorMessage;
   bool _restoringSession = false;
+  // Every asynchronous auth operation captures this value.  A response that
+  // started before logout must never be allowed to restore a signed-in UI.
+  var _sessionEpoch = 0;
 
   AuthStatus get status => _status;
   UserEntity? get currentUser => _currentUser;
@@ -31,29 +34,35 @@ class AuthController extends ChangeNotifier {
 
   Future<void> _restoreSession() async {
     if (_restoringSession) return;
+    final epoch = _sessionEpoch;
     _restoringSession = true;
     _status = AuthStatus.loading;
     notifyListeners();
 
     try {
-      _currentUser = await _authRepo.getCurrentUser();
+      final user = await _authRepo.getCurrentUser();
+      if (epoch != _sessionEpoch) return;
+      _currentUser = user;
       _status = _currentUser == null
           ? AuthStatus.unauthenticated
           : AuthStatus.authenticated;
       _errorMessage = null;
     } catch (error) {
+      if (epoch != _sessionEpoch) return;
       _currentUser = null;
       _status = AuthStatus.error;
       _errorMessage = _messageFrom(error);
     } finally {
+      // A logout can invalidate this restore.  It still has to release the
+      // guard so a later sign-in event can start a fresh restore.
       _restoringSession = false;
     }
-    notifyListeners();
+    if (epoch == _sessionEpoch) notifyListeners();
   }
 
   void _onAuthStateChanged(String? userId) {
     if (userId == null) {
-      if (_status == AuthStatus.loading) return;
+      _sessionEpoch++;
       _currentUser = null;
       _status = AuthStatus.unauthenticated;
       _errorMessage = null;
@@ -68,19 +77,22 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> login({required String email, required String password}) async {
+    final epoch = ++_sessionEpoch;
     _status = AuthStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
       _currentUser = await _authRepo.login(email: email, password: password);
+      if (epoch != _sessionEpoch) return;
       _status = AuthStatus.authenticated;
     } catch (error) {
+      if (epoch != _sessionEpoch) return;
       _currentUser = null;
       _status = AuthStatus.error;
       _errorMessage = _messageFrom(error);
     }
-    notifyListeners();
+    if (epoch == _sessionEpoch) notifyListeners();
   }
 
   Future<bool> register({
@@ -89,21 +101,24 @@ class AuthController extends ChangeNotifier {
     required String fullName,
     required String phone,
   }) async {
+    final epoch = ++_sessionEpoch;
     _status = AuthStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _authRepo.register(
+      _currentUser = await _authRepo.register(
         email: email,
         password: password,
         fullName: fullName,
         phone: phone,
       );
-      _status = AuthStatus.unauthenticated;
+      if (epoch != _sessionEpoch) return false;
+      _status = AuthStatus.authenticated;
       notifyListeners();
       return true;
     } catch (error) {
+      if (epoch != _sessionEpoch) return false;
       _status = AuthStatus.error;
       _errorMessage = _messageFrom(error);
       notifyListeners();
@@ -123,6 +138,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    ++_sessionEpoch;
     _status = AuthStatus.loading;
     notifyListeners();
 

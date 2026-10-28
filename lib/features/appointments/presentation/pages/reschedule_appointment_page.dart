@@ -49,10 +49,9 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
     final today = DateUtils.dateOnly(
       DateTime.now().toUtc().add(const Duration(hours: 7)),
     );
-    final currentDate = widget.appointment.appointmentDate;
-    _startDate = currentDate != null && currentDate.isAfter(today)
-        ? DateUtils.dateOnly(currentDate)
-        : today;
+    // Rescheduling may choose any future opening, including one before the
+    // old appointment.  Starting from the old date hid valid alternatives.
+    _startDate = today;
     _selectedDate = _startDate;
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadSchedules());
   }

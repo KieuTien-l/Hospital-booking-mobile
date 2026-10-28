@@ -102,3 +102,65 @@ class DoctorReport {
   final DoctorReportStatus status;
   final String? adminResponse;
 }
+
+class DoctorHealthRecordDraft {
+  const DoctorHealthRecordDraft({
+    required this.requestId,
+    required this.appointmentId,
+    required this.diagnosis,
+    required this.recordType,
+    this.id,
+    this.notes = '',
+    this.prescription = '',
+  });
+  final String requestId, appointmentId, diagnosis, recordType;
+  final String? id, notes, prescription;
+}
+
+class DoctorTestResultDraft {
+  const DoctorTestResultDraft({
+    required this.requestId,
+    required this.appointmentId,
+    required this.testName,
+    required this.resultDescription,
+    this.id,
+    this.resultType = 'Khác',
+    this.conclusion = '',
+    this.referenceRange = '',
+  });
+  final String requestId, appointmentId, testName, resultDescription;
+  final String? id, resultType, conclusion, referenceRange;
+}
+
+class DoctorClinicalSaveResult {
+  const DoctorClinicalSaveResult({required this.id, required this.message});
+  final String id, message;
+}
+
+class DoctorHealthRecordSummary {
+  const DoctorHealthRecordSummary({
+    required this.id,
+    required this.diagnosis,
+    required this.notes,
+    required this.prescription,
+    required this.recordType,
+  });
+  final String id, diagnosis, notes, prescription, recordType;
+}
+
+class DoctorTestResultSummary {
+  const DoctorTestResultSummary({
+    required this.id,
+    required this.testName,
+    required this.resultDescription,
+    required this.resultType,
+    required this.conclusion,
+    required this.referenceRange,
+  });
+  final String id,
+      testName,
+      resultDescription,
+      resultType,
+      conclusion,
+      referenceRange;
+}

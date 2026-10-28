@@ -54,9 +54,10 @@ export default {
       return json({ error: 'Không tìm thấy dịch vụ.' }, 404, headers);
     }
     try {
-      const uid = await authenticatedUser(request, env.FIREBASE_PROJECT_ID);
+      const session = await authenticatedUser(request, env.FIREBASE_PROJECT_ID);
+      await requireActiveHealwayAccount(session, env.FIREBASE_PROJECT_ID);
       const input = await validatedInput(request);
-      await enforceRateLimit(uid, env);
+      await enforceRateLimit(session.uid, env);
       const protectedReply = safetyReplyFor(input.message, input.history);
       if (protectedReply) {
         // Return an error for secrets so even older mobile builds do not save
@@ -123,7 +124,43 @@ async function authenticatedUser(request, projectId) {
       typeof claims.iat !== 'number' || claims.iat > now + 60) {
     throw new HttpError(401, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   }
-  return claims.sub;
+  return { uid: claims.sub, token };
+}
+
+/**
+ * Firebase ID-token verification proves who issued a token, not that the
+ * HealWay account is still approved. Querying the account through Firestore
+ * (under that same user's Rules permission) closes the window where a
+ * suspended or pending account can continue using an unexpired token.
+ */
+async function requireActiveHealwayAccount(session, projectId) {
+  const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/TAI_KHOAN/${encodeURIComponent(session.uid)}`;
+  let response;
+  try {
+    response = await fetch(url, { headers: { Authorization: `Bearer ${session.token}` } });
+  } catch (_) {
+    throw new HttpError(503, 'Không thể kiểm tra trạng thái tài khoản. Vui lòng thử lại.');
+  }
+  if (response.status === 401 || response.status === 403 || response.status === 404) {
+    throw new HttpError(403, 'Tài khoản chưa được phê duyệt hoặc đã ngừng hoạt động.');
+  }
+  if (!response.ok) {
+    throw new HttpError(503, 'Không thể kiểm tra trạng thái tài khoản. Vui lòng thử lại.');
+  }
+  let document;
+  try {
+    document = await response.json();
+  } catch (_) {
+    throw new HttpError(503, 'Không thể kiểm tra trạng thái tài khoản. Vui lòng thử lại.');
+  }
+  const fields = document?.fields;
+  const active = fields?.isActive?.booleanValue === true;
+  const role = fields?.role?.stringValue;
+  const status = fields?.status?.stringValue;
+  if (!active || !['patient', 'doctor', 'admin'].includes(role) ||
+      !['ACTIVE', 'APPROVED'].includes(status)) {
+    throw new HttpError(403, 'Tài khoản chưa được phê duyệt hoặc đã ngừng hoạt động.');
+  }
 }
 
 async function firebaseSigningKeys() {
@@ -197,11 +234,25 @@ function cleanText(value) {
 }
 
 async function enforceRateLimit(uid, env) {
+  if (env.CHAT_RATE_LIMITER) {
+    const id = env.CHAT_RATE_LIMITER.idFromName(uid);
+    const response = await env.CHAT_RATE_LIMITER.get(id).fetch(
+      'https://rate-limiter/check',
+    );
+    if (response.status === 429) {
+      throw new HttpError(429, 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau một phút.');
+    }
+    if (!response.ok) {
+      throw new HttpError(503, 'Không thể kiểm tra giới hạn gửi tin. Vui lòng thử lại.');
+    }
+    return;
+  }
+
+  // Local fallback is used only by unit tests. Production binds the Durable
+  // Object below, which serializes every request for the same account.
   const now = Date.now();
   const key = `chat:${uid}`;
-  const state = env.CHAT_RATE_LIMIT
-    ? JSON.parse((await env.CHAT_RATE_LIMIT.get(key)) ?? '{}')
-    : localLimits.get(key) ?? {};
+  const state = localLimits.get(key) ?? {};
   if (now - Number(state.lastRequestAt ?? 0) < minRequestIntervalMs) {
     throw new HttpError(429, 'Bạn gửi tin nhắn quá nhanh. Vui lòng chờ một lát rồi thử lại.');
   }
@@ -209,8 +260,31 @@ async function enforceRateLimit(uid, env) {
   const count = inNewWindow ? 0 : Number(state.count ?? 0);
   if (count >= maxRequestsPerMinute) throw new HttpError(429, 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau một phút.');
   const next = { windowStartedAt: inNewWindow ? now : Number(state.windowStartedAt ?? now), lastRequestAt: now, count: count + 1 };
-  if (env.CHAT_RATE_LIMIT) await env.CHAT_RATE_LIMIT.put(key, JSON.stringify(next), { expirationTtl: 120 });
-  else localLimits.set(key, next);
+  localLimits.set(key, next);
+}
+
+/** A per-user Durable Object makes the read/check/write rate-limit atomic. */
+export class ChatRateLimiterV2 {
+  constructor(ctx) {
+    this.ctx = ctx;
+  }
+
+  async fetch() {
+    const now = Date.now();
+    const state = (await this.ctx.storage.get('state')) ?? {};
+    if (now - Number(state.lastRequestAt ?? 0) < minRequestIntervalMs) {
+      return new Response(null, { status: 429 });
+    }
+    const inNewWindow = now - Number(state.windowStartedAt ?? now) >= requestWindowMs;
+    const count = inNewWindow ? 0 : Number(state.count ?? 0);
+    if (count >= maxRequestsPerMinute) return new Response(null, { status: 429 });
+    await this.ctx.storage.put('state', {
+      windowStartedAt: inNewWindow ? now : Number(state.windowStartedAt ?? now),
+      lastRequestAt: now,
+      count: count + 1,
+    });
+    return new Response(null, { status: 204 });
+  }
 }
 
 async function askOpenAi(history, apiKey) {

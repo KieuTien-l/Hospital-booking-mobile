@@ -18,6 +18,9 @@ class DoctorWorkspaceController extends ViewStateController {
   Timer? _timer;
   bool _pollingAllowed = true;
 
+  bool matches(DateTime date) =>
+      _same(selectedDate, DateTime(date.year, date.month, date.day));
+
   void pause() {
     _pollingAllowed = false;
     _timer?.cancel();

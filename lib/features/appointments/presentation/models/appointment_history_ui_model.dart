@@ -5,6 +5,7 @@ enum AppointmentHistoryTab {
   paid('Đã thanh toán'),
   received('Đã tiếp nhận'),
   completed('Đã khám'),
+  noShow('Vắng mặt'),
   cancelled('Đã hủy');
 
   const AppointmentHistoryTab(this.label);
@@ -29,12 +30,19 @@ class AppointmentHistoryUiModel {
   final String? room;
   final bool isPaid;
 
-  AppointmentHistoryTab? get tab => switch (appointment.status) {
+  AppointmentHistoryTab? get tab {
+    // Payment is independent of the visit lifecycle. A completed appointment
+    // with a successful transaction must still be discoverable in the paid
+    // tab rather than disappearing into only the clinical-status tab.
+    if (isPaid) return AppointmentHistoryTab.paid;
+    return switch (appointment.status) {
     AppointmentStatus.pending => AppointmentHistoryTab.pending,
     AppointmentStatus.completed => AppointmentHistoryTab.completed,
     AppointmentStatus.cancelled => AppointmentHistoryTab.cancelled,
     AppointmentStatus.confirmed =>
       isPaid ? AppointmentHistoryTab.paid : AppointmentHistoryTab.received,
-    AppointmentStatus.noShow || AppointmentStatus.unknown => null,
+    AppointmentStatus.noShow => AppointmentHistoryTab.noShow,
+    AppointmentStatus.unknown => null,
   };
+  }
 }

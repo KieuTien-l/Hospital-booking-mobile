@@ -49,31 +49,41 @@ service cloud.firestore {
                   doctor.data.userId == account.data.accountKey));
     }
 
-    // Administrators may manage schedules, but a schedule must still belong
-    // to a real active doctor. This prevents an otherwise privileged client
-    // from introducing orphaned doctor/schedule relationships.
-    function hasActiveDoctorProfile(doctorId) {
-      let doctor = get(/databases/$(database)/documents/BAC_SI/$(doctorId));
-      return doctor.data.status == 'ACTIVE';
+    // An archived profile remains readable by its owner, but cannot consume
+    // clinical capacity through a new appointment.
+    function hasBookablePatient(patientId) {
+      let patient = get(/databases/$(database)/documents/BENH_NHAN/$(patientId));
+      return ownsPatient(patientId) &&
+          patient.data.isActive != false &&
+          (!patient.data.keys().hasAll(['status']) ||
+              patient.data.status != 'ARCHIVED');
     }
 
-    function canAdminSaveSchedule() {
-      return request.resource.data.doctorId is string &&
-          request.resource.data.doctorId.size() > 0 &&
-          hasActiveDoctorProfile(request.resource.data.doctorId);
+    function isValidPatientProfile() {
+      return request.resource.data.fullName is string &&
+          request.resource.data.fullName.size() >= 2 &&
+          request.resource.data.fullName.size() <= 120 &&
+          request.resource.data.fullName.matches('.*[^0-9 ].*') &&
+          request.resource.data.phone is string &&
+          request.resource.data.phone.matches('^0[0-9]{9,10}$') &&
+          request.resource.data.email is string &&
+          (request.resource.data.email.size() == 0 ||
+              request.resource.data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')) &&
+          (!request.resource.data.keys().hasAll(['nationalId']) ||
+              (request.resource.data.nationalId is string &&
+                  (request.resource.data.nationalId.size() == 0 ||
+                      request.resource.data.nationalId.matches('^[0-9]{12}$'))));
     }
 
-    function canAdminSaveSlot() {
-      let schedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId));
-      return request.resource.data.workScheduleId is string &&
-          request.resource.data.doctorId is string &&
-          schedule.data.status == 'ACTIVE' &&
-          request.resource.data.doctorId == schedule.data.doctorId &&
-          request.resource.data.capacity is int &&
-          request.resource.data.capacity > 0 &&
-          request.resource.data.bookedCount is int &&
-          request.resource.data.bookedCount >= 0 &&
-          request.resource.data.bookedCount <= request.resource.data.capacity;
+    // New slots carry their exact start timestamp, so a remaining time slot
+    // today can be booked. Legacy slots fall back to the conservative
+    // date-only check until an administrator re-saves them.
+    function slotHasNotStarted(slot, appointmentDate) {
+      return (slot.data.keys().hasAll(['startsAt']) &&
+              slot.data.startsAt is timestamp &&
+              slot.data.startsAt > request.time) ||
+          (!slot.data.keys().hasAll(['startsAt']) &&
+              appointmentDate > request.time);
     }
 
     function validAppointmentCreateShape() {
@@ -130,10 +140,11 @@ service cloud.firestore {
     function canCreateAppointment(appointmentId) {
       let slot = get(/databases/$(database)/documents/CA_KHAM/$(request.resource.data.timeSlotId));
       let schedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId));
+      let doctor = get(/databases/$(database)/documents/BAC_SI/$(request.resource.data.doctorId));
       let slotAfter = getAfter(/databases/$(database)/documents/CA_KHAM/$(request.resource.data.timeSlotId));
       let newCount = slot.data.bookedCount + request.resource.data.peopleCount;
       return validAppointmentCreateShape() &&
-          ownsPatient(request.resource.data.patientId) &&
+          hasBookablePatient(request.resource.data.patientId) &&
           slot.data.status == 'AVAILABLE' &&
           slot.data.capacity is int &&
           slot.data.capacity > 0 &&
@@ -143,12 +154,18 @@ service cloud.firestore {
           slot.data.doctorId == request.resource.data.doctorId &&
           schedule.data.status == 'ACTIVE' &&
           schedule.data.doctorId == request.resource.data.doctorId &&
+          doctor.data.status == 'ACTIVE' &&
+          doctor.data.acceptingBookings != false &&
+          doctor.data.specialtyId == request.resource.data.specialtyId &&
           request.resource.data.appointmentDate == schedule.data.workDate &&
+          slotHasNotStarted(slot, request.resource.data.appointmentDate) &&
           request.resource.data.startTime == slot.data.startTime &&
           request.resource.data.endTime == slot.data.endTime &&
           slotAfter.data.bookedCount == newCount &&
           slotAfter.data.appointmentId == appointmentId &&
           slotAfter.data.reservationCounts is map &&
+          (!slot.data.keys().hasAll(['reservationCounts']) ||
+              !slot.data.reservationCounts.keys().hasAll([appointmentId])) &&
           slotAfter.data.reservationCounts[appointmentId] ==
               request.resource.data.peopleCount &&
           ((newCount < slot.data.capacity && slotAfter.data.status == 'AVAILABLE') ||
@@ -252,6 +269,9 @@ service cloud.firestore {
           appointment.data.peopleCount is int &&
           appointment.data.peopleCount > 0 &&
           request.resource.data.reservationCounts is map &&
+          (!resource.data.keys().hasAll(['reservationCounts']) ||
+              !resource.data.reservationCounts.keys()
+                  .hasAll([request.resource.data.appointmentId])) &&
           request.resource.data.reservationCounts[
               request.resource.data.appointmentId] == appointment.data.peopleCount &&
           (!resource.data.keys().hasAll(['reservationCounts']) ||
@@ -324,26 +344,51 @@ service cloud.firestore {
             'startTime',
             'endTime',
             'status',
+            'queueNumber',
+            'checkInTime',
             'updatedAt'
           ]) &&
           newSchedule.data.status == 'ACTIVE' &&
           newSchedule.data.doctorId == resource.data.doctorId &&
           newSlot.data.workScheduleId == request.resource.data.workScheduleId &&
           newSlot.data.doctorId == resource.data.doctorId &&
+          newSlot.data.status == 'AVAILABLE' &&
+          newSlot.data.capacity is int &&
+          newSlot.data.capacity > 0 &&
+          newSlot.data.bookedCount is int &&
+          newSlot.data.bookedCount >= 0 &&
           request.resource.data.appointmentDate == newSchedule.data.workDate &&
+          slotHasNotStarted(newSlot, request.resource.data.appointmentDate) &&
           request.resource.data.startTime == newSlot.data.startTime &&
           request.resource.data.endTime == newSlot.data.endTime &&
           oldSlot.data.bookedCount - resource.data.peopleCount ==
               oldSlotAfter.data.bookedCount &&
+          oldSlot.data.reservationCounts is map &&
+          oldSlot.data.reservationCounts[appointmentId] ==
+              resource.data.peopleCount &&
           newSlot.data.bookedCount + resource.data.peopleCount ==
               newSlotAfter.data.bookedCount &&
+          newSlotAfter.data.bookedCount <= newSlot.data.capacity &&
           oldSlotAfter.data.appointmentId == appointmentId &&
           newSlotAfter.data.appointmentId == appointmentId &&
           oldSlotAfter.data.reservationCounts is map &&
           newSlotAfter.data.reservationCounts is map &&
           !oldSlotAfter.data.reservationCounts.keys().hasAll([appointmentId]) &&
+          (!newSlot.data.keys().hasAll(['reservationCounts']) ||
+              !newSlot.data.reservationCounts.keys().hasAll([appointmentId])) &&
           newSlotAfter.data.reservationCounts[appointmentId] ==
-              resource.data.peopleCount;
+              resource.data.peopleCount &&
+          ((oldSlot.data.status in ['UNAVAILABLE', 'CANCELLED'] &&
+                  oldSlotAfter.data.status == oldSlot.data.status) ||
+              (!(oldSlot.data.status in ['UNAVAILABLE', 'CANCELLED']) &&
+                  ((oldSlotAfter.data.bookedCount < oldSlot.data.capacity &&
+                      oldSlotAfter.data.status == 'AVAILABLE') ||
+                    (oldSlotAfter.data.bookedCount == oldSlot.data.capacity &&
+                      oldSlotAfter.data.status == 'BOOKED')))) &&
+          ((newSlotAfter.data.bookedCount < newSlot.data.capacity &&
+                  newSlotAfter.data.status == 'AVAILABLE') ||
+              (newSlotAfter.data.bookedCount == newSlot.data.capacity &&
+                  newSlotAfter.data.status == 'BOOKED'));
     }
 
     function canDoctorUpdateAppointment() {
@@ -352,7 +397,11 @@ service cloud.firestore {
           request.resource.data.doctorId == resource.data.doctorId &&
           request.resource.data.workScheduleId == resource.data.workScheduleId &&
           request.resource.data.timeSlotId == resource.data.timeSlotId &&
-          request.resource.data.status in ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] &&
+          ((resource.data.status == request.resource.data.status) ||
+              (resource.data.status == 'PENDING' &&
+                  request.resource.data.status in ['CONFIRMED', 'CANCELLED']) ||
+              (resource.data.status == 'CONFIRMED' &&
+                  request.resource.data.status in ['COMPLETED', 'CANCELLED', 'NO_SHOW'])) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'status',
             'note',
@@ -365,7 +414,13 @@ service cloud.firestore {
 
     function canManageOwnSchedule() {
       return isDoctor(resource.data.doctorId) &&
-          request.resource.data.doctorId == resource.data.doctorId;
+          request.resource.data.doctorId == resource.data.doctorId &&
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'updatedAt']) &&
+          ((resource.data.status == 'ACTIVE' &&
+                  request.resource.data.status == 'INACTIVE') ||
+              (resource.data.status == 'INACTIVE' &&
+                  request.resource.data.status == 'ACTIVE'));
     }
 
     function canManageOwnSlot() {
@@ -374,7 +429,18 @@ service cloud.firestore {
           request.resource.data.workScheduleId == resource.data.workScheduleId &&
           request.resource.data.doctorId == resource.data.doctorId &&
           request.resource.data.bookedCount == resource.data.bookedCount &&
-          request.resource.data.appointmentId == resource.data.appointmentId;
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'updatedAt']) &&
+          // Doctors can pause/reopen only ordinary slots. They cannot mark a
+          // slot as cancelled, claim it is booked, or reopen an admin-cancelled
+          // slot; booked state is always derived from the reservation count.
+          ((resource.data.status in ['AVAILABLE', 'BOOKED'] &&
+                  request.resource.data.status == 'UNAVAILABLE') ||
+              (resource.data.status == 'UNAVAILABLE' &&
+                  ((request.resource.data.bookedCount < resource.data.capacity &&
+                      request.resource.data.status == 'AVAILABLE') ||
+                    (request.resource.data.bookedCount == resource.data.capacity &&
+                      request.resource.data.status == 'BOOKED'))));
     }
 
     function canReleaseBookedSlot(slotId) {
@@ -397,6 +463,9 @@ service cloud.firestore {
               ]) &&
           request.resource.data.bookedCount ==
               slot.bookedCount - appointment.data.peopleCount &&
+          slot.reservationCounts is map &&
+          slot.reservationCounts[request.resource.data.appointmentId] ==
+              appointment.data.peopleCount &&
           request.resource.data.bookedCount >= 0 &&
           request.resource.data.reservationCounts is map &&
           !request.resource.data.reservationCounts.keys()
@@ -406,53 +475,40 @@ service cloud.firestore {
                   .diff(slot.reservationCounts)
                   .affectedKeys()
                   .hasOnly([request.resource.data.appointmentId])) &&
-          ((request.resource.data.bookedCount < slot.capacity &&
+          ((slot.status in ['UNAVAILABLE', 'CANCELLED'] &&
+                  request.resource.data.status == slot.status) ||
+              (!(slot.status in ['UNAVAILABLE', 'CANCELLED']) &&
+                  request.resource.data.bookedCount < slot.capacity &&
                   request.resource.data.status == 'AVAILABLE') ||
-              (request.resource.data.bookedCount == slot.capacity &&
+              (!(slot.status in ['UNAVAILABLE', 'CANCELLED']) &&
+                  request.resource.data.bookedCount == slot.capacity &&
                   request.resource.data.status == 'BOOKED')) &&
           ownsPatient(appointment.data.patientId);
     }
 
-    // Approval is a one-way review of a self-registered patient account. The
-    // reviewer never receives permission to modify the role or profile fields.
-    function canReviewPendingAccount() {
-      return isAdmin() &&
-          resource.data.status == 'PENDING' &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.email == resource.data.email &&
-          request.resource.data.fullName == resource.data.fullName &&
-          request.resource.data.phone == resource.data.phone &&
-          request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'isActive', 'updatedAt']) &&
-          ((request.resource.data.status == 'APPROVED' &&
-              request.resource.data.isActive == true) ||
-              (request.resource.data.status == 'REJECTED' &&
-                  request.resource.data.isActive == false));
+    function canDoctorCreateAppointmentNotification() {
+      let appointment = get(/databases/$(database)/documents/LICH_HEN/$(request.resource.data.appointmentId));
+      return request.resource.data.patientId is string &&
+          request.resource.data.appointmentId is string &&
+          request.resource.data.doctorId is string &&
+          isDoctor(request.resource.data.doctorId) &&
+          appointment.data.patientId == request.resource.data.patientId &&
+          appointment.data.doctorId == request.resource.data.doctorId;
     }
 
     match /TAI_KHOAN/{accountId} {
       allow read: if signedIn() && (request.auth.uid == accountId || isAdmin());
-      allow create: if (
-            signedIn() &&
+      allow create: if signedIn() &&
             request.auth.uid == accountId &&
             request.resource.data.keys().hasOnly([
               'email', 'fullName', 'phone', 'role', 'isActive', 'status', 'createdAt', 'updatedAt'
             ]) &&
             request.resource.data.role == 'patient' &&
-            request.resource.data.status == 'PENDING' &&
-            request.resource.data.isActive == false
-          ) || (
-            isAdmin() &&
-            request.resource.data.keys().hasOnly([
-              'email', 'fullName', 'phone', 'role', 'isActive', 'status', 'createdAt', 'updatedAt'
-            ]) &&
-            request.resource.data.role == 'doctor' &&
             request.resource.data.status == 'ACTIVE' &&
-            request.resource.data.isActive == true
-          );
-      allow update: if canReviewPendingAccount() ||
-          (signedIn() &&
+            request.resource.data.isActive == true;
+      allow update: if (signedIn() &&
               request.auth.uid == accountId &&
+              resource.data.role == 'patient' &&
               request.resource.data.role == resource.data.role &&
               request.resource.data.isActive == resource.data.isActive &&
               request.resource.data.status == resource.data.status &&
@@ -463,12 +519,12 @@ service cloud.firestore {
 
     match /CHUYEN_KHOA/{specialtyId} {
       allow read: if hasActiveAccount();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /BAC_SI/{doctorId} {
       allow read: if hasActiveAccount();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /BENH_NHAN/{patientId} {
@@ -477,10 +533,9 @@ service cloud.firestore {
       // this condition is expressed against the queried document itself.
       allow read: if isAdmin() ||
           (signedIn() && resource.data.authUserId == request.auth.uid);
-      allow create: if isAdmin() ||
-          (signedIn() && request.resource.data.authUserId == request.auth.uid);
-      allow update: if isAdmin() ||
-          (ownsPatientProfile(patientId) &&
+      allow create: if signedIn() && patientId == request.auth.uid &&
+          request.resource.data.authUserId == request.auth.uid;
+      allow update: if ownsPatientProfile(patientId) &&
               request.resource.data.authUserId == resource.data.authUserId &&
               request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                 'fullName',
@@ -500,72 +555,75 @@ service cloud.firestore {
                 'nationalId',
                 'relationshipToAccountHolder',
                 'updatedAt'
-              ]));
-      allow delete: if isAdmin();
+               ]) && isValidPatientProfile();
+      allow delete: if false;
     }
 
     match /LICH_LAM_VIEC/{scheduleId} {
       allow read: if hasActiveAccount();
-      allow create: if (isAdmin() && canAdminSaveSchedule()) ||
-          isDoctor(request.resource.data.doctorId);
-      allow update: if (isAdmin() && canAdminSaveSchedule()) ||
-          canManageOwnSchedule();
-      allow delete: if isAdmin() || canManageOwnSchedule();
+      // Schedule administration goes through adminCommand (Admin SDK), where
+      // it is atomic, audited and verifies dependent slots/appointments.
+      // A signed-in admin client must not be able to bypass those checks with
+      // a raw Firestore request.
+      allow create: if false;
+      allow update: if canManageOwnSchedule();
+      allow delete: if false;
     }
 
     match /CA_KHAM/{slotId} {
       allow read: if hasActiveAccount();
-      allow create: if (isAdmin() && canAdminSaveSlot()) ||
-          isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId)).data.doctorId);
-      allow update: if (isAdmin() && canAdminSaveSlot()) ||
-          canManageOwnSlot() || canBookSlot(slotId) ||
+      // Admin changes use the audited Cloud Function. This prevents a raw
+      // client from altering capacity, counts or reservations.
+      allow create: if false;
+      allow update: if canManageOwnSlot() || canBookSlot(slotId) ||
           canReleaseBookedSlot(slotId);
-      allow delete: if isAdmin() ||
-          isDoctor(get(/databases/$(database)/documents/LICH_LAM_VIEC/$(resource.data.workScheduleId)).data.doctorId);
+      allow delete: if false;
     }
 
     match /LICH_HEN/{appointmentId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
           isDoctor(resource.data.doctorId);
       allow create: if canCreateAppointment(appointmentId);
-      allow update: if isAdmin() || canDoctorUpdateAppointment() ||
+      // Admin appointment actions use adminCommand so status transitions and
+      // slot counters are performed in one server transaction.
+      allow update: if canDoctorUpdateAppointment() ||
           canUpdateOwnAppointment() || canCancelOwnAppointment(appointmentId) ||
           canRescheduleOwnAppointment(appointmentId);
-      allow delete: if isAdmin();
+      allow delete: if false;
     }
 
     match /THANH_TOAN/{paymentId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId);
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /HO_SO_SUC_KHOE/{recordId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
           isDoctor(resource.data.doctorId);
-      allow create: if isAdmin() || isDoctor(request.resource.data.doctorId);
-      allow update: if isAdmin() || isDoctor(resource.data.doctorId);
-      allow delete: if isAdmin() || isDoctor(resource.data.doctorId);
+      // Medical documents are written only by the trusted Worker. It checks
+      // the appointment inside a transaction, owns the server timestamp and
+      // stores an audit entry; an APK must never write them directly.
+      allow create, update, delete: if false;
     }
 
     match /KET_QUA_CLS/{resultId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
           (resource.data.doctorId is string && isDoctor(resource.data.doctorId));
-      allow create: if isAdmin() ||
-          (request.resource.data.doctorId is string &&
-              isDoctor(request.resource.data.doctorId));
-      allow update, delete: if isAdmin() ||
-          (resource.data.doctorId is string && isDoctor(resource.data.doctorId));
+      allow create, update, delete: if false;
     }
 
     match /PHAN_HOI/{feedbackId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId);
-      allow create: if ownsPatient(request.resource.data.patientId) &&
+      allow create: if request.resource.data.keys().hasOnly([
+            'patientId', 'title', 'content', 'category', 'rating', 'createdAt'
+          ]) && ownsPatient(request.resource.data.patientId) &&
           request.resource.data.content is string &&
           request.resource.data.content.size() > 0 &&
           request.resource.data.rating is number &&
           request.resource.data.rating >= 1 &&
-          request.resource.data.rating <= 5;
-      allow update, delete: if isAdmin();
+          request.resource.data.rating <= 5 &&
+          request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
     }
 
     // NotificationFirebaseDatasource and appointment transactions use the
@@ -573,18 +631,22 @@ service cloud.firestore {
     // to the client schema is required for the paired booking/cancellation
     // transaction to be authorized.
     match /THONG_BAO/{notificationId} {
-      allow read: if isAdmin() || ownsPatient(resource.data.patientId);
-      allow create: if isAdmin() ||
-          (request.resource.data.doctorId is string &&
-              isDoctor(request.resource.data.doctorId)) ||
+      // Drafts are admin-only. Older automatic booking notifications do not
+      // have a `status` field, so preserve patient access to those documents.
+      allow read: if isAdmin() ||
+          (resource.data.patientId is string &&
+              ownsPatient(resource.data.patientId) &&
+              (!resource.data.keys().hasAll(['status']) ||
+                  resource.data.status == 'SENT'));
+      allow create: if canDoctorCreateAppointmentNotification() ||
           canCreateOwnBookingNotification() ||
           canCreateOwnCancellationNotification();
-      allow update: if isAdmin() ||
-          (ownsPatient(resource.data.patientId) &&
+      allow update: if resource.data.patientId is string &&
+              ownsPatient(resource.data.patientId) &&
               request.resource.data.patientId == resource.data.patientId &&
               request.resource.data.diff(resource.data).affectedKeys()
-                  .hasOnly(['isRead']));
-      allow delete: if isAdmin();
+                  .hasOnly(['isRead']);
+      allow delete: if false;
     }
 
     // Each patient can read the chat history created under their own Firebase

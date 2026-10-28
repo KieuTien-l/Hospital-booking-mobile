@@ -10,6 +10,8 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
   @override
   bool get canSubmitReports => false;
   @override
+  bool get canWriteClinicalRecords => false;
+  @override
   Future<DoctorDayData> loadDay({
     required String userId,
     required DateTime date,
@@ -45,4 +47,24 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     required String userId,
     required DoctorReportDraft draft,
   }) => Future.error(StateError('Chế độ mẫu không gửi báo cáo.'));
+  @override
+  Future<DoctorClinicalSaveResult> saveHealthRecord({
+    required String userId,
+    required DoctorHealthRecordDraft draft,
+  }) => Future.error(StateError('Chế độ mẫu không lưu hồ sơ y tế.'));
+  @override
+  Future<DoctorClinicalSaveResult> saveTestResult({
+    required String userId,
+    required DoctorTestResultDraft draft,
+  }) => Future.error(StateError('Chế độ mẫu không lưu kết quả CLS.'));
+  @override
+  Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
+    required String userId,
+    required String appointmentId,
+  }) async => const [];
+  @override
+  Future<List<DoctorTestResultSummary>> loadTestResults({
+    required String userId,
+    required String appointmentId,
+  }) async => const [];
 }

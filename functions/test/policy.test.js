@@ -14,6 +14,7 @@ test('work schedules reject invalid times, Sundays and Saturday afternoons', () 
 test('capacity changes preserve locks and reject underflow, overflow or missing counters', () => {
   assert.deepEqual(capacityChange({ capacity: 5, bookedCount: 4, status: 'AVAILABLE' }, 1), { bookedCount: 5, status: 'BOOKED' });
   assert.deepEqual(capacityChange({ capacity: 5, bookedCount: 4, status: 'UNAVAILABLE' }, -2), { bookedCount: 2, status: 'UNAVAILABLE' });
+  assert.deepEqual(capacityChange({ capacity: 5, bookedCount: 4, status: 'CANCELLED' }, -2), { bookedCount: 2, status: 'CANCELLED' });
   assert.throws(() => capacityChange({ capacity: 5, bookedCount: 4 }, 2));
   assert.throws(() => capacityChange({ capacity: 5, bookedCount: 1 }, -2));
   assert.throws(() => capacityChange({ capacity: 5 }, 1));

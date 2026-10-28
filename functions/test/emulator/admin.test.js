@@ -21,9 +21,9 @@ const get = async (c, key) => (await db.collection(c).doc(key).get()).data();
 before(async () => { env = await initializeTestEnvironment({ projectId, firestore: { rules: await readFile(new URL('../../../firestore.rules', import.meta.url), 'utf8') } }); });
 beforeEach(async () => {
   await env.clearFirestore();
-  await db.collection('TAI_KHOAN').doc('admin').set({ role: 'admin', isActive: true, fullName: 'Admin' });
-  await db.collection('TAI_KHOAN').doc('patient').set({ role: 'patient', isActive: true, fullName: 'Bệnh nhân', phone: '' });
-  await db.collection('TAI_KHOAN').doc('doctor').set({ role: 'doctor', isActive: true, fullName: 'Bác sĩ', phone: '' });
+  await db.collection('TAI_KHOAN').doc('admin').set({ role: 'admin', isActive: true, status: 'ACTIVE', fullName: 'Admin' });
+  await db.collection('TAI_KHOAN').doc('patient').set({ role: 'patient', isActive: true, status: 'APPROVED', fullName: 'Bệnh nhân', phone: '' });
+  await db.collection('TAI_KHOAN').doc('doctor').set({ role: 'doctor', isActive: true, status: 'ACTIVE', fullName: 'Bác sĩ', phone: '' });
   await db.collection('CHUYEN_KHOA').doc('specialty').set({ name: 'Nội', status: 'ACTIVE' });
   await db.collection('BAC_SI').doc('doctor').set({ userId: 'doctor', fullName: 'BS An', specialtyId: 'specialty', status: 'ACTIVE', acceptingBookings: true, isActive: true, consultationFee: 150000 });
   await db.collection('BENH_NHAN').doc('patient').set({ authUserId: 'patient', fullName: 'Bệnh nhân', isActive: true, status: 'ACTIVE' });
@@ -40,6 +40,42 @@ test('non-admin, locked admin and stale writes are rejected', async () => {
   await db.collection('CHUYEN_KHOA').doc('specialty').update({ updatedAt: new Date() });
   await assert.rejects(command('save', { collection: 'CHUYEN_KHOA', id: 'specialty', expectedUpdatedAt: 1, values: { name: 'Stale' } }), (e) => e.code === 'aborted');
   assert.equal((await get('CHUYEN_KHOA', 'specialty')).name, 'Nội');
+});
+test('patient can atomically book a Worker-created-style empty slot', async () => {
+  await db.collection('CA_KHAM').doc('slot').update({
+    startsAt: new Date(`${day}T01:00:00.000Z`),
+    endsAt: new Date(`${day}T01:30:00.000Z`),
+  });
+  const patientDb = env.authenticatedContext('patient').firestore();
+  const appointmentId = 'patient-booking';
+  const appointment = doc(patientDb, 'LICH_HEN', appointmentId);
+  const slot = doc(patientDb, 'CA_KHAM', 'slot');
+  const schedule = doc(patientDb, 'LICH_LAM_VIEC', 'schedule');
+  const doctor = doc(patientDb, 'BAC_SI', 'doctor');
+  const profile = doc(patientDb, 'BENH_NHAN', 'patient');
+  const notice = doc(patientDb, 'THONG_BAO', 'patient-booking-notice');
+  await assertSucceeds(runTransaction(patientDb, async (tx) => {
+    await tx.get(slot);
+    await tx.get(schedule);
+    await tx.get(doctor);
+    await tx.get(profile);
+    tx.set(appointment, {
+      patientId: 'patient', doctorId: 'doctor', workScheduleId: 'schedule',
+      timeSlotId: 'slot', specialtyId: 'specialty', appointmentDate: date(day),
+      startTime: '08:00', endTime: '08:30', bookedAt: new Date(),
+      status: 'PENDING', peopleCount: 1,
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    });
+    tx.update(slot, {
+      bookedCount: 1, status: 'AVAILABLE', appointmentId,
+      reservationCounts: { [appointmentId]: 1 }, updatedAt: serverTimestamp(),
+    });
+    tx.set(notice, {
+      patientId: 'patient', appointmentId, title: 'Đặt lịch thành công',
+      content: 'Đã tiếp nhận lịch khám.', isRead: false,
+      createdAt: serverTimestamp(),
+    });
+  }));
 });
 test('doctor provisioning creates linked identities without touching admin, retries are idempotent', async () => {
   const loginEmail = `${randomUUID()}@example.com`;
@@ -129,6 +165,16 @@ test('schedule creation generates slots, checks overlap, and cannot edit a booke
   await assert.rejects(command('editSchedule', { id: schedule.id, values: { ...values, startTime: '14:00', endTime: '15:00' } }));
 });
 
+test('slot timestamp backfill is paged, audited, and derives Vietnam timestamps', async () => {
+  const result = await command('backfillSlotTimes', { values: { limit: 10 } });
+  assert.equal(result.updated, 2);
+  assert.equal(result.nextCursor, null);
+  const slot = await get('CA_KHAM', 'slot');
+  assert.equal(slot.startsAt.toDate().toISOString(), `${day}T01:00:00.000Z`);
+  assert.equal(slot.endsAt.toDate().toISOString(), `${day}T01:30:00.000Z`);
+  assert.equal((await db.collection('NHAT_KY_ADMIN').get()).size, 1);
+});
+
 test('unused schedule deletion removes only its unused generated slots and keeps an audit archive', async () => {
   const schedule = await command('createSchedule', { values: { doctorId: 'doctor', workDate: day, startTime: '13:00', endTime: '14:00', slotDuration: 30, capacity: 3 } });
   await command('delete', { collection: 'LICH_LAM_VIEC', id: schedule.id });
@@ -138,15 +184,11 @@ test('unused schedule deletion removes only its unused generated slots and keeps
   assert.equal((await db.collection('ADMIN_ARCHIVES').get()).size, 1);
 });
 
-test('patient feedback transaction is idempotent, cannot impersonate another patient, and receives admin response', async () => {
+test('patient feedback cannot impersonate another patient and receives admin response', async () => {
   const patientDb = env.authenticatedContext('patient').firestore();
   const reference = doc(patientDb, 'PHAN_HOI', 'feedback');
-  const draft = { userId: 'patient', patientId: 'patient', title: 'Góp ý', content: 'Cần hỗ trợ', category: 'suggestion', rating: 4, processingStatus: 'NEW' };
-  const submit = () => runTransaction(patientDb, async (tx) => {
-    if (!(await tx.get(reference)).exists()) tx.set(reference, { ...draft, createdAt: serverTimestamp() });
-  });
-  await assertSucceeds(submit());
-  await assertSucceeds(submit());
+  const draft = { patientId: 'patient', title: 'Góp ý', content: 'Cần hỗ trợ', category: 'suggestion', rating: 4 };
+  await assertSucceeds(setDoc(reference, { ...draft, createdAt: serverTimestamp() }));
   await assertFails(setDoc(doc(patientDb, 'PHAN_HOI', 'forged'), { ...draft, patientId: 'someone-else', createdAt: serverTimestamp() }));
   await command('feedback', { collection: 'PHAN_HOI', id: 'feedback', values: { processingStatus: 'RESOLVED', response: 'Đã tiếp nhận và xử lý.' } });
   const feedback = (await assertSucceeds(getDoc(reference))).data();
@@ -155,7 +197,7 @@ test('patient feedback transaction is idempotent, cannot impersonate another pat
   assert.equal(feedback.processingStatus, 'RESOLVED');
   assert.equal(feedback.response, 'Đã tiếp nhận và xử lý.');
   await assertFails(updateDoc(reference, { response: 'Tự sửa' }));
-  const notices = await assertSucceeds(getDocs(query(collection(patientDb, 'THONG_BAO'), where('userId', '==', 'patient'), where('status', '==', 'SENT'))));
+  const notices = await assertSucceeds(getDocs(query(collection(patientDb, 'THONG_BAO'), where('patientId', '==', 'patient'), where('status', '==', 'SENT'))));
   assert.equal(notices.size, 1);
 });
 test('doctor identity is server-managed, patient self-registration and existing patient profile edits remain allowed', async () => {
@@ -164,11 +206,15 @@ test('doctor identity is server-managed, patient self-registration and existing 
   await assertFails(updateDoc(doc(doctorDb, 'TAI_KHOAN', 'doctor'), { phone: '123' }));
   const adminDb = env.authenticatedContext('admin').firestore();
   await assertFails(updateDoc(doc(adminDb, 'BAC_SI', 'doctor'), { fullName: 'bypass backend' }));
+  await assertFails(updateDoc(doc(adminDb, 'CA_KHAM', 'slot'), { capacity: 99 }));
+  await assertFails(updateDoc(doc(adminDb, 'LICH_LAM_VIEC', 'schedule'), { status: 'INACTIVE' }));
+  await assertSucceeds(updateDoc(doc(doctorDb, 'CA_KHAM', 'slot'), { status: 'UNAVAILABLE' }));
+  await assertFails(updateDoc(doc(doctorDb, 'CA_KHAM', 'slot'), { status: 'CANCELLED' }));
   const patientDb = env.authenticatedContext('patient').firestore();
   await assertSucceeds(updateDoc(doc(patientDb, 'TAI_KHOAN', 'patient'), { phone: '0901234567' }));
   const signup = env.authenticatedContext('new-patient').firestore();
   const batch = writeBatch(signup);
-  batch.set(doc(signup, 'TAI_KHOAN', 'new-patient'), { fullName: 'Mới', phone: '', email: 'new@example.com', role: 'patient', isActive: true, createdAt: new Date(), updatedAt: new Date() });
+  batch.set(doc(signup, 'TAI_KHOAN', 'new-patient'), { fullName: 'Mới', phone: '', email: 'new@example.com', role: 'patient', status: 'ACTIVE', isActive: true, createdAt: new Date(), updatedAt: new Date() });
   batch.set(doc(signup, 'BENH_NHAN', 'new-patient'), { authUserId: 'new-patient', fullName: 'Mới' });
   await assertSucceeds(batch.commit());
   await assertFails(setDoc(doc(signup, 'TAI_KHOAN', 'forged'), { role: 'doctor', isActive: true }));

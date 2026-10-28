@@ -33,13 +33,13 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
     }
   }
 
-  void _loadPayments() {
+  void _loadPayments({bool force = false}) {
     if (!mounted || widget.transactions != null) return;
     final patient = context.read<PatientProfileController?>()?.patient;
     final controller = context.read<PatientPaymentController?>();
     if (patient == null ||
         controller == null ||
-        _loadedPatientId == patient.id) {
+        (!force && _loadedPatientId == patient.id)) {
       return;
     }
     _loadedPatientId = patient.id;
@@ -128,7 +128,7 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: _loadPayments,
+                  onPressed: () => _loadPayments(force: true),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Thử lại'),
                 ),

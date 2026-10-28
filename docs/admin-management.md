@@ -44,8 +44,21 @@ riêng ở `ADMIN_NOTES`, không nằm trong tài liệu lịch hẹn patient/do
 
 ## Các thành phần cần triển khai cùng bản app
 
-Đợt làm mã nguồn này **chưa triển khai lên Firebase thật**, chưa tạo tài khoản
-bác sĩ thật hoặc gửi email thực tế. Endpoint chưa có sẽ báo rõ trong ứng dụng.
+Các lệnh ghi Admin không được thực hiện trực tiếp từ Flutter. Bản triển khai
+hiện tại dùng Cloudflare Worker `adminCommand`; build hoặc debug Admin phải
+truyền `ADMIN_COMMAND_BASE_URL` trỏ đến Worker. Nếu thiếu biến này, app sẽ thử
+gọi Firebase Function `adminCommand`; khi Function chưa được deploy, thao tác
+tạo/sửa/xóa sẽ nhận HTTP 404.
+
+```powershell
+flutter run --dart-define=ADMIN_COMMAND_BASE_URL=https://healway-admin-command.healway-hospital.workers.dev/adminCommand
+```
+
+Khi phát hành APK:
+
+```powershell
+flutter build apk --release --dart-define=ADMIN_COMMAND_BASE_URL=https://healway-admin-command.healway-hospital.workers.dev/adminCommand
+```
 
 - `functions/src/index.js`: callable `adminCommand`, region `asia-southeast1`, Node.js 22.
 - `firestore.rules`: quyền đọc và ràng buộc patient/doctor; các thao tác admin

@@ -39,7 +39,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _idCardController = TextEditingController(text: patient?.nationalId ?? '');
     
     _dateOfBirth = patient?.dateOfBirth;
-    _gender = patient?.gender;
+    _gender = _displayGender(patient?.gender);
   }
 
   @override
@@ -112,6 +112,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  String? _displayGender(String? value) {
+    switch (value?.trim().toUpperCase()) {
+      case 'MALE':
+      case 'NAM':
+        return 'Nam';
+      case 'FEMALE':
+      case 'NU':
+      case 'NỮ':
+        return 'Nữ';
+      case 'OTHER':
+      case 'KHAC':
+      case 'KHÁC':
+        return 'Khác';
+      default:
+        return const ['Nam', 'Nữ', 'Khác'].contains(value) ? value : null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,7 +151,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   controller: _nameController,
                   label: 'Họ và tên',
                   icon: Icons.person,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Bắt buộc nhập' : null,
+                  validator: (value) {
+                    final name = value?.trim() ?? '';
+                    return name.length < 2 || name.length > 120 ||
+                            RegExp(r'^\d+$').hasMatch(name)
+                        ? 'Họ tên phải có từ 2 đến 120 ký tự và không chỉ gồm số'
+                        : null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
@@ -141,7 +165,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   label: 'Số điện thoại',
                   icon: Icons.phone,
                   keyboardType: TextInputType.phone,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Bắt buộc nhập' : null,
+                  validator: (value) => RegExp(r'^0\d{9,10}$')
+                          .hasMatch(value?.trim() ?? '')
+                      ? null
+                      : 'Số điện thoại phải có 10 hoặc 11 số, bắt đầu bằng 0',
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
@@ -149,6 +176,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   label: 'Email',
                   icon: Icons.email,
                   keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    final email = value?.trim() ?? '';
+                    return email.isEmpty ||
+                            RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                .hasMatch(email)
+                        ? null
+                        : 'Email không hợp lệ';
+                  },
                 ),
                 const SizedBox(height: 16),
                 _buildDateField(),
@@ -166,6 +201,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   label: 'CCCD / CMND',
                   icon: Icons.badge,
                   keyboardType: TextInputType.number,
+                  validator: (value) {
+                    final id = value?.trim() ?? '';
+                    return id.isEmpty || RegExp(r'^\d{12}$').hasMatch(id)
+                        ? null
+                        : 'CCCD phải gồm đúng 12 chữ số';
+                  },
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(

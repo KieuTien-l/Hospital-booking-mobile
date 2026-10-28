@@ -23,11 +23,15 @@ class HealthRecordModel extends HealthRecord {
     final data = raw is Map<String, dynamic>
         ? raw
         : <String, dynamic>{};
+    final recordDate = readDateTime(data['recordDate']);
+    if (recordDate == null) {
+      throw const FormatException('Hồ sơ sức khỏe thiếu hoặc có ngày khám không hợp lệ.');
+    }
     return HealthRecordModel(
       id: doc.id,
       patientId: readReferenceId(data['patientId']),
       doctorId: readReferenceId(data['doctorId']),
-      recordDate: readDateTime(data['recordDate']) ?? DateTime.now(),
+      recordDate: recordDate,
       diagnosis: readString(data['diagnosis']),
       notes: readOptionalString(data['notes']),
       prescription: readOptionalString(data['prescription']),

@@ -56,10 +56,7 @@ void main() {
   );
 
   test('Business statuses keep their values and unsupported values are not relabeled', () {
-    for (final status in [
-      AppointmentStatus.noShow,
-      AppointmentStatus.unknown,
-    ]) {
+    for (final status in [AppointmentStatus.noShow, AppointmentStatus.unknown]) {
       final item = AppointmentHistoryUiModel(
         appointment: Appointment(
           id: 'a',
@@ -73,7 +70,12 @@ void main() {
         doctorName: '',
         specialtyName: '',
       );
-      expect(item.tab, isNull);
+      expect(
+        item.tab,
+        status == AppointmentStatus.noShow
+            ? AppointmentHistoryTab.noShow
+            : isNull,
+      );
       expect(item.appointment.status, status);
     }
     final pending = AppointmentHistoryUiModel(

@@ -17,15 +17,12 @@ class PatientFirebaseDatasource {
     final normalizedId = authUserId.trim();
     if (normalizedId.isEmpty) return Stream.value(null);
 
-    return _patients
-        .where('authUserId', isEqualTo: normalizedId)
-        .limit(1)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.isEmpty
-              ? null
-              : PatientModel.fromFirestore(snapshot.docs.first),
-        );
+    // New profiles use the auth UID as their document id. Reading that exact
+    // document removes the nondeterministic `limit(1)` selection that made a
+    // duplicate profile capable of changing the active patient context.
+    return _patients.doc(normalizedId).snapshots().map(
+      (snapshot) => snapshot.exists ? PatientModel.fromFirestore(snapshot) : null,
+    );
   }
 
   Future<Patient?> getPatientById(String patientId) async {
@@ -38,9 +35,10 @@ class PatientFirebaseDatasource {
 
   Future<Patient> createPatient(Patient patient) async {
     _validateAuthUserId(patient);
-    final document = patient.id.trim().isEmpty
-        ? _patients.doc()
-        : _patients.doc(patient.id.trim());
+    // There is exactly one patient profile for one Firebase account.  Using
+    // an auto-id here made a second profile possible through a retry or a
+    // direct Firestore request and `limit(1)` then selected it arbitrarily.
+    final document = _patients.doc(patient.authUserId.trim());
     if ((await document.get()).exists) {
       throw const BookingException('A patient profile already exists.');
     }

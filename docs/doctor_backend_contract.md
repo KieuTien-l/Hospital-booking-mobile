@@ -19,7 +19,7 @@ flutter run --dart-define=DOCTOR_DEMO=true
 flutter run --dart-define=DOCTOR_DEMO=false --dart-define=DOCTOR_API_BASE_URL=https://backend.example.com/api
 ```
 
-URL phải là HTTPS, không chứa thông tin đăng nhập, query hoặc fragment. Không có URL sẽ báo thiếu cấu hình; không tự chuyển sang demo.
+URL phải là HTTPS, không chứa thông tin đăng nhập, query hoặc fragment. Khi không có URL, bản release hiển thị lỗi cấu hình và không trả dữ liệu mẫu; chỉ dùng dữ liệu lâm sàng thật sau khi đã triển khai backend và truyền URL. Dữ liệu mẫu chỉ được bật khi truyền rõ `DOCTOR_DEMO=true`.
 
 Mọi request gửi `Authorization: Bearer <Firebase ID token>`. Server phải xác minh token, tài khoản đang hoạt động, role doctor, và tra `BAC_SI.userId == token.uid`. Không tin doctorId/userId do client cung cấp. 401 kết thúc phiên của đúng tài khoản đã gửi request; 403 xóa dữ liệu được bảo vệ và hiện lỗi quyền.
 
@@ -92,6 +92,22 @@ POST trả report trực tiếp, GET dùng cùng schema trong mảng reports:
 
 Trạng thái: PENDING, APPROVED, REJECTED, RESOLVED. Server lưu khóa chống trùng theo tài khoản, trả cùng report khi retry cùng khóa/body; cùng khóa với body khác phải báo conflict. Đây là yêu cầu backend để không tạo hai báo cáo khi response đầu tiên bị mất.
 
-## Còn cần phía backend
+## Triển khai hiện tại
 
-Triển khai các endpoint trên, phân quyền/projection bệnh nhân, quy tắc cuối tuần, transaction bộ đếm ca và lưu idempotency key. Chưa có server/URL trong repo để nghiệm thu end-to-end; các adapter đã được kiểm thử bằng HTTP giả lập. Firestore rules hiện tại vẫn giữ nguyên.
+Các endpoint này được phục vụ bởi Cloudflare Worker `healway-admin-command`, dùng Firebase Service Account chỉ ở phía máy chủ. Worker xác minh Firebase ID token, kiểm tra `TAI_KHOAN`/`BAC_SI` đang hoạt động rồi mới trả dữ liệu đã projection. Không cần mở quyền client đọc toàn bộ `BENH_NHAN`.
+
+Khi chạy ứng dụng với dữ liệu thật, cấu hình:
+
+```powershell
+flutter run --dart-define=DOCTOR_DEMO=false --dart-define=DOCTOR_API_BASE_URL=https://healway-admin-command.healway-hospital.workers.dev
+```
+
+Worker phải được deploy sau mỗi thay đổi. Các thao tác thay đổi trạng thái lịch hẹn từ giao diện bác sĩ chưa tồn tại trong đồ án; nếu bổ sung nút xác nhận/hủy/vắng mặt/hoàn tất, endpoint Worker tương ứng là bắt buộc, không ghi trực tiếp Firestore.
+
+## Hồ sơ sức khỏe và kết quả CLS
+
+`POST /doctor/health-records` và `POST /doctor/test-results` ghi hồ sơ qua Worker. Cả hai yêu cầu header `Idempotency-Key` và `appointmentId` thuộc chính bác sĩ, có trạng thái `CONFIRMED` hoặc `COMPLETED`.
+
+Worker tự lấy `patientId`/`doctorId` từ lịch hẹn, gắn `recordDate` hoặc `testDate` bằng thời gian Firestore server, và ghi `NHAT_KY_Y_TE`. Client không được gửi hoặc đổi các trường định danh này. Khi truyền `id` của hồ sơ cùng lịch hẹn, Worker cập nhật hồ sơ đó; không có `id` thì tạo mới. Không có endpoint xóa. `GET` trên cùng hai đường dẫn với `appointmentId` trả các hồ sơ của chính bác sĩ để mở lại và sửa.
+
+Firestore Rules cấm mọi client tạo/sửa/xóa hai collection này; bệnh nhân, bác sĩ và Admin chỉ đọc phạm vi được cấp quyền.

@@ -8,6 +8,21 @@ FIREBASE_PROJECT_ID = "bookinghospitalapp"
 # as a comma-separated value if one is configured later.
 ALLOWED_ORIGINS = "https://bookinghospitalapp.web.app,https://bookinghospitalapp.firebaseapp.com"
 
-[[kv_namespaces]]
-binding = "CHAT_RATE_LIMIT"
-id = "05456748a57a49afb060fcb6f8bb1220"
+[[durable_objects.bindings]]
+name = "CHAT_RATE_LIMITER"
+class_name = "ChatRateLimiterV2"
+
+[[migrations]]
+tag = "v1-chat-limit"
+new_classes = ["ChatRateLimiter"]
+
+# Durable Objects on the Free plan require SQLite-backed namespaces. The old
+# rate-limit state is intentionally not migrated: it is short-lived (one
+# minute) and retaining it would not improve correctness or security.
+[[migrations]]
+tag = "v2-chat-rate-limiter-sqlite"
+new_sqlite_classes = ["ChatRateLimiterV2"]
+
+[[migrations]]
+tag = "v3-remove-legacy-rate-limiter"
+deleted_classes = ["ChatRateLimiter"]

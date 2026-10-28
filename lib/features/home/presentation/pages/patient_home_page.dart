@@ -8,7 +8,6 @@ import '../../../appointments/presentation/pages/payment_history_page.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/pages/forgot_password_page.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
-import '../../../notifications/presentation/pages/live_notifications_page.dart';
 import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../profile/presentation/pages/create_patient_profile_page.dart';
@@ -23,7 +22,6 @@ import 'functions_page.dart';
 import 'usage_guide_page.dart';
 import 'customer_feedback_page.dart';
 import '../../../chatbot/presentation/pages/chatbot_page.dart';
-import 'live_customer_feedback_page.dart';
 import 'patient_support_page.dart';
 import '../widgets/quick_functions_section.dart';
 import '../widgets/featured_news_card.dart';
@@ -35,7 +33,7 @@ const _blue = Color(0xFF0065B8);
 const _ink = Color(0xFF163958);
 
 class PatientHomePage extends StatefulWidget {
-  const PatientHomePage({super.key, this.useLiveCommunications = true});
+  const PatientHomePage({super.key, this.useLiveCommunications = false});
   final bool useLiveCommunications;
 
   @override
@@ -66,12 +64,9 @@ class _PatientHomePageState extends State<PatientHomePage> {
     }
     if (title == 'Lắng nghe khách hàng') {
       FocusScope.of(context).unfocus();
-      final userId = context.read<AuthController>().currentUser?.id;
       Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => widget.useLiveCommunications && userId != null
-              ? LiveCustomerFeedbackPage(userId: userId)
-              : const CustomerFeedbackPage(),
+          builder: (_) => const CustomerFeedbackPage(),
         ),
       );
       return;
@@ -418,12 +413,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
                       Offstage(
                         offstage: _tab != 1,
                         child:
-                            widget.useLiveCommunications &&
-                                auth.currentUser != null
-                            ? LiveNotificationsPage(
-                                userId: auth.currentUser!.id,
-                              )
-                            : const NotificationsPage(),
+                            const NotificationsPage(),
                       ),
                     ],
                   ),

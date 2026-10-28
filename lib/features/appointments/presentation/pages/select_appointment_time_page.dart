@@ -78,9 +78,9 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
       final docRepo = context.read<DoctorRepository>();
       final schedCtrl = context.read<ScheduleController>();
 
-      final realDoctors = await docRepo.getDoctorsBySpecialty(
+      final realDoctors = (await docRepo.getDoctorsBySpecialty(
         widget.specialty.id,
-      );
+      )).where((doctor) => doctor.acceptingBookings).toList(growable: false);
       final schedules = await schedCtrl.loadWeeklySchedulesForDoctors(
         doctors: realDoctors,
         startDate: _date,
@@ -156,6 +156,13 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
     final doctor = _loadedDoctors[selection.doctor.id];
     if (doctor == null) {
       _openPreviewConfirmation(selection);
+      return;
+    }
+    if (!doctor.acceptingBookings) {
+      setState(() => _selection = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bác sĩ đang tạm ngừng nhận lịch.')),
+      );
       return;
     }
 
@@ -351,7 +358,10 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                             }
                           },
                           onSlotSelected: (slot) {
-                            if (slot.available) {
+                            final liveDoctor = _loadedDoctors[doctor.id];
+                            if (slot.available &&
+                                (liveDoctor == null ||
+                                    liveDoctor.acceptingBookings)) {
                               setState(
                                 () => _selection = AppointmentTimeSelection(
                                   doctor: doctor,

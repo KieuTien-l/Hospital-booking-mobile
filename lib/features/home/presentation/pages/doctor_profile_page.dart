@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../doctors/domain/entities/doctor.dart';
-import '../../../doctors/presentation/controllers/doctor_dashboard_controller.dart';
 import '../../../doctors/presentation/widgets/doctor_detail_section.dart';
+import '../controllers/doctor_workspace_controller.dart';
 
 /// Read-only until Doctor profile editing rights and data have been verified.
 class DoctorProfilePage extends StatelessWidget {
@@ -17,8 +17,7 @@ class DoctorProfilePage extends StatelessWidget {
     this.onRetry,
   });
 
-  /// Optional values supplied by the direct Firestore profile adapter.
-  /// Without them, the page continues to read the dashboard controller.
+  /// Optional verified profile supplied by the doctor Workspace Worker.
   final Doctor? doctor;
   final bool isLoading;
   final String? error;
@@ -96,7 +95,8 @@ class DoctorProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final doctor =
-        this.doctor ?? context.watch<DoctorDashboardController?>()?.doctor;
+        this.doctor ??
+        context.watch<DoctorWorkspaceController?>()?.data?.doctor;
     final user = auth.currentUser;
     final name = _firstVerifiedValue(doctor?.fullName, user?.fullName) ?? '';
     return SingleChildScrollView(

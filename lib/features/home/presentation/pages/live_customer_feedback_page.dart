@@ -19,12 +19,6 @@ class _LiveCustomerFeedbackPageState extends State<LiveCustomerFeedbackPage> {
       .collection('BENH_NHAN')
       .where('authUserId', isEqualTo: widget.userId)
       .get();
-  late final _history = FirebaseFirestore.instance
-      .collection('PHAN_HOI')
-      .where('userId', isEqualTo: widget.userId)
-      .orderBy('createdAt', descending: true)
-      .limit(100)
-      .snapshots();
   String? _patient;
   String? _requestId;
   String? _lastBody;
@@ -34,13 +28,11 @@ class _LiveCustomerFeedbackPageState extends State<LiveCustomerFeedbackPage> {
       throw StateError('Vui lòng chọn hồ sơ bệnh nhân gửi phản hồi.');
     }
     final fields = {
-      'userId': widget.userId,
       'patientId': _patient,
       'title': draft.title,
       'content': draft.content,
       'category': draft.category.name,
       'rating': draft.rating,
-      'processingStatus': 'NEW',
     };
     final body = jsonEncode(fields);
     if (_requestId == null || _lastBody != body) {
@@ -92,7 +84,17 @@ class _LiveCustomerFeedbackPageState extends State<LiveCustomerFeedbackPage> {
             _patient = records.single.id;
           }
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _history,
+            // Rules authorize feedback by the selected patient profile, not
+            // by an arbitrary `userId` field.  This also makes the query work
+            // for the canonical persisted feedback schema.
+            stream: _patient == null
+                ? null
+                : FirebaseFirestore.instance
+                      .collection('PHAN_HOI')
+                      .where('patientId', isEqualTo: _patient)
+                      .orderBy('createdAt', descending: true)
+                      .limit(100)
+                      .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Scaffold(

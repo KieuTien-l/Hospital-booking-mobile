@@ -37,7 +37,9 @@ class _LoginPageState extends State<LoginPage> {
     final authProvider = context.read<AuthController>();
     await authProvider.login(
       email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
+      // Passwords are opaque credential bytes. Registration preserves leading
+      // and trailing spaces, so login must do the same.
+      password: _passwordController.text,
     );
     if (!mounted || !authProvider.isAuthenticated) return;
     Navigator.of(context).pushReplacement(

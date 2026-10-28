@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/routes/auth_gate.dart';
 import '../controllers/auth_controller.dart';
 import '../validators/auth_validators.dart';
 
@@ -74,8 +75,12 @@ class _RegisterPageState extends State<RegisterPage> {
 
     if (!mounted) return;
     if (success) {
-      _showMessage('Đăng ký thành công! Vui lòng đăng nhập.');
-      _backToLogin();
+      // Registration creates an active patient account. Replace the whole
+      // authentication stack so Back cannot return to a stale login screen.
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const AuthGate()),
+        (_) => false,
+      );
     } else {
       _showMessage(authProvider.errorMessage ?? 'Đăng ký thất bại');
     }

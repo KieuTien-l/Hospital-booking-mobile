@@ -39,6 +39,8 @@ class TimeSlot {
     this.capacity,
     this.appointmentId,
     this.reservationCounts = const {},
+    this.startsAt,
+    this.endsAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -52,9 +54,15 @@ class TimeSlot {
   final int? bookedCount;
   final int? capacity;
   final String? appointmentId;
+
   /// The number of places held by each appointment id. It lets a transaction
   /// release the correct reservation when several appointments share a slot.
   final Map<String, int> reservationCounts;
+
+  /// Exact timestamps are authoritative for rejecting appointments after a
+  /// same-day slot has started. `startTime`/`endTime` remain display fields.
+  final DateTime? startsAt;
+  final DateTime? endsAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 

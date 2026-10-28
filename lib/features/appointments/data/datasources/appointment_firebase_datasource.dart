@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
+import '../../../admin/data/admin_commands.dart';
 import '../models/appointment_model.dart';
 import '../../../doctors/data/models/doctor_model.dart';
 import '../../../doctors/data/models/time_slot_model.dart';
@@ -9,10 +11,21 @@ import '../../domain/exceptions/booking_exception.dart';
 
 /// Firestore-backed appointment repository for the LICH_HEN collection.
 class AppointmentFirebaseDatasource {
-  AppointmentFirebaseDatasource({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  AppointmentFirebaseDatasource({
+    FirebaseFirestore? firestore,
+    AdminCommands? bookingCommands,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _bookingCommands =
+           bookingCommands ??
+           (const String.fromEnvironment('ADMIN_COMMAND_BASE_URL').isEmpty
+               ? null
+               : FirebaseAdminCommands());
 
   final FirebaseFirestore _firestore;
+  // Production builds that configure the trusted Worker send the critical
+  // multi-document reservation through it. Local/emulator builds retain the
+  // direct transaction path used by the Firestore rules tests.
+  final AdminCommands? _bookingCommands;
 
   CollectionReference<Map<String, dynamic>> get _appointments =>
       _firestore.collection(AppointmentModel.collectionName);
@@ -94,7 +107,52 @@ class AppointmentFirebaseDatasource {
     return AppointmentModel.fromFirestore(snapshot);
   }
 
-  Future<Appointment> createAppointment(Appointment appointment) async {
+  Future<Appointment> createAppointment(Appointment appointment) {
+    if (_bookingCommands != null) {
+      return _createAppointmentThroughWorker(appointment);
+    }
+    return _createAppointmentDirect(appointment);
+  }
+
+  Future<Appointment> _createAppointmentThroughWorker(
+    Appointment appointment,
+  ) async {
+    _validateNewAppointment(appointment);
+    try {
+      final result = await _bookingCommands!.execute({
+        'requestId': adminRequestId(),
+        'operation': 'patientBook',
+        'collection': AppointmentModel.collectionName,
+        // The Worker protocol requires an auditable purpose. This is a
+        // system label, not the patient's medical reason/symptoms.
+        'reason': 'Bệnh nhân tự đặt lịch qua ứng dụng.',
+        'values': {
+          'patientId': appointment.patientId.trim(),
+          'timeSlotId': appointment.timeSlotId.trim(),
+          'peopleCount': appointment.peopleCount,
+          if (appointment.reason?.trim().isNotEmpty ?? false)
+            'reason': appointment.reason!.trim(),
+        },
+      });
+      final appointmentId = result['id']?.toString().trim() ?? '';
+      if (appointmentId.isEmpty) {
+        throw const BookingException(
+          'Máy chủ trả về mã lịch hẹn không hợp lệ.',
+        );
+      }
+      final snapshot = await _appointments.doc(appointmentId).get();
+      if (!snapshot.exists) {
+        throw const BookingException(
+          'Đã tạo lịch hẹn nhưng chưa tải được kết quả. Vui lòng mở Lịch hẹn để kiểm tra.',
+        );
+      }
+      return AppointmentModel.fromFirestore(snapshot);
+    } on AdminCommandException catch (error) {
+      throw BookingException(error.message);
+    }
+  }
+
+  Future<Appointment> _createAppointmentDirect(Appointment appointment) async {
     _validateNewAppointment(appointment);
 
     final appointmentDocument = _appointments.doc();
@@ -122,12 +180,25 @@ class AppointmentFirebaseDatasource {
       final schedule = WorkScheduleModel.fromFirestore(scheduleSnapshot);
       final doctor = DoctorModel.fromFirestore(doctorSnapshot);
       final patient = PatientModel.fromFirestore(patientSnapshot);
+      if (kDebugMode) {
+        debugPrint(
+          '[booking preflight] patient=${patient.id} authUser=${patient.authUserId} '
+          'requestPatient=${appointment.patientId} slot=${slot.id} '
+          'slotSchedule=${slot.workScheduleId} slotDoctor=${slot.doctorId} '
+          'slotStatus=${slot.status.firestoreValue} booked=${slot.bookedCount} '
+          'capacity=${slot.capacity} scheduleDoctor=${schedule.doctorId} '
+          'scheduleStatus=${schedule.status} doctor=${doctor.id} '
+          'doctorSpecialty=${doctor.specialtyId} doctorStatus=${doctor.status} '
+          'accepting=${doctorSnapshot.data()?['acceptingBookings']}',
+        );
+      }
       if (!slot.isAvailable) {
         throw const BookingException('This time slot is no longer available.');
       }
       if (!doctor.isActive ||
           doctorSnapshot.data()?['acceptingBookings'] == false ||
-          schedule.status != 'ACTIVE') {
+          schedule.status != 'ACTIVE' ||
+          !patient.isActive) {
         throw const BookingException('This doctor is no longer available.');
       }
       if (slot.workScheduleId != appointment.workScheduleId ||
@@ -151,6 +222,11 @@ class AppointmentFirebaseDatasource {
           !_isSameDate(appointment.appointmentDate!, schedule.workDate!)) {
         throw const BookingException(
           'The selected date does not match the selected schedule.',
+        );
+      }
+      if (!_isFutureSlot(slot, schedule.workDate!, slot.startTime!)) {
+        throw const BookingException(
+          'Không thể đặt lịch vào khung giờ đã qua.',
         );
       }
       if ((appointment.startTime != null &&
@@ -235,8 +311,10 @@ class AppointmentFirebaseDatasource {
     final dateLabel =
         '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/${date.year}';
-    return 'Chào $recipient, lịch hẹn với $doctor lúc $startTime ngày '
+    final content =
+        'Chào $recipient, lịch hẹn với $doctor lúc $startTime ngày '
         '$dateLabel đã được ghi nhận.';
+    return content.length <= 300 ? content : '${content.substring(0, 297)}…';
   }
 
   Future<Appointment> updateAppointment(Appointment appointment) async {
@@ -256,6 +334,35 @@ class AppointmentFirebaseDatasource {
   }
 
   Future<Appointment> cancelAppointment(
+    String appointmentId,
+    String cancellationReason,
+  ) {
+    if (_bookingCommands != null) {
+      return _cancelAppointmentThroughWorker(appointmentId, cancellationReason);
+    }
+    return _cancelAppointmentDirect(appointmentId, cancellationReason);
+  }
+
+  Future<Appointment> _cancelAppointmentThroughWorker(
+    String appointmentId,
+    String cancellationReason,
+  ) async {
+    final normalizedId = appointmentId.trim();
+    if (normalizedId.isEmpty) {
+      throw const BookingException('An appointment id is required.');
+    }
+    if (cancellationReason.trim().isEmpty) {
+      throw const BookingException('A cancellation reason is required.');
+    }
+    return _runPatientWorkerCommand(
+      operation: 'patientCancel',
+      appointmentId: normalizedId,
+      values: {'cancellationReason': cancellationReason.trim()},
+      reason: 'Bệnh nhân tự hủy lịch qua ứng dụng.',
+    );
+  }
+
+  Future<Appointment> _cancelAppointmentDirect(
     String appointmentId,
     String cancellationReason,
   ) async {
@@ -293,23 +400,35 @@ class AppointmentFirebaseDatasource {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (slotSnapshot.exists) {
-        final slot = TimeSlotModel.fromFirestore(slotSnapshot);
-        final currentCount = slot.bookedCount ?? 1;
-        final newCount = (currentCount - appointment.peopleCount)
-            .clamp(0, slot.capacity ?? 9999)
-            .toInt();
-        final reservationCounts = Map<String, int>.from(slot.reservationCounts)
-          ..remove(appointment.id);
-
-        transaction.update(slotRef, {
-          'bookedCount': newCount,
-          'status': _slotStatusFor(newCount, slot.capacity).firestoreValue,
-          'appointmentId': appointment.id,
-          'reservationCounts': reservationCounts,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+      if (!slotSnapshot.exists) {
+        throw const BookingException(
+          'Ca khám gốc không còn tồn tại; cần quản trị viên xử lý dữ liệu.',
+        );
       }
+      final slot = TimeSlotModel.fromFirestore(slotSnapshot);
+      if (slot.reservationCounts[appointment.id] != appointment.peopleCount ||
+          (slot.bookedCount ?? -1) < appointment.peopleCount) {
+        throw const BookingException(
+          'Dữ liệu giữ chỗ không nhất quán; không thể tự hủy lịch.',
+        );
+      }
+      final newCount = (slot.bookedCount! - appointment.peopleCount);
+      final reservationCounts = Map<String, int>.from(slot.reservationCounts)
+        ..remove(appointment.id);
+      transaction.update(slotRef, {
+        'bookedCount': newCount,
+        // A doctor/admin may have intentionally locked the slot after it was
+        // booked. Cancelling an appointment releases capacity but must not
+        // silently reopen that locked slot.
+        'status':
+            (slot.status == TimeSlotStatus.unavailable ||
+                slot.status == TimeSlotStatus.cancelled)
+            ? slot.status.firestoreValue
+            : _slotStatusFor(newCount, slot.capacity).firestoreValue,
+        'appointmentId': appointment.id,
+        'reservationCounts': reservationCounts,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       transaction.set(notificationRef, {
         'patientId': appointment.patientId,
@@ -360,6 +479,89 @@ class AppointmentFirebaseDatasource {
   }
 
   Future<Appointment> rescheduleAppointment({
+    required String appointmentId,
+    required String newWorkScheduleId,
+    required String newTimeSlotId,
+    required DateTime newDate,
+    required String newStartTime,
+    required String newEndTime,
+  }) {
+    if (_bookingCommands != null) {
+      return _rescheduleAppointmentThroughWorker(
+        appointmentId: appointmentId,
+        newWorkScheduleId: newWorkScheduleId,
+        newTimeSlotId: newTimeSlotId,
+        newDate: newDate,
+        newStartTime: newStartTime,
+        newEndTime: newEndTime,
+      );
+    }
+    return _rescheduleAppointmentDirect(
+      appointmentId: appointmentId,
+      newWorkScheduleId: newWorkScheduleId,
+      newTimeSlotId: newTimeSlotId,
+      newDate: newDate,
+      newStartTime: newStartTime,
+      newEndTime: newEndTime,
+    );
+  }
+
+  Future<Appointment> _rescheduleAppointmentThroughWorker({
+    required String appointmentId,
+    required String newWorkScheduleId,
+    required String newTimeSlotId,
+    required DateTime newDate,
+    required String newStartTime,
+    required String newEndTime,
+  }) async {
+    final normalizedId = appointmentId.trim();
+    if (normalizedId.isEmpty || newTimeSlotId.trim().isEmpty) {
+      throw const BookingException(
+        'An appointment and a new time slot are required.',
+      );
+    }
+    // The Worker derives the schedule/date/time from the canonical slot. The
+    // values remain inputs here only to preserve the repository interface.
+    return _runPatientWorkerCommand(
+      operation: 'patientReschedule',
+      appointmentId: normalizedId,
+      values: {'timeSlotId': newTimeSlotId.trim()},
+      reason: 'Bệnh nhân tự đổi lịch qua ứng dụng.',
+    );
+  }
+
+  Future<Appointment> _runPatientWorkerCommand({
+    required String operation,
+    required String appointmentId,
+    required Map<String, dynamic> values,
+    required String reason,
+  }) async {
+    try {
+      final result = await _bookingCommands!.execute({
+        'requestId': adminRequestId(),
+        'operation': operation,
+        'collection': AppointmentModel.collectionName,
+        'id': appointmentId,
+        'reason': reason,
+        'values': values,
+      });
+      final resultId = result['id']?.toString().trim() ?? '';
+      if (resultId != appointmentId) {
+        throw const BookingException(
+          'Máy chủ trả về mã lịch hẹn không hợp lệ.',
+        );
+      }
+      final snapshot = await _appointments.doc(appointmentId).get();
+      if (!snapshot.exists) {
+        throw const BookingException('Không tải được lịch hẹn vừa cập nhật.');
+      }
+      return AppointmentModel.fromFirestore(snapshot);
+    } on AdminCommandException catch (error) {
+      throw BookingException(error.message);
+    }
+  }
+
+  Future<Appointment> _rescheduleAppointmentDirect({
     required String appointmentId,
     required String newWorkScheduleId,
     required String newTimeSlotId,
@@ -429,6 +631,9 @@ class AppointmentFirebaseDatasource {
       if (newSlot.startTime == null || newSlot.endTime == null) {
         throw const BookingException('The new time slot is incomplete.');
       }
+      if (!_isFutureSlot(newSlot, newScheduleDate, newSlot.startTime!)) {
+        throw const BookingException('Không thể đổi sang khung giờ đã qua.');
+      }
       if (newSlot.capacity == null || newSlot.capacity! < 1) {
         throw const BookingException(
           'The new time slot has no valid capacity.',
@@ -452,21 +657,29 @@ class AppointmentFirebaseDatasource {
           : TimeSlotStatus.available;
 
       // Release old slot
-      if (oldSlotSnapshot.exists && oldSlotRef.id != newSlotRef.id) {
+      if (!oldSlotSnapshot.exists) {
+        throw const BookingException(
+          'Ca khám cũ không còn tồn tại; cần quản trị viên xử lý dữ liệu.',
+        );
+      }
+      if (oldSlotRef.id != newSlotRef.id) {
         final oldSlot = TimeSlotModel.fromFirestore(oldSlotSnapshot);
-        final currentOldCount = oldSlot.bookedCount ?? 1;
-        final newOldCount = (currentOldCount - appointment.peopleCount)
-            .clamp(0, oldSlot.capacity ?? 9999)
-            .toInt();
+        if (oldSlot.reservationCounts[appointment.id] !=
+                appointment.peopleCount ||
+            (oldSlot.bookedCount ?? -1) < appointment.peopleCount) {
+          throw const BookingException('Dữ liệu giữ chỗ cũ không nhất quán.');
+        }
+        final newOldCount = oldSlot.bookedCount! - appointment.peopleCount;
         final oldReservationCounts = Map<String, int>.from(
           oldSlot.reservationCounts,
         )..remove(appointment.id);
         transaction.update(oldSlotRef, {
           'bookedCount': newOldCount,
-          'status': _slotStatusFor(
-            newOldCount,
-            oldSlot.capacity,
-          ).firestoreValue,
+          'status':
+              (oldSlot.status == TimeSlotStatus.unavailable ||
+                  oldSlot.status == TimeSlotStatus.cancelled)
+              ? oldSlot.status.firestoreValue
+              : _slotStatusFor(newOldCount, oldSlot.capacity).firestoreValue,
           'appointmentId': appointment.id,
           'reservationCounts': oldReservationCounts,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -502,6 +715,8 @@ class AppointmentFirebaseDatasource {
         'status': AppointmentStatus
             .pending
             .firestoreValue, // reset status to pending when rescheduled
+        'queueNumber': FieldValue.delete(),
+        'checkInTime': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -522,8 +737,8 @@ class AppointmentFirebaseDatasource {
         cancellationReason: appointment.cancellationReason,
         symptoms: appointment.symptoms,
         peopleCount: appointment.peopleCount,
-        queueNumber: appointment.queueNumber,
-        checkInTime: appointment.checkInTime,
+        queueNumber: null,
+        checkInTime: null,
         qrCode: appointment.qrCode,
         createdAt: appointment.createdAt,
         updatedAt: DateTime.now(),
@@ -549,6 +764,24 @@ class AppointmentFirebaseDatasource {
       source.year == target.year &&
       source.month == target.month &&
       source.day == target.day;
+
+  bool _isFutureSchedule(DateTime date, String time) {
+    final pieces = time.split(':');
+    if (pieces.length != 2) return false;
+    final hour = int.tryParse(pieces[0]);
+    final minute = int.tryParse(pieces[1]);
+    if (hour == null || minute == null) return false;
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      hour,
+      minute,
+    ).isAfter(DateTime.now());
+  }
+
+  bool _isFutureSlot(TimeSlot slot, DateTime date, String time) =>
+      slot.startsAt?.isAfter(DateTime.now()) ?? _isFutureSchedule(date, time);
 
   TimeSlotStatus _slotStatusFor(int bookedCount, int? capacity) {
     if (capacity != null && capacity > 0 && bookedCount >= capacity) {

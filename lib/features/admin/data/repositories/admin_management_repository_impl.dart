@@ -249,6 +249,8 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
         bookedCount: bookedCount,
         appointmentId: current?.appointmentId ?? input.appointmentId,
         reservationCounts: reservations,
+        startsAt: _slotMoment(schedule.workDate!, input.startTime!),
+        endsAt: _slotMoment(schedule.workDate!, input.endTime!),
       );
       transaction.set(document, {
         ...TimeSlotModel.fromEntity(saved).toFirestore(),
@@ -316,6 +318,8 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
     bookedCount: value.bookedCount,
     appointmentId: _nullableText(value.appointmentId),
     reservationCounts: Map.unmodifiable(value.reservationCounts),
+    startsAt: value.startsAt,
+    endsAt: value.endsAt,
   );
 
   void _validateSpecialty(Specialty value) {
@@ -446,6 +450,20 @@ class AdminManagementRepositoryImpl implements AdminManagementRepository {
 
   int _reservationCount(Map<String, int> values) =>
       values.values.fold(0, (total, reserved) => total + reserved);
+
+  /// Schedules use the hospital's Vietnam local date/time. Firestore stores
+  /// timestamps in UTC, hence the explicit +07:00 conversion instead of the
+  /// device time zone.
+  DateTime _slotMoment(DateTime workDate, String time) {
+    final parts = time.split(':');
+    return DateTime.utc(
+      workDate.year,
+      workDate.month,
+      workDate.day,
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+    ).subtract(const Duration(hours: 7));
+  }
 
   String _idOrGenerated(String value, String generatedId) =>
       value.trim().isEmpty ? generatedId : value.trim();

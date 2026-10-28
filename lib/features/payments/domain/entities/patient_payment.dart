@@ -15,7 +15,9 @@ class PatientPayment {
   final String id;
   final String patientId;
   final String? appointmentId;
-  final int amount;
+  /// Null is deliberate: a malformed legacy transaction must be shown as
+  /// incomplete, never silently converted to 0đ.
+  final int? amount;
   final String paymentMethod;
   final String status;
   final String? transactionCode;

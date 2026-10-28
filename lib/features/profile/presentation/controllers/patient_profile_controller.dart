@@ -90,11 +90,22 @@ class PatientProfileController extends ViewStateController {
   }
 
   String? validateProfile(Patient patient) {
-    if (patient.fullName.trim().isEmpty) {
-      return 'Họ tên không được để trống';
+    final fullName = patient.fullName.trim();
+    if (fullName.length < 2 || fullName.length > 120 ||
+        RegExp(r'^\d+$').hasMatch(fullName)) {
+      return 'Họ tên phải có từ 2 đến 120 ký tự và không chỉ gồm chữ số';
     }
-    if (patient.phone.trim().isEmpty) {
-      return 'Số điện thoại không được để trống';
+    if (!RegExp(r'^0\d{9,10}$').hasMatch(patient.phone.trim())) {
+      return 'Số điện thoại phải gồm 10 hoặc 11 chữ số và bắt đầu bằng 0';
+    }
+    final email = patient.email.trim();
+    if (email.isNotEmpty &&
+        !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      return 'Email không hợp lệ';
+    }
+    final nationalId = patient.nationalId?.trim() ?? '';
+    if (nationalId.isNotEmpty && !RegExp(r'^\d{12}$').hasMatch(nationalId)) {
+      return 'CCCD phải gồm đúng 12 chữ số';
     }
     if (patient.dateOfBirth == null) {
       return 'Ngày sinh không được để trống';

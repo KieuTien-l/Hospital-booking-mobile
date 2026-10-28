@@ -25,6 +25,8 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
   bool get isDemo => false;
   @override
   bool get canSubmitReports => baseUrl.isNotEmpty;
+  @override
+  bool get canWriteClinicalRecords => baseUrl.isNotEmpty;
   void dispose() => _client.close();
 
   Future<Never> _expired(String userId, String message) async {
@@ -188,4 +190,101 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
       },
     ),
   );
+
+  DoctorClinicalSaveResult _clinicalResult(Map<String, dynamic> data) {
+    final id = data['id']?.toString().trim() ?? '';
+    final message = data['message']?.toString().trim() ?? '';
+    if (id.isEmpty || message.isEmpty) {
+      throw const FormatException('Phản hồi lưu hồ sơ không hợp lệ.');
+    }
+    return DoctorClinicalSaveResult(id: id, message: message);
+  }
+
+  @override
+  Future<DoctorClinicalSaveResult> saveHealthRecord({
+    required String userId,
+    required DoctorHealthRecordDraft draft,
+  }) async => _clinicalResult(
+    await _request(
+      userId,
+      'doctor/health-records',
+      requestId: draft.requestId,
+      body: {
+        if (draft.id?.isNotEmpty ?? false) 'id': draft.id,
+        'appointmentId': draft.appointmentId,
+        'diagnosis': draft.diagnosis,
+        'notes': draft.notes,
+        'prescription': draft.prescription,
+        'recordType': draft.recordType,
+      },
+    ),
+  );
+
+  @override
+  Future<DoctorClinicalSaveResult> saveTestResult({
+    required String userId,
+    required DoctorTestResultDraft draft,
+  }) async => _clinicalResult(
+    await _request(
+      userId,
+      'doctor/test-results',
+      requestId: draft.requestId,
+      body: {
+        if (draft.id?.isNotEmpty ?? false) 'id': draft.id,
+        'appointmentId': draft.appointmentId,
+        'testName': draft.testName,
+        'resultDescription': draft.resultDescription,
+        'resultType': draft.resultType,
+        'conclusion': draft.conclusion,
+        'referenceRange': draft.referenceRange,
+      },
+    ),
+  );
+
+  @override
+  Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
+    required String userId,
+    required String appointmentId,
+  }) async =>
+      _list(
+            await _request(
+              userId,
+              'doctor/health-records?appointmentId=$appointmentId',
+            ),
+            'records',
+          )
+          .map(
+            (item) => DoctorHealthRecordSummary(
+              id: item['id'] as String,
+              diagnosis: item['diagnosis'] as String,
+              notes: item['notes'] as String,
+              prescription: item['prescription'] as String,
+              recordType: item['recordType'] as String,
+            ),
+          )
+          .toList(growable: false);
+
+  @override
+  Future<List<DoctorTestResultSummary>> loadTestResults({
+    required String userId,
+    required String appointmentId,
+  }) async =>
+      _list(
+            await _request(
+              userId,
+              'doctor/test-results?appointmentId=$appointmentId',
+            ),
+            'records',
+          )
+          .map(
+            (item) => DoctorTestResultSummary(
+              id: item['id'] as String,
+              testName: item['testName'] as String,
+              resultDescription: item['resultDescription'] as String,
+              resultType: item['resultType'] as String,
+              conclusion: item['conclusion'] as String,
+              referenceRange: item['referenceRange'] as String,
+            ),
+          )
+          .toList(growable: false);
 }

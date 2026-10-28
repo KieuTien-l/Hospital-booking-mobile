@@ -9,7 +9,7 @@ import '../../features/home/presentation/widgets/doctor_workspace_shell.dart';
 import '../../features/home/presentation/pages/admin_home_page.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key, this.useLiveCommunications = true});
+  const AuthGate({super.key, this.useLiveCommunications = false});
   final bool useLiveCommunications;
 
   @override

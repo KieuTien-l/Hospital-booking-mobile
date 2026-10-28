@@ -14,9 +14,11 @@ const keyPair = await webcrypto.subtle.generateKey(
 const signingJwk = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
 signingJwk.kid = 'contract-test-key';
 const calls = [];
+let accountState = 'active';
 
 beforeEach(() => {
   calls.length = 0;
+  accountState = 'active';
   globalThis.fetch = async (url, options) => {
     const address = String(url);
     calls.push({ address, options });
@@ -24,6 +26,24 @@ beforeEach(() => {
       return new Response(JSON.stringify({ keys: [signingJwk] }), {
         headers: { 'cache-control': 'max-age=300', 'content-type': 'application/json' },
       });
+    }
+    if (address.includes('firestore.googleapis.com/v1/projects/')) {
+      if (accountState === 'inactive') {
+        return new Response(JSON.stringify({
+          fields: {
+            isActive: { booleanValue: false },
+            role: { stringValue: 'patient' },
+            status: { stringValue: 'REJECTED' },
+          },
+        }), { headers: { 'content-type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({
+        fields: {
+          isActive: { booleanValue: true },
+          role: { stringValue: 'patient' },
+          status: { stringValue: 'APPROVED' },
+        },
+      }), { headers: { 'content-type': 'application/json' } });
     }
     if (address === 'https://api.openai.com/v1/responses') {
       return new Response(JSON.stringify({
@@ -87,6 +107,18 @@ test('rejects malformed requests with an error contract', async () => {
 
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: 'Lịch sử trò chuyện không hợp lệ.' });
+});
+
+test('rejects an otherwise valid token after its HealWay account is disabled', async () => {
+  accountState = 'inactive';
+  const response = await worker.fetch(await chatRequest({
+    uid: 'contract-user-disabled',
+    message: 'Hướng dẫn tôi đặt lịch khám',
+  }), env());
+
+  assert.equal(response.status, 403);
+  assert.match((await response.json()).error, /chưa được phê duyệt|ngừng hoạt động/i);
+  assert.equal(calls.some((call) => call.address === 'https://api.openai.com/v1/responses'), false);
 });
 
 function env() {

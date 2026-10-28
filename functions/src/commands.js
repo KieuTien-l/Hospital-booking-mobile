@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { AdminError, fail, text, id, number, choice, email, date, dayKey, minutes, timeText, workPeriod, bookingTime, transition, capacityChange, cleanFields, heldStatuses } from './policy.js';
 
 const stamp = () => FieldValue.serverTimestamp();
@@ -95,6 +95,7 @@ class CommandContext {
       case 'sendNotification': return this.sendNotification();
       case 'paymentReview': return this.paymentReview();
       case 'saveSettings': return this.settings();
+      case 'backfillSlotTimes': return this.backfillSlotTimes();
       default: fail('Thao tác chưa được hỗ trợ.', 'invalid-argument');
     }
   }
@@ -213,9 +214,16 @@ class CommandContext {
       const fields = { doctorId, workDate: new Date(period.day.getTime() + w * 7 * 86400000), startTime: v.startTime, endTime: v.endTime, slotDuration: duration, capacity, status: 'ACTIVE', updatedAt: stamp() };
       if (edit) this.tx.update(this.ref('LICH_LAM_VIEC', scheduleId), fields);
       else this.tx.create(this.ref('LICH_LAM_VIEC', scheduleId), { ...fields, createdAt: stamp() });
-      for (let n = 0; n < count; n++) this.tx.create(this.ref('CA_KHAM', `${this.requestId}_${w}_${n}`), {
-        doctorId, workScheduleId: scheduleId, startTime: timeText(period.start + n * duration), endTime: timeText(Math.min(period.end, period.start + (n + 1) * duration)), capacity, bookedCount: 0, status: 'AVAILABLE', createdAt: stamp(), updatedAt: stamp(),
-      });
+      for (let n = 0; n < count; n++) {
+        const startTime = timeText(period.start + n * duration);
+        const endTime = timeText(Math.min(period.end, period.start + (n + 1) * duration));
+        this.tx.create(this.ref('CA_KHAM', `${this.requestId}_${w}_${n}`), {
+          doctorId, workScheduleId: scheduleId, startTime, endTime,
+          startsAt: Timestamp.fromDate(bookingTime(fields.workDate, startTime)),
+          endsAt: Timestamp.fromDate(bookingTime(fields.workDate, endTime)),
+          capacity, bookedCount: 0, status: 'AVAILABLE', createdAt: stamp(), updatedAt: stamp(),
+        });
+      }
     }
     this.audit('LICH_LAM_VIEC', key, before, { ...v, generatedSlots: count * weeks, reason });
     return { id: key, collection: 'LICH_LAM_VIEC', message: `Đã lưu ${weeks} lịch và ${count * weeks} ca khám.` };
@@ -235,13 +243,68 @@ class CommandContext {
     if (history.length && (v.startTime !== before.startTime || v.endTime !== before.endTime)) fail('Ca đã có lịch sử, không đổi giờ khám.');
     if (related.some((s) => s.id !== key && start < minutes(s.data().endTime) && end > minutes(s.data().startTime))) fail('Ca khám bị trùng giờ.');
     const booked = before ? number(before.bookedCount, 'Số chỗ', 0, capacity, true) : 0;
-    const fields = { workScheduleId: scheduleId, doctorId: schedule.doctorId, startTime: v.startTime, endTime: v.endTime, capacity, bookedCount: booked, status: before?.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : booked >= capacity ? 'BOOKED' : 'AVAILABLE', updatedAt: stamp() };
+    const fields = {
+      workScheduleId: scheduleId, doctorId: schedule.doctorId,
+      startTime: v.startTime, endTime: v.endTime,
+      startsAt: Timestamp.fromDate(bookingTime(schedule.workDate, v.startTime)),
+      endsAt: Timestamp.fromDate(bookingTime(schedule.workDate, v.endTime)),
+      capacity, bookedCount: booked,
+      status: ['UNAVAILABLE', 'CANCELLED'].includes(before?.status)
+        ? before.status
+        : booked >= capacity ? 'BOOKED' : 'AVAILABLE',
+      updatedAt: stamp(),
+    };
     this.reason();
     this.tx.update(this.ref('LICH_LAM_VIEC', scheduleId), { adminVersion: FieldValue.increment(1), updatedAt: stamp() });
     if (before) this.tx.update(this.ref('CA_KHAM', key), fields);
     else this.tx.create(this.ref('CA_KHAM', key), { ...fields, createdAt: stamp() });
     this.audit('CA_KHAM', key, before, fields);
     return { id: key, collection: 'CA_KHAM', message: 'Đã lưu ca khám.' };
+  }
+  async backfillSlotTimes() {
+    const values = this.input.values || {};
+    const limit = number(values.limit ?? 100, 'Số ca mỗi đợt', 1, 200, true);
+    const cursor = values.cursor == null || values.cursor === ''
+      ? null
+      : id(values.cursor, 'Mã tiếp tục');
+    let query = this.db.collection('CA_KHAM')
+      .orderBy(FieldPath.documentId())
+      .limit(limit);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await this.tx.get(query);
+    const updates = [];
+    for (const slot of page.docs) {
+      const data = slot.data();
+      if (data.startsAt?.toDate && data.endsAt?.toDate) continue;
+      if (typeof data.workScheduleId !== 'string' ||
+          typeof data.startTime !== 'string' || typeof data.endTime !== 'string') {
+        fail(`Ca ${slot.id} thiếu lịch hoặc giờ hợp lệ; hãy sửa dữ liệu này trước khi backfill.`);
+      }
+      const schedule = await this.get('LICH_LAM_VIEC', data.workScheduleId);
+      minutes(data.startTime); minutes(data.endTime);
+      const startsAt = bookingTime(schedule.workDate, data.startTime);
+      const endsAt = bookingTime(schedule.workDate, data.endTime);
+      if (startsAt >= endsAt) fail(`Ca ${slot.id} có khoảng giờ không hợp lệ.`);
+      updates.push({ slot, startsAt, endsAt });
+    }
+    // Firestore transactions require every read to precede every write.
+    for (const update of updates) this.tx.update(update.slot.ref, {
+      startsAt: Timestamp.fromDate(update.startsAt),
+      endsAt: Timestamp.fromDate(update.endsAt),
+      updatedAt: stamp(),
+    });
+    this.reason();
+    const nextCursor = page.docs.length == limit ? page.docs.at(-1).id : null;
+    this.audit('CA_KHAM', cursor || 'beginning', null, {
+      scanned: page.docs.length, updated: updates.length, nextCursor,
+    });
+    return {
+      collection: 'CA_KHAM', updated: updates.length,
+      scanned: page.docs.length, nextCursor,
+      message: nextCursor == null
+        ? `Đã backfill ${updates.length} ca trong đợt cuối.`
+        : `Đã backfill ${updates.length} ca. Tiếp tục với cursor ${nextCursor}.`,
+    };
   }
   async destination(slotId, peopleCount) {
     const slot = await this.get('CA_KHAM', slotId), schedule = await this.get('LICH_LAM_VIEC', slot.workScheduleId);
@@ -410,7 +473,7 @@ async function provisionDoctor(db, auth, uid, input) {
       const actor = snapshotData(await tx.get(db.collection('TAI_KHOAN').doc(uid)));
       if (actor.role !== 'admin' || !actor.isActive) fail('Quyền admin đã thay đổi.', 'permission-denied');
       active(snapshotData(await tx.get(db.collection('CHUYEN_KHOA').doc(fields.specialtyId))), 'Chuyên khoa');
-      tx.create(db.collection('TAI_KHOAN').doc(user.uid), { email: loginEmail, fullName: fields.fullName, phone: fields.phone || '', role: 'doctor', isActive: true, createdAt: stamp(), updatedAt: stamp() });
+      tx.create(db.collection('TAI_KHOAN').doc(user.uid), { email: loginEmail, fullName: fields.fullName, phone: fields.phone || '', role: 'doctor', isActive: true, status: 'ACTIVE', createdAt: stamp(), updatedAt: stamp() });
       tx.create(db.collection('BAC_SI').doc(user.uid), { ...fields, userId: user.uid, acceptingBookings: true, status: 'ACTIVE', isActive: true, createdAt: stamp(), updatedAt: stamp() });
       tx.create(db.collection('NHAT_KY_ADMIN').doc(key), { actorId: uid, action: 'createDoctor', targetCollection: 'BAC_SI', targetId: user.uid, reason: input.reason, before: null, after: { ...fields, loginEmail }, createdAt: stamp() });
       tx.create(receipt, { fingerprint, result, createdAt: stamp() });

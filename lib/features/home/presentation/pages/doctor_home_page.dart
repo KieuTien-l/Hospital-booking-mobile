@@ -4,11 +4,12 @@ import 'package:provider/provider.dart';
 import '../../../../core/state/view_state.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../doctors/presentation/controllers/doctor_dashboard_controller.dart';
+import '../controllers/doctor_workspace_controller.dart';
 import '../widgets/doctor_dashboard_stat_card.dart';
 import '../widgets/doctor_today_appointments_section.dart';
 import '../widgets/patient_home_background.dart';
 import 'doctor_reports_page.dart';
+import 'doctor_clinical_write_page.dart';
 import 'doctor_profile_page.dart';
 
 class DoctorHomePage extends StatefulWidget {
@@ -47,17 +48,13 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
     if (date != null && mounted) _selectDate(date, resetStrip: true);
   }
 
-  void _loadDashboardAfterBuild(
-    DoctorDashboardController? dashboard,
-    String authUserId,
-  ) {
-    if (dashboard == null ||
-        dashboard.matches(authUserId: authUserId, date: _selectedDate)) {
+  void _loadWorkspaceAfterBuild(DoctorWorkspaceController? workspace) {
+    if (workspace == null || workspace.matches(_selectedDate)) {
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        dashboard.load(authUserId: authUserId, selectedDate: _selectedDate);
+        workspace.load(_selectedDate);
       }
     });
   }
@@ -65,46 +62,42 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
   Widget _home(
     BuildContext context,
     AuthController auth,
-    DoctorDashboardController? dashboard,
+    DoctorWorkspaceController? workspace,
   ) {
     final name = auth.currentUser?.fullName.trim() ?? '';
     final textTheme = Theme.of(context).textTheme;
-    final dashboardState = dashboard?.status ?? ViewState.initial;
-    final appointmentStreamLoading =
-        dashboardState == ViewState.success &&
-        dashboard?.appointmentsLoaded == false;
-    final dashboardLoading =
-        dashboardState == ViewState.loading || appointmentStreamLoading;
-    final dashboardError =
-        dashboardState == ViewState.error || dashboard?.appointmentError != null;
+    final dashboardState = workspace?.status ?? ViewState.initial;
+    final dashboardLoading = dashboardState == ViewState.loading;
+    final dashboardError = dashboardState == ViewState.error;
     final hasResolvedData =
-        (dashboardState == ViewState.success || dashboardState == ViewState.empty) &&
+        (dashboardState == ViewState.success ||
+            dashboardState == ViewState.empty) &&
         !dashboardLoading &&
         !dashboardError;
-    final appointmentState = dashboard == null
+    final appointmentState = workspace == null
         ? DoctorAppointmentsDisplayState.empty
         : dashboardLoading
         ? DoctorAppointmentsDisplayState.loading
         : dashboardError
         ? DoctorAppointmentsDisplayState.error
-        : dashboard.workSchedules.isEmpty
+        : (workspace.data?.schedules.isEmpty ?? true)
         ? DoctorAppointmentsDisplayState.empty
         : DoctorAppointmentsDisplayState.data;
     final stats = [
       (
         'Đã đặt',
         Icons.event_available_outlined,
-        hasResolvedData ? dashboard?.bookedCount : null,
+        hasResolvedData ? workspace?.data?.totals.booked : null,
       ),
       (
         'Đã khám',
         Icons.done_all_rounded,
-        hasResolvedData ? dashboard?.completedCount : null,
+        hasResolvedData ? workspace?.data?.totals.completed : null,
       ),
       (
         'Chờ khám',
         Icons.schedule_rounded,
-        hasResolvedData ? dashboard?.waitingCount : null,
+        hasResolvedData ? workspace?.data?.totals.waiting : null,
       ),
     ];
     return SingleChildScrollView(
@@ -350,9 +343,24 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
               DoctorTodayAppointmentsSection(
                 selectedDate: _selectedDate,
                 state: appointmentState,
-                schedules: dashboard?.workSchedules ?? const [],
-                appointments: dashboard?.appointments ?? const [],
+                schedules: workspace?.data?.schedules ?? const [],
+                timeSlots: workspace?.data?.slots ?? const [],
+                bookings: workspace?.data?.bookings ?? const [],
+                workspace: workspace,
               ),
+              if (workspace?.data != null) ...[
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  key: const ValueKey('doctor-clinical-write'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const DoctorClinicalWritePage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.note_add_outlined),
+                  label: const Text('Ghi hồ sơ khám / kết quả CLS'),
+                ),
+              ],
               const SizedBox(height: 18),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -382,13 +390,13 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            dashboard == null
+                            workspace == null
                                 ? 'Lịch và thống kê chưa được kết nối. Các chỉ số hiển thị “—” khi chưa có dữ liệu được xác minh.'
                                 : dashboardLoading
                                 ? 'Đang đồng bộ lịch làm việc và lịch hẹn.'
                                 : dashboardError
                                 ? 'Không thể đồng bộ dữ liệu. Vui lòng thử lại sau.'
-                                : dashboard.workSchedules.isEmpty
+                                : (workspace.data?.schedules.isEmpty ?? true)
                                 ? 'Chưa có ca làm được phân công cho ngày đã chọn.'
                                 : 'Lịch và thống kê đang được đồng bộ từ hệ thống.',
                             style: textTheme.bodySmall?.copyWith(
@@ -478,8 +486,8 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final dashboard = context.watch<DoctorDashboardController?>();
-    _loadDashboardAfterBuild(dashboard, auth.currentUser?.id ?? '');
+    final workspace = context.watch<DoctorWorkspaceController?>();
+    _loadWorkspaceAfterBuild(workspace);
     return Theme(
       data: Theme.of(context).copyWith(
         textTheme: Theme.of(context).textTheme
@@ -534,7 +542,7 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                     child: IndexedStack(
                       index: _tab,
                       children: [
-                        _home(context, auth, dashboard),
+                        _home(context, auth, workspace),
                         DoctorReportsPage(selectedDate: _selectedDate),
                         const DoctorProfilePage(),
                       ],

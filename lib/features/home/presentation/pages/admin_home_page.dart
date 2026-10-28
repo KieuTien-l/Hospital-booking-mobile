@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../admin/presentation/admin_workspace.dart';
-import '../../../admin/presentation/controllers/admin_account_controller.dart';
 import '../../../admin/presentation/controllers/admin_appointment_controller.dart';
 import '../../../admin/presentation/controllers/admin_dashboard_controller.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -28,7 +27,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
       if (!mounted) return;
       context.read<AdminDashboardController?>()?.load();
       context.read<AdminAppointmentController?>()?.load();
-      context.read<AdminAccountController?>()?.loadPendingAccounts();
     });
   }
 

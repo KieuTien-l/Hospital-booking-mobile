@@ -78,10 +78,10 @@ class AuthFirebaseDatasource {
         fullName: fullName,
         phone: phone,
         role: UserRole.patient,
-        isActive: false,
+        isActive: true,
         accountKey: firebaseUser.uid,
         permission: 'PATIENT',
-        status: 'PENDING',
+        status: 'ACTIVE',
       );
       final patient = PatientModel(
         id: firebaseUser.uid,
@@ -101,8 +101,6 @@ class AuthFirebaseDatasource {
         patient.toFirestoreCreate(),
       );
       await batch.commit();
-
-      await _auth.signOut();
       return user;
     } on AuthException {
       rethrow;

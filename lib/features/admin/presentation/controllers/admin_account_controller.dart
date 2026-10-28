@@ -4,6 +4,8 @@ import '../../../../core/state/view_state.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../domain/repositories/admin_account_repository.dart';
 
+/// Kept for compatibility with legacy account data tests.  It is not
+/// registered in the app and no production UI exposes an approval queue.
 class AdminAccountController extends ViewStateController {
   AdminAccountController(this._repository);
 
@@ -25,9 +27,7 @@ class AdminAccountController extends ViewStateController {
           setState(accounts.isEmpty ? ViewState.empty : ViewState.success);
         },
         onError: (Object error) {
-          if (pendingRequest == _pendingRequest) {
-            setState(ViewState.error, error);
-          }
+          if (pendingRequest == _pendingRequest) setState(ViewState.error, error);
         },
       );
     } catch (error) {

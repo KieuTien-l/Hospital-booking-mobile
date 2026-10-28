@@ -34,7 +34,7 @@ class PatientPaymentModel extends PatientPayment {
     // would make the payment access rule impossible to reason about.
     patientId: readReferenceId(data['patientId']),
     appointmentId: readOptionalString(data['appointmentId']),
-    amount: readInt(data['amount']),
+    amount: _readAmount(data['amount']),
     paymentMethod: readString(data['paymentMethod'], fallback: 'BANK_TRANSFER'),
     status: readString(data['status'], fallback: 'PENDING'),
     transactionCode: readOptionalString(data['transactionCode']),
@@ -42,4 +42,12 @@ class PatientPaymentModel extends PatientPayment {
     paidAt: readDateTime(data['paidAt']),
     isTestData: readBool(data['isTestData']),
   );
+
+  static int? _readAmount(Object? value) {
+    if (value is int && value >= 0) return value;
+    if (value is double && value.isFinite && value >= 0 && value == value.roundToDouble()) {
+      return value.toInt();
+    }
+    return null;
+  }
 }

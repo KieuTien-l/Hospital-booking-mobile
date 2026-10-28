@@ -22,6 +22,16 @@ class TestResultModel extends TestResult {
   factory TestResultModel.fromFirestore(DocumentSnapshot doc) {
     final raw = doc.data();
     final data = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
+    final testDate = readDateTime(
+      readFirstValue(data, const [
+        'testDate',
+        'resultDate',
+        'NgayTraKetQua',
+      ]),
+    );
+    if (testDate == null) {
+      throw const FormatException('Kết quả cận lâm sàng thiếu hoặc có ngày trả kết quả không hợp lệ.');
+    }
     return TestResultModel(
       id: doc.id,
       patientId: readReferenceIdForKeys(data, const ['patientId', 'MaBN']),
@@ -31,15 +41,7 @@ class TestResultModel extends TestResult {
         'result',
         'KetQua',
       ]),
-      testDate:
-          readDateTime(
-            readFirstValue(data, const [
-              'testDate',
-              'resultDate',
-              'NgayTraKetQua',
-            ]),
-          ) ??
-          DateTime.now(),
+      testDate: testDate,
       resultType: readStringForKeys(data, const [
         'resultType',
         'testType',

@@ -53,6 +53,21 @@ class FirebaseAdminCommands implements AdminCommands {
 
   Uri get endpoint {
     if (endpointOverride != null) return endpointOverride!;
+    const workerUrl = String.fromEnvironment('ADMIN_COMMAND_BASE_URL');
+    if (workerUrl.isNotEmpty) {
+      final uri = Uri.tryParse(workerUrl);
+      if (uri == null ||
+          !uri.isAbsolute ||
+          uri.scheme != 'https' ||
+          uri.userInfo.isNotEmpty ||
+          uri.hasQuery ||
+          uri.hasFragment) {
+        throw const AdminCommandException(
+          'ADMIN_COMMAND_BASE_URL phải là URL HTTPS hợp lệ, không kèm thông tin đăng nhập hoặc query.',
+        );
+      }
+      return uri;
+    }
     final project = Firebase.app().options.projectId;
     const emulator = String.fromEnvironment('ADMIN_EMULATOR_HOST');
     if (emulator.isNotEmpty) {
@@ -91,12 +106,12 @@ class FirebaseAdminCommands implements AdminCommands {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json',
             },
-            body: jsonEncode({'data': command}),
+            body: jsonEncode(_usesWorkerEndpoint ? command : {'data': command}),
           )
           .timeout(const Duration(seconds: 70));
       if (response.statusCode == 404) {
         throw const AdminCommandException(
-          'Backend admin chưa được triển khai. Cần triển khai adminCommand và Firestore Rules trước khi thao tác dữ liệu thật.',
+          'Không tìm thấy backend Admin. Nếu dùng Cloudflare Worker, hãy chạy/build app với ADMIN_COMMAND_BASE_URL; nếu dùng Firebase Functions, hãy triển khai adminCommand.',
         );
       }
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -122,6 +137,10 @@ class FirebaseAdminCommands implements AdminCommands {
       );
     }
   }
+
+  bool get _usesWorkerEndpoint =>
+      endpointOverride == null &&
+      const String.fromEnvironment('ADMIN_COMMAND_BASE_URL').isNotEmpty;
 
   @override
   Future<void> sendPasswordSetup(String email) async {

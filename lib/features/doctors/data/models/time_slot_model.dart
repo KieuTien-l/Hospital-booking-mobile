@@ -18,6 +18,8 @@ class TimeSlotModel extends TimeSlot {
     super.capacity,
     super.appointmentId,
     super.reservationCounts,
+    super.startsAt,
+    super.endsAt,
     super.createdAt,
     super.updatedAt,
   });
@@ -33,6 +35,8 @@ class TimeSlotModel extends TimeSlot {
     capacity: value.capacity,
     appointmentId: value.appointmentId,
     reservationCounts: value.reservationCounts,
+    startsAt: value.startsAt,
+    endsAt: value.endsAt,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   );
@@ -52,6 +56,8 @@ class TimeSlotModel extends TimeSlot {
       capacity: _readOptionalInt(json['capacity']),
       appointmentId: readOptionalString(json['appointmentId']),
       reservationCounts: _readReservationCounts(json['reservationCounts']),
+      startsAt: readDateTime(json['startsAt']),
+      endsAt: readDateTime(json['endsAt']),
       createdAt: readDateTime(json['createdAt']),
       updatedAt: readDateTime(json['updatedAt']),
     );
@@ -82,6 +88,8 @@ class TimeSlotModel extends TimeSlot {
       if (capacity != null) 'capacity': capacity,
       if (appointmentId != null) 'appointmentId': appointmentId,
       if (reservationCounts.isNotEmpty) 'reservationCounts': reservationCounts,
+      if (startsAt != null) 'startsAt': startsAt!.toIso8601String(),
+      if (endsAt != null) 'endsAt': endsAt!.toIso8601String(),
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
@@ -98,6 +106,8 @@ class TimeSlotModel extends TimeSlot {
       if (capacity != null) 'capacity': capacity,
       if (appointmentId != null) 'appointmentId': appointmentId,
       if (reservationCounts.isNotEmpty) 'reservationCounts': reservationCounts,
+      if (startsAt != null) 'startsAt': startsAt,
+      if (endsAt != null) 'endsAt': endsAt,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }

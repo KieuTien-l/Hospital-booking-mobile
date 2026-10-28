@@ -69,6 +69,8 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
   bool get isDemo => false;
   @override
   bool get canSubmitReports => true;
+  @override
+  bool get canWriteClinicalRecords => true;
   Future<DoctorDayData> Function(DateTime date)? dayLoader;
   Future<List<DoctorReport>> Function()? historyLoader;
   Future<DoctorReport> Function(DoctorReportDraft draft)? sender;
@@ -102,4 +104,34 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
           ),
         );
   }
+
+  @override
+  Future<DoctorClinicalSaveResult> saveHealthRecord({
+    required String userId,
+    required DoctorHealthRecordDraft draft,
+  }) async => DoctorClinicalSaveResult(
+    id: draft.id ?? draft.requestId,
+    message: 'Đã tạo hồ sơ y tế.',
+  );
+
+  @override
+  Future<DoctorClinicalSaveResult> saveTestResult({
+    required String userId,
+    required DoctorTestResultDraft draft,
+  }) async => DoctorClinicalSaveResult(
+    id: draft.id ?? draft.requestId,
+    message: 'Đã tạo kết quả CLS.',
+  );
+
+  @override
+  Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
+    required String userId,
+    required String appointmentId,
+  }) async => const [];
+
+  @override
+  Future<List<DoctorTestResultSummary>> loadTestResults({
+    required String userId,
+    required String appointmentId,
+  }) async => const [];
 }

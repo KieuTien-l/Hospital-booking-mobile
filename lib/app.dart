@@ -6,10 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'features/home/domain/repositories/doctor_workspace_repository.dart';
 import 'features/home/data/repositories/demo_doctor_workspace_repository.dart';
 import 'features/home/data/repositories/http_doctor_workspace_repository.dart';
+import 'features/home/data/repositories/unconfigured_doctor_workspace_repository.dart';
 
-import 'features/admin/data/repositories/admin_account_repository_impl.dart';
-import 'features/admin/domain/repositories/admin_account_repository.dart';
-import 'features/admin/presentation/controllers/admin_account_controller.dart';
 import 'features/admin/presentation/controllers/admin_appointment_controller.dart';
 import 'features/admin/data/repositories/admin_management_repository_impl.dart';
 import 'features/admin/domain/repositories/admin_management_repository.dart';
@@ -56,7 +54,6 @@ import 'features/doctors/domain/repositories/doctor_repository.dart';
 import 'features/doctors/domain/repositories/time_slot_repository.dart';
 import 'features/doctors/domain/repositories/work_schedule_repository.dart';
 import 'features/doctors/presentation/controllers/doctor_controller.dart';
-import 'features/doctors/presentation/controllers/doctor_dashboard_controller.dart';
 import 'features/doctors/presentation/controllers/schedule_controller.dart';
 import 'features/onboarding/data/datasources/app_preferences.dart';
 import 'features/onboarding/data/repositories/onboarding_repository_impl.dart';
@@ -81,6 +78,10 @@ import 'features/chatbot/presentation/controllers/chatbot_controller.dart';
 class App extends StatelessWidget {
   const App({super.key});
 
+  static const _doctorApiBaseUrl = String.fromEnvironment(
+    'DOCTOR_API_BASE_URL',
+  );
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -92,8 +93,10 @@ class App extends StatelessWidget {
                 defaultValue: !kReleaseMode,
               )
               ? const DemoDoctorWorkspaceRepository()
+              : _doctorApiBaseUrl.isEmpty
+              ? const UnconfiguredDoctorWorkspaceRepository()
               : HttpDoctorWorkspaceRepository(
-                  baseUrl: const String.fromEnvironment('DOCTOR_API_BASE_URL'),
+                  baseUrl: _doctorApiBaseUrl,
                   tokenProvider: (userId) async {
                     final user = FirebaseAuth.instance.currentUser;
                     return user?.uid == userId ? user!.getIdToken() : null;
@@ -124,9 +127,6 @@ class App extends StatelessWidget {
         ),
         Provider<AdminManagementRepository>(
           create: (_) => AdminManagementRepositoryImpl(),
-        ),
-        Provider<AdminAccountRepository>(
-          create: (_) => AdminAccountRepositoryImpl(),
         ),
         Provider<DoctorRepository>(
           create: (_) => DoctorRepositoryImpl(DoctorFirebaseDatasource()),
@@ -212,13 +212,6 @@ class App extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(
-          create: (context) => DoctorDashboardController(
-            doctorRepository: context.read<DoctorRepository>(),
-            workScheduleRepository: context.read<WorkScheduleRepository>(),
-            appointmentRepository: context.read<AppointmentRepository>(),
-          ),
-        ),
-        ChangeNotifierProvider(
           create: (context) => AdminDashboardController(
             specialtyRepository: context.read<SpecialtyRepository>(),
             doctorRepository: context.read<DoctorRepository>(),
@@ -237,10 +230,6 @@ class App extends StatelessWidget {
             workScheduleRepository: context.read<WorkScheduleRepository>(),
             timeSlotRepository: context.read<TimeSlotRepository>(),
           ),
-        ),
-        ChangeNotifierProvider(
-          create: (context) =>
-              AdminAccountController(context.read<AdminAccountRepository>()),
         ),
         ChangeNotifierProvider(
           create: (context) =>

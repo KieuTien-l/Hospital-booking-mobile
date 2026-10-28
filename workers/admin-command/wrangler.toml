@@ -1,0 +1,14 @@
+name = "healway-admin-command"
+main = "src/index.js"
+compatibility_date = "2025-10-24"
+
+[vars]
+FIREBASE_PROJECT_ID = "bookinghospitalapp"
+# This Firebase Web API key identifies the project to Identity Toolkit; it is
+# not a privileged credential. The Worker still authenticates with the
+# Service Account secret and validates the caller's Firebase ID token.
+FIREBASE_WEB_API_KEY = "AIzaSyCbt60n6bcqt8CMeofNSNoKkLzfaQZNa1Y"
+ALLOWED_ORIGINS = "https://bookinghospitalapp.web.app,https://bookinghospitalapp.firebaseapp.com"
+
+# Set this only with `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON`.
+# Never place the service-account JSON in this file or commit it to Git.

@@ -101,29 +101,25 @@ void main() {
     });
   }
 
-  test(
-    'Restores an authenticated session and registration stays signed out',
-    () async {
-      final repository = MemoryAuthRepository()
-        ..user = account(UserRole.doctor);
-      final controller = AuthController(authRepo: repository);
-      addTearDown(controller.dispose);
-      addTearDown(repository.events.close);
-      await Future<void>.delayed(Duration.zero);
-      expect(controller.status, AuthStatus.authenticated);
-      expect(controller.currentUser?.role, UserRole.doctor);
-      await controller.logout();
-      expect(
-        await controller.register(
-          email: 'new@example.com',
-          password: 'password123',
-          fullName: 'New Patient',
-          phone: '',
-        ),
-        isTrue,
-      );
-      expect(controller.status, AuthStatus.unauthenticated);
-      expect(controller.currentUser, isNull);
-    },
-  );
+  test('Restores an authenticated session and registration starts an active session', () async {
+    final repository = MemoryAuthRepository()..user = account(UserRole.doctor);
+    final controller = AuthController(authRepo: repository);
+    addTearDown(controller.dispose);
+    addTearDown(repository.events.close);
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.status, AuthStatus.authenticated);
+    expect(controller.currentUser?.role, UserRole.doctor);
+    await controller.logout();
+    expect(
+      await controller.register(
+        email: 'new@example.com',
+        password: 'password123',
+        fullName: 'New Patient',
+        phone: '',
+      ),
+      isTrue,
+    );
+    expect(controller.status, AuthStatus.authenticated);
+    expect(controller.currentUser?.role, UserRole.patient);
+  });
 }

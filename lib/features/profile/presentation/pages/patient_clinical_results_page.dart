@@ -85,11 +85,13 @@ class _PatientClinicalResultsPageState
       context: context,
       showDragHandle: true,
       useSafeArea: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.surface,
       builder: (context) => SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: FractionallySizedBox(
+          heightFactor: .8,
+          child: Column(
           children: [
             ListTile(
               title: const Text(
@@ -102,18 +104,22 @@ class _PatientClinicalResultsPageState
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
-            for (var index = 0; index < _types.length; index++)
-              ListTile(
-                title: Text(_types[index]),
-                selected: index == _selectedType,
-                selectedColor: AppColors.textOnPrimary,
-                trailing: index == _selectedType
-                    ? const Icon(Icons.check, color: AppColors.textOnPrimary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(index),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _types.length,
+                itemBuilder: (context, index) => ListTile(
+                  title: Text(_types[index]),
+                  selected: index == _selectedType,
+                  selectedColor: AppColors.textOnPrimary,
+                  trailing: index == _selectedType
+                      ? const Icon(Icons.check, color: AppColors.textOnPrimary)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(index),
+                ),
               ),
-            const SizedBox(height: 16),
+            ),
           ],
+        ),
         ),
       ),
     );

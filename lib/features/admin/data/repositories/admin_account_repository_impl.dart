@@ -4,6 +4,8 @@ import '../../../auth/data/models/user_model.dart';
 import '../../domain/exceptions/admin_management_exception.dart';
 import '../../domain/repositories/admin_account_repository.dart';
 
+/// Legacy repository retained solely for migration/test support.  The app no
+/// longer provides it, so new registrations are never placed in this queue.
 class AdminAccountRepositoryImpl implements AdminAccountRepository {
   AdminAccountRepositoryImpl({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
@@ -46,7 +48,7 @@ class AdminAccountRepositoryImpl implements AdminAccountRepository {
       final account = UserModel.fromFirestore(snapshot);
       if ((account.status ?? '').toUpperCase() != 'PENDING') {
         throw const AdminManagementException(
-          'Chỉ tài khoản đang chờ mới có thể được duyệt hoặc từ chối.',
+          'Chỉ tài khoản cũ đang chờ mới có thể được xử lý.',
         );
       }
       final status = approved ? 'APPROVED' : 'REJECTED';

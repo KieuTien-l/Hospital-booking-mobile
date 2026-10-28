@@ -33,6 +33,7 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
   String? _scheduleError, _historyError;
   DoctorWorkspaceRepository? _repository;
   String? _userId;
+  int _historyRequest = 0;
 
   @override
   void initState() {
@@ -91,19 +92,24 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
   Future<void> _loadHistory() async {
     final repository = _repository, userId = _userId;
     if (repository == null || userId == null || userId.isEmpty) return;
+    final request = ++_historyRequest;
     setState(() {
       _loadingHistory = true;
       _historyError = null;
     });
     try {
       final reports = await repository.loadReports(userId: userId);
-      if (mounted) setState(() => _reports = reports);
+      if (mounted && request == _historyRequest) {
+        setState(() => _reports = reports);
+      }
     } catch (_) {
-      if (mounted) {
+      if (mounted && request == _historyRequest) {
         setState(() => _historyError = 'Không thể tải lịch sử báo cáo.');
       }
     } finally {
-      if (mounted) setState(() => _loadingHistory = false);
+      if (mounted && request == _historyRequest) {
+        setState(() => _loadingHistory = false);
+      }
     }
   }
 
@@ -139,8 +145,11 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
         ),
       );
       if (!mounted) return;
+      // An older history fetch can complete after a successful submission.
+      // Invalidate it so it cannot replace the just-inserted report.
+      _historyRequest++;
       setState(() {
-        _reports = [saved, ..._reports];
+        _reports = [saved, ..._reports.where((report) => report.id != saved.id)];
         _success = 'Đã gửi báo cáo. Đang chờ Admin xử lý.';
         _sending = false;
       });

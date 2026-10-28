@@ -31,7 +31,6 @@ class _AdminDashboard extends StatelessWidget {
     // The workspace owns the complete data grid. These controllers provide
     // the domain backend aggregates and relationship audit for the overview.
     final liveDashboard = context.watch<AdminDashboardController?>();
-    final liveAccounts = context.watch<AdminAccountController?>();
     final liveAppointments = context.watch<AdminAppointmentController?>();
     final appointments = controller.dataset('LICH_HEN');
     final payments = controller.dataset('THANH_TOAN');
@@ -59,7 +58,11 @@ class _AdminDashboard extends StatelessWidget {
         .length;
     final paid = payments.records
         .where(
-          (r) => {'PAID', 'SUCCESS'}.contains(adminStatus(r.data['status'])),
+          (r) => {
+            'PAID',
+            'SUCCESS',
+            'COMPLETED',
+          }.contains(adminStatus(r.data['status'])),
         )
         .toList();
     final missingPaymentDates = paid
@@ -288,16 +291,9 @@ class _AdminDashboard extends StatelessWidget {
             );
           },
         ),
-        if (liveDashboard != null ||
-            liveAccounts != null ||
-            liveAppointments != null) ...[
+        if (liveDashboard != null || liveAppointments != null) ...[
           const SizedBox(height: 16),
-          _quocVietBackendStatus(
-            context,
-            liveDashboard,
-            liveAccounts,
-            liveAppointments,
-          ),
+          _quocVietBackendStatus(context, liveDashboard, liveAppointments),
         ],
         if (missingPaymentDates > 0 &&
             payments.error == null &&
@@ -504,17 +500,12 @@ class _AdminDashboard extends StatelessWidget {
   Widget _quocVietBackendStatus(
     BuildContext context,
     AdminDashboardController? dashboard,
-    AdminAccountController? accounts,
     AdminAppointmentController? appointments,
   ) {
     final hasError =
-        dashboard?.hasError == true ||
-        accounts?.hasError == true ||
-        appointments?.hasError == true;
+        dashboard?.hasError == true || appointments?.hasError == true;
     final loading =
-        dashboard?.isLoading == true ||
-        accounts?.isLoading == true ||
-        appointments?.isLoading == true;
+        dashboard?.isLoading == true || appointments?.isLoading == true;
     final issueCount = appointments?.invalidRelationshipRecords.length ?? 0;
     return Card(
       margin: EdgeInsets.zero,
@@ -560,7 +551,6 @@ class _AdminDashboard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Tài khoản chờ duyệt: ${accounts?.pendingAccounts.length ?? 0}  •  '
               'Liên kết lịch hẹn cần kiểm tra: $issueCount',
               style: TextStyle(
                 color: issueCount > 0 ? AppColors.error : _muted,
@@ -573,9 +563,6 @@ class _AdminDashboard extends StatelessWidget {
                     ? null
                     : () {
                         context.read<AdminDashboardController?>()?.refresh();
-                        context
-                            .read<AdminAccountController?>()
-                            ?.loadPendingAccounts();
                         context.read<AdminAppointmentController?>()?.load(
                           force: true,
                         );
@@ -588,7 +575,6 @@ class _AdminDashboard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 dashboard?.errorMessage ??
-                    accounts?.errorMessage ??
                     appointments?.errorMessage ??
                     'Không thể đồng bộ dữ liệu quản trị.',
                 style: const TextStyle(color: AppColors.error),

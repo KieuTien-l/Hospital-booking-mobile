@@ -438,6 +438,8 @@ extension _AdminActions on _AdminWorkspaceState {
   }
 
   Future<void> _createDoctorWithAccount() async {
+    final commands = _commands;
+    if (commands == null) return;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       useRootNavigator: false,
@@ -446,18 +448,16 @@ extension _AdminActions on _AdminWorkspaceState {
         data: _adminTheme(dialogContext),
         child: AdminEditor(
           title: 'Thêm bác sĩ và cấp tài khoản',
-          description: 'Tài khoản mới luôn có vai trò Bác sĩ. App tạo đăng nhập bằng phiên phụ nên phiên admin hiện tại được giữ nguyên, sau đó tạo TAI_KHOAN và BAC_SI trên Firestore rồi gửi email đặt mật khẩu.',
+          description: 'Tài khoản mới luôn có vai trò Bác sĩ. Máy chủ tạo tài khoản đăng nhập, TAI_KHOAN và BAC_SI theo cùng quy trình có thể khôi phục; phiên admin hiện tại được giữ nguyên.',
           fields: _editFields('BAC_SI', null),
           submitLabel: 'Tạo',
-          onSubmit: (values, _, _) async {
-            final provisioned = await _doctorProvisioner.provision(values);
-            return {
-              'id': provisioned.doctorId,
-              'loginEmail': provisioned.loginEmail,
-              'passwordSetupSent': provisioned.passwordSetupSent,
-              'message': provisioned.message,
-            };
-          },
+          onSubmit: (values, reason, requestId) => commands.execute({
+            'requestId': requestId,
+            'operation': 'createDoctor',
+            'collection': 'BAC_SI',
+            'reason': reason,
+            'values': values,
+          }),
         ),
       ),
     );
@@ -580,6 +580,8 @@ extension _AdminActions on _AdminWorkspaceState {
   ) async {
     final collection = section.collection!, d = record.data;
     if (action == 'password') {
+      final commands = _commands;
+      if (commands == null) return null;
       final accountId = collection == 'BAC_SI'
           ? readReferenceId(d['userId'])
           : record.id;
@@ -600,18 +602,30 @@ extension _AdminActions on _AdminWorkspaceState {
         return null;
       }
       try {
-        await _doctorProvisioner.sendPasswordSetup(loginEmail);
+        final verified = await commands.execute({
+          'requestId': adminRequestId(),
+          'operation': 'passwordSetup',
+          'collection': 'TAI_KHOAN',
+          'id': accountId,
+          'reason': 'Admin gửi hướng dẫn thiết lập mật khẩu.',
+          'values': const <String, dynamic>{},
+        });
+        final recipient = readString(
+          verified['loginEmail'],
+          fallback: loginEmail,
+        );
+        await commands.sendPasswordSetup(recipient);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đã gửi email thiết lập mật khẩu đến $loginEmail.'),
+              content: Text('Đã gửi email thiết lập mật khẩu đến $recipient.'),
             ),
           );
         }
         return {
           'id': accountId,
           'collection': 'TAI_KHOAN',
-          'loginEmail': loginEmail,
+          'loginEmail': recipient,
           'message': 'Đã gửi email thiết lập mật khẩu.',
         };
       } on AdminCommandException catch (error) {

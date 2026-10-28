@@ -32,7 +32,8 @@ double adminCollectedTotal(
 ) => records
     .where(
       (r) =>
-          {'PAID', 'SUCCESS'}.contains(adminStatus(r.data['status'])) &&
+          {'PAID', 'SUCCESS', 'COMPLETED'}
+              .contains(adminStatus(r.data['status'])) &&
           adminInPeriod(r.data['paidAt'], start, end),
     )
     .fold(0.0, (sum, r) {

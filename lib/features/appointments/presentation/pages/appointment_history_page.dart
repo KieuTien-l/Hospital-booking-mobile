@@ -7,6 +7,7 @@ import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/domain/repositories/doctor_repository.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
 import '../../../profile/presentation/widgets/health_records_date_filter.dart';
+import '../../../payments/presentation/controllers/patient_payment_controller.dart';
 import '../../../specialties/domain/repositories/specialty_repository.dart';
 import '../../domain/entities/appointment.dart';
 import '../controllers/appointment_controller.dart';
@@ -54,6 +55,8 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
   final Set<String> _requestedDoctorIds = {};
   bool _requestedSpecialtyNames = false;
   List<AppointmentHistoryUiModel> _liveItems = const [];
+
+  static const _successfulPaymentStatuses = {'PAID', 'SUCCESS', 'COMPLETED'};
 
   bool get _usesLiveData =>
       widget.items.isEmpty &&
@@ -109,19 +112,43 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
     }
     _loadedPatientId = patientId;
     controller.loadAppointments(patientId);
+    // Payment records are stored separately from appointments. Load them for
+    // the same profile so the paid tab is based on actual transaction state.
+    context.read<PatientPaymentController?>()?.loadPayments(patientId);
   }
 
-  void _syncLiveItems(AppointmentController? controller) {
+  void _syncLiveItems(
+    AppointmentController? controller,
+    PatientPaymentController? payments,
+  ) {
     if (!_usesLiveData || controller == null) return;
     final appointments = controller.appointments;
+    final paidAppointmentIds = payments?.payments
+            .where(
+              (payment) =>
+                  payment.appointmentId?.trim().isNotEmpty == true &&
+                  _successfulPaymentStatuses.contains(
+                    payment.status.trim().toUpperCase(),
+                  ),
+            )
+            .map((payment) => payment.appointmentId!.trim())
+            .toSet() ??
+        const <String>{};
     _requestDoctorLabels(appointments);
     _requestSpecialtyLabels(appointments);
     _liveItems = List.unmodifiable([
-      for (final appointment in appointments) _toUiModel(appointment),
+      for (final appointment in appointments)
+        _toUiModel(
+          appointment,
+          isPaid: paidAppointmentIds.contains(appointment.id),
+        ),
     ]);
   }
 
-  AppointmentHistoryUiModel _toUiModel(Appointment appointment) {
+  AppointmentHistoryUiModel _toUiModel(
+    Appointment appointment, {
+    required bool isPaid,
+  }) {
     final doctor = _doctors[appointment.doctorId];
     final doctorName = doctor == null
         ? 'Bác sĩ ${appointment.doctorId}'
@@ -137,6 +164,7 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
           : 'Bệnh nhân',
       specialtyName: specialtyName,
       doctorName: doctorName,
+      isPaid: isPaid,
     );
   }
 
@@ -337,7 +365,10 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
     final controller = _usesLiveData
         ? context.watch<AppointmentController?>()
         : null;
-    _syncLiveItems(controller);
+    final payments = _usesLiveData
+        ? context.watch<PatientPaymentController?>()
+        : null;
+    _syncLiveItems(controller, payments);
     final state = _usesLiveData
         ? (controller?.appointmentsStatus ?? ViewState.empty)
         : widget.viewState;
