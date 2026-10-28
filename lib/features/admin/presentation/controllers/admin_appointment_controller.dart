@@ -60,7 +60,14 @@ class AdminAppointmentController extends ViewStateController {
       List.unmodifiable(_records.map((record) => record.appointment));
   List<AdminAppointmentRecord> get invalidRelationshipRecords =>
       List.unmodifiable(
-        _records.where((record) => !record.hasValidRelationships),
+        // A cancelled appointment is an immutable historical event. It no
+        // longer consumes a slot, so a later slot/schedule change must not
+        // create an operational alert for Admin.
+        _records.where(
+          (record) =>
+              record.appointment.status != AppointmentStatus.cancelled &&
+              !record.hasValidRelationships,
+        ),
       );
   AdminAppointmentFilter get filter => _filter;
 

@@ -48,6 +48,12 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     required DoctorReportDraft draft,
   }) => Future.error(StateError('Chế độ mẫu không gửi báo cáo.'));
   @override
+  Future<DoctorAppointmentCompletion> completeAppointment({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) => Future.error(StateError('Chế độ mẫu không hoàn tất lịch khám.'));
+  @override
   Future<DoctorClinicalSaveResult> saveHealthRecord({
     required String userId,
     required DoctorHealthRecordDraft draft,
@@ -67,4 +73,9 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     required String userId,
     required String appointmentId,
   }) async => const [];
+  @override
+  Future<DoctorPatientHistory> loadPatientHistory({
+    required String userId,
+    required String patientId,
+  }) => Future.error(StateError('Chế độ mẫu không có lịch sử khám.'));
 }

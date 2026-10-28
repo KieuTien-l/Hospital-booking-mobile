@@ -6,6 +6,7 @@ import 'package:flutter_application_4/core/themes/app_theme.dart';
 import 'package:flutter_application_4/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter_application_4/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_application_4/features/appointments/domain/entities/appointment.dart';
+import 'package:flutter_application_4/features/doctors/domain/entities/doctor.dart';
 import 'package:flutter_application_4/features/doctors/domain/entities/time_slot.dart';
 import 'package:flutter_application_4/features/home/domain/entities/doctor_workspace.dart';
 import 'package:flutter_application_4/features/home/domain/repositories/doctor_workspace_repository.dart';
@@ -89,23 +90,28 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Dữ liệu mẫu • Chỉ để xem giao diện'), findsNothing);
-      expect(find.text('06:30 - 07:30'), findsNothing);
+      expect(find.text('06:30 – 07:30'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
   testWidgets(
     'Expired auth removes the doctor navigator and all patient details',
     (tester) async {
-      final auth = await pumpAuth(tester);
+      final auth = await pumpAuth(
+        tester,
+        repository: TestWorkspaceRepository(),
+      );
       final picker = find.byKey(const ValueKey('doctor-date-picker'));
       await tester.tap(picker);
       await tester.pumpAndSettle();
       Navigator.of(tester.element(find.byType(DatePickerDialog)))
           .pop(DateTime(2026, 10, 19));
       await tester.pumpAndSettle();
-      final tile = find.text('06:30 - 07:30');
-      await tester.ensureVisible(tile);
-      await tester.tap(tile);
+      final schedule = find.text('06:30 – 11:30');
+      await tester.ensureVisible(schedule);
+      await tester.tap(schedule);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ca 06:30 – 07:30'));
       await tester.pumpAndSettle();
       expect(find.text('Nguyễn Minh Anh'), findsOneWidget);
       await auth.logout();
@@ -147,7 +153,9 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('06:30 - 07:30'));
+      await tester.tap(find.text('06:30 – 11:30'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ca 06:30 – 07:30'));
       await tester.pumpAndSettle();
       expect(find.text('Nguyễn Minh Anh'), findsOneWidget);
       repository.dayLoader = (_) async => DoctorDayData(
@@ -293,4 +301,36 @@ void main() {
       );
     },
   );
+
+  testWidgets('profile shows date of birth and password security actions', (
+    tester,
+  ) async {
+    await pumpAuth(
+      tester,
+      home: Scaffold(
+        body: DoctorProfilePage(
+          doctor: Doctor(
+            id: 'doctor-1',
+            userId: 'account',
+            fullName: 'Bác sĩ kiểm thử',
+            email: 'doctor@example.test',
+            phone: '0900000000',
+            specialtyId: 'noi',
+            yearsOfExperience: 4,
+            consultationFee: 100000,
+            isActive: true,
+            dateOfBirth: DateTime(1988, 3, 12),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Thông tin cá nhân'));
+    await tester.pumpAndSettle();
+    expect(find.text('12/03/1988'), findsOneWidget);
+    await tester.ensureVisible(find.text('Tài khoản'));
+    await tester.tap(find.text('Tài khoản'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đổi mật khẩu'), findsOneWidget);
+    expect(find.text('Khôi phục mật khẩu'), findsOneWidget);
+  });
 }

@@ -6,6 +6,7 @@ import '../../../../core/routes/auth_gate.dart';
 import '../controllers/auth_controller.dart';
 import '../validators/auth_validators.dart';
 
+import 'account_locked_page.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
 
@@ -91,6 +92,10 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthController>();
+    // LoginPage can be reached from an older Navigator route as well as from
+    // AuthGate. Render the lock screen here too, so a disabled account can
+    // never remain on a spinning login form while that route is still mounted.
+    if (authProvider.isLocked) return const AccountLockedPage();
     final theme = Theme.of(context);
     return Theme(
       data: theme.copyWith(

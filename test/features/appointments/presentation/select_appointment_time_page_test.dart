@@ -39,6 +39,7 @@ void main() {
     double scale = 1,
     List<AppointmentDoctorOption>? doctors,
     ValueChanged<AppointmentTimeSelection>? onContinue,
+    DateTime? now,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -58,6 +59,7 @@ void main() {
           doctors:
               doctors ?? AppointmentTimeDemoData.doctors(DateTime(2026, 10, 9)),
           onContinue: onContinue,
+          now: now ?? DateTime(2026, 10, 8, 12),
         ),
       ),
     );
@@ -86,6 +88,41 @@ void main() {
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }
+
+  test('Only keeps slots that have not started on the current day', () {
+    const slots = [
+      AppointmentTimeOption(
+        id: 'started',
+        workScheduleId: 'schedule',
+        label: '08:00 - 08:30',
+        startTime: '08:00',
+      ),
+      AppointmentTimeOption(
+        id: 'upcoming',
+        workScheduleId: 'schedule',
+        label: '10:30 - 11:00',
+        startTime: '10:30',
+      ),
+    ];
+    final now = DateTime(2026, 10, 29, 10, 15);
+
+    expect(
+      upcomingAppointmentTimeOptions(
+        DateTime(2026, 10, 29),
+        slots,
+        now: now,
+      ).map((slot) => slot.id),
+      ['upcoming'],
+    );
+    expect(
+      upcomingAppointmentTimeOptions(
+        DateTime(2026, 10, 30),
+        slots,
+        now: now,
+      ).map((slot) => slot.id),
+      ['started', 'upcoming'],
+    );
+  });
 
   testWidgets('Unavailable slots are disabled and continue returns selection', (
     tester,
@@ -280,6 +317,7 @@ void main() {
             home: SelectAppointmentTimePage(
               specialty: specialty,
               initialDate: startDate,
+              now: DateTime(2026, 10, 8, 12),
             ),
           ),
         ),
@@ -350,6 +388,7 @@ void main() {
             builder: (_) => SelectAppointmentTimePage(
               specialty: specialty,
               initialDate: startDate,
+              now: DateTime(2026, 10, 8, 12),
             ),
           ),
         ),

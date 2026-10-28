@@ -8,6 +8,8 @@ import '../widgets/payment_method_card.dart';
 import '../widgets/payment_bottom_actions.dart';
 import 'payment_processing_page.dart';
 
+/// Legacy preview-only payment page. It must not be added to production flow.
+@Deprecated('Use PayosCheckoutPage from AppointmentDetailPage.')
 class PaymentMethodPage extends StatefulWidget {
   const PaymentMethodPage({
     super.key,

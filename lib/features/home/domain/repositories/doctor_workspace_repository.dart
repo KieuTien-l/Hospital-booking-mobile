@@ -21,6 +21,11 @@ abstract interface class DoctorWorkspaceRepository {
     required String userId,
     required DoctorReportDraft draft,
   });
+  Future<DoctorAppointmentCompletion> completeAppointment({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  });
   Future<DoctorClinicalSaveResult> saveHealthRecord({
     required String userId,
     required DoctorHealthRecordDraft draft,
@@ -36,5 +41,9 @@ abstract interface class DoctorWorkspaceRepository {
   Future<List<DoctorTestResultSummary>> loadTestResults({
     required String userId,
     required String appointmentId,
+  });
+  Future<DoctorPatientHistory> loadPatientHistory({
+    required String userId,
+    required String patientId,
   });
 }

@@ -6,6 +6,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/presentation/widgets/doctor_detail_section.dart';
 import '../controllers/doctor_workspace_controller.dart';
+import '../widgets/doctor_account_security.dart';
 
 /// Read-only until Doctor profile editing rights and data have been verified.
 class DoctorProfilePage extends StatelessWidget {
@@ -64,15 +65,8 @@ class DoctorProfilePage extends StatelessWidget {
         child: child,
       );
 
-  Widget _field(String label, {String? value, Key? key}) => TextFormField(
-    key: key,
-    initialValue: value?.trim() ?? '',
-    readOnly: true,
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: 'Chưa có dữ liệu được xác minh',
-    ),
-  );
+  Widget _field(String label, {String? value, Key? key}) =>
+      _ReadOnlyProfileField(key: key, label: label, value: value);
 
   Widget _professionalSection(String title, {Widget? child}) =>
       DoctorDetailSection(
@@ -90,6 +84,10 @@ class DoctorProfilePage extends StatelessWidget {
     final normalizedPrimary = primary?.trim() ?? '';
     return normalizedPrimary.isEmpty ? fallback : normalizedPrimary;
   }
+
+  String? _dateOfBirthLabel(DateTime? date) => date == null
+      ? null
+      : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +169,10 @@ class DoctorProfilePage extends StatelessWidget {
                       key: ValueKey('doctor-name-${user?.id}-$name'),
                     ),
                     const SizedBox(height: 16),
-                    _field('Ngày sinh'),
+                    _field(
+                      'Ngày sinh',
+                      value: _dateOfBirthLabel(doctor?.dateOfBirth),
+                    ),
                     const SizedBox(height: 16),
                     _field(
                       'Email',
@@ -323,12 +324,14 @@ class DoctorProfilePage extends StatelessWidget {
                     _field('Email đăng nhập', value: user?.email),
                     const SizedBox(height: 16),
                     const Text(
-                      'Các chức năng bảo mật bổ sung chưa được kết nối.',
+                      'Bạn có thể đổi mật khẩu trực tiếp hoặc gửi email khôi phục.',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         height: 1.5,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const DoctorAccountSecurity(),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: auth.isLoading ? null : () => auth.logout(),
@@ -349,4 +352,53 @@ class DoctorProfilePage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ReadOnlyProfileField extends StatefulWidget {
+  const _ReadOnlyProfileField({super.key, required this.label, this.value});
+
+  final String label;
+  final String? value;
+
+  @override
+  State<_ReadOnlyProfileField> createState() => _ReadOnlyProfileFieldState();
+}
+
+class _ReadOnlyProfileFieldState extends State<_ReadOnlyProfileField> {
+  late final TextEditingController _controller;
+
+  String get _value => widget.value?.trim() ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReadOnlyProfileField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_controller.text != _value) {
+      _controller.value = TextEditingValue(
+        text: _value,
+        selection: TextSelection.collapsed(offset: _value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    controller: _controller,
+    readOnly: true,
+    decoration: InputDecoration(
+      labelText: widget.label,
+      hintText: 'Chưa có dữ liệu được xác minh',
+    ),
+  );
 }

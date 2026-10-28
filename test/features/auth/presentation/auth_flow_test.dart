@@ -8,6 +8,7 @@ import 'package:flutter_application_4/features/auth/domain/entities/user_entity.
 import 'package:flutter_application_4/features/auth/domain/repositories/auth_repository.dart';
 import 'package:flutter_application_4/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter_application_4/features/auth/presentation/pages/login_page.dart';
+import 'package:flutter_application_4/features/auth/presentation/pages/account_locked_page.dart';
 import 'package:flutter_application_4/features/home/presentation/pages/admin_home_page.dart';
 import 'package:flutter_application_4/features/home/presentation/pages/doctor_home_page.dart';
 import 'package:flutter_application_4/features/home/presentation/pages/patient_home_page.dart';
@@ -121,5 +122,65 @@ void main() {
     );
     expect(controller.status, AuthStatus.authenticated);
     expect(controller.currentUser?.role, UserRole.patient);
+  });
+
+  test(
+    'Refreshes the profile when Firebase emits the same signed-in user',
+    () async {
+      final repository = MemoryAuthRepository()
+        ..user = account(UserRole.doctor);
+      final controller = AuthController(authRepo: repository);
+      addTearDown(controller.dispose);
+      addTearDown(repository.events.close);
+      await Future<void>.delayed(Duration.zero);
+
+      repository.user = UserEntity(
+        id: 'user-1',
+        email: 'updated@example.com',
+        fullName: 'Updated doctor',
+        phone: '0900000000',
+        role: UserRole.doctor,
+        isActive: true,
+      );
+      repository.events.add('user-1');
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.currentUser?.email, 'updated@example.com');
+    },
+  );
+
+  testWidgets('A locked account is isolated behind the account-locked screen', (
+    tester,
+  ) async {
+    final repository = MemoryAuthRepository()
+      ..user = UserEntity(
+        id: 'locked-user',
+        email: 'locked@example.com',
+        fullName: 'Locked user',
+        phone: '',
+        role: UserRole.patient,
+        isActive: false,
+      );
+    final controller = AuthController(authRepo: repository);
+    addTearDown(controller.dispose);
+    addTearDown(repository.events.close);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: controller,
+        child: const MaterialApp(home: AuthGate()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(controller.status, AuthStatus.locked);
+    expect(find.byType(AccountLockedPage), findsOneWidget);
+    expect(find.text('Tài khoản của bạn đã bị khóa'), findsOneWidget);
+    expect(find.byType(PatientHomePage), findsNothing);
+
+    await tester.tap(find.text('Đăng xuất'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginPage), findsOneWidget);
   });
 }

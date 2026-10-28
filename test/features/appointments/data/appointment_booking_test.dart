@@ -139,32 +139,40 @@ class MemoryTransaction extends platform.TransactionPlatform {
   }
 }
 
-MemoryFirestore bookingStore() => MemoryFirestore()
-  ..documents.addAll({
-    'BAC_SI/doctor-1': {
-      'fullName': 'Phạm Ngọc Mai',
-      'specialtyId': 'specialty-1',
-      'status': 'ACTIVE',
-    },
-    'BENH_NHAN/patient-1': {
-      'authUserId': 'user-1',
-      'fullName': 'Đoàn Thị Ngọc Vân',
-    },
-    'LICH_LAM_VIEC/schedule-1': {
-      'doctorId': 'doctor-1',
-      'workDate': DateTime(2026, 10, 5),
-      'status': 'ACTIVE',
-    },
-    'CA_KHAM/slot-1': {
-      'doctorId': 'doctor-1',
-      'workScheduleId': 'schedule-1',
-      'status': 'AVAILABLE',
-      'startTime': '08:00',
-      'endTime': '08:30',
-      'capacity': 3,
-      'bookedCount': 1,
-    },
-  });
+DateTime futureWorkDate([int offsetDays = 7]) {
+  final value = DateTime.now().add(Duration(days: offsetDays));
+  return DateTime(value.year, value.month, value.day);
+}
+
+MemoryFirestore bookingStore() {
+  final workDate = futureWorkDate();
+  return MemoryFirestore()
+    ..documents.addAll({
+      'BAC_SI/doctor-1': {
+        'fullName': 'Phạm Ngọc Mai',
+        'specialtyId': 'specialty-1',
+        'status': 'ACTIVE',
+      },
+      'BENH_NHAN/patient-1': {
+        'authUserId': 'user-1',
+        'fullName': 'Đoàn Thị Ngọc Vân',
+      },
+      'LICH_LAM_VIEC/schedule-1': {
+        'doctorId': 'doctor-1',
+        'workDate': workDate,
+        'status': 'ACTIVE',
+      },
+      'CA_KHAM/slot-1': {
+        'doctorId': 'doctor-1',
+        'workScheduleId': 'schedule-1',
+        'status': 'AVAILABLE',
+        'startTime': '08:00',
+        'endTime': '08:30',
+        'capacity': 3,
+        'bookedCount': 1,
+      },
+    });
+}
 
 Appointment request({
   int peopleCount = 1,
@@ -201,7 +209,7 @@ void main() {
         expect(saved.status, AppointmentStatus.pending);
         expect(document['patientId'], 'patient-1');
         expect(document['specialtyId'], 'specialty-1');
-        expect(document['appointmentDate'], DateTime(2026, 10, 5));
+        expect(document['appointmentDate'], futureWorkDate());
         expect(document['startTime'], '08:00');
         expect(document['endTime'], '08:30');
         expect(document['symptoms'], 'Checkup');
@@ -271,7 +279,7 @@ void main() {
 
       await expectLater(
         repository.createAppointment(
-          request(appointmentDate: DateTime(2026, 10, 6)),
+          request(appointmentDate: futureWorkDate(1)),
         ),
         throwsA(isA<BookingException>()),
       );
@@ -360,6 +368,28 @@ void main() {
     expect(cancellationNotification['content'], contains('đã được hủy'));
   });
 
+  test('Rejects cancelling a booking after its slot has started', () async {
+    final store = bookingStore();
+    final repository = AppointmentRepositoryImpl(
+      AppointmentFirebaseDatasource(firestore: store.asFirestore()),
+    );
+    final saved = await repository.createAppointment(request());
+    store.documents['CA_KHAM/slot-1']!['startsAt'] = DateTime.now().subtract(
+      const Duration(minutes: 1),
+    );
+
+    await expectLater(
+      repository.cancelAppointment(saved.id, 'Changed plans'),
+      throwsA(isA<BookingException>()),
+    );
+
+    expect(store.documents['LICH_HEN/${saved.id}']!['status'], 'PENDING');
+    expect(store.documents['CA_KHAM/slot-1']!['bookedCount'], 2);
+    expect(store.documents['CA_KHAM/slot-1']!['reservationCounts'], {
+      saved.id: 1,
+    });
+  });
+
   test(
     'Rescheduling transfers the reservation between slots atomically',
     () async {
@@ -367,7 +397,7 @@ void main() {
         ..documents.addAll({
           'LICH_LAM_VIEC/schedule-2': {
             'doctorId': 'doctor-1',
-            'workDate': DateTime(2026, 10, 6),
+            'workDate': futureWorkDate(1),
             'status': 'ACTIVE',
           },
           'CA_KHAM/slot-2': {
@@ -390,7 +420,7 @@ void main() {
         saved.id,
         'schedule-2',
         'slot-2',
-        DateTime(2026, 10, 6),
+        futureWorkDate(1),
         '09:00',
         '09:30',
       );
@@ -403,6 +433,53 @@ void main() {
         saved.id: 1,
       });
       expect(store.documents['LICH_HEN/${saved.id}']!['timeSlotId'], 'slot-2');
+    },
+  );
+
+  test(
+    'Rejects rescheduling a booking after its original slot has started',
+    () async {
+      final store = bookingStore()
+        ..documents.addAll({
+          'LICH_LAM_VIEC/schedule-2': {
+            'doctorId': 'doctor-1',
+            'workDate': futureWorkDate(1),
+            'status': 'ACTIVE',
+          },
+          'CA_KHAM/slot-2': {
+            'doctorId': 'doctor-1',
+            'workScheduleId': 'schedule-2',
+            'status': 'AVAILABLE',
+            'startTime': '09:00',
+            'endTime': '09:30',
+            'capacity': 3,
+            'bookedCount': 0,
+            'reservationCounts': <String, int>{},
+          },
+        });
+      final repository = AppointmentRepositoryImpl(
+        AppointmentFirebaseDatasource(firestore: store.asFirestore()),
+      );
+      final saved = await repository.createAppointment(request());
+      store.documents['CA_KHAM/slot-1']!['startsAt'] = DateTime.now().subtract(
+        const Duration(minutes: 1),
+      );
+
+      await expectLater(
+        repository.rescheduleAppointment(
+          saved.id,
+          'schedule-2',
+          'slot-2',
+          futureWorkDate(1),
+          '09:00',
+          '09:30',
+        ),
+        throwsA(isA<BookingException>()),
+      );
+
+      expect(store.documents['LICH_HEN/${saved.id}']!['timeSlotId'], 'slot-1');
+      expect(store.documents['CA_KHAM/slot-1']!['bookedCount'], 2);
+      expect(store.documents['CA_KHAM/slot-2']!['bookedCount'], 0);
     },
   );
 }

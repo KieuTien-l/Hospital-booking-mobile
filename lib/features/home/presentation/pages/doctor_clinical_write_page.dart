@@ -35,6 +35,7 @@ class _DoctorClinicalWritePageState extends State<DoctorClinicalWritePage> {
   List<DoctorHealthRecordSummary> _healthRecords = const [];
   List<DoctorTestResultSummary> _testResults = const [];
   bool _loadingRecords = false;
+  bool _loadingHistory = false;
   int _recordsRequest = 0;
 
   @override
@@ -111,6 +112,40 @@ class _DoctorClinicalWritePageState extends State<DoctorClinicalWritePage> {
                 booking.appointment.status == AppointmentStatus.completed,
           )
           .toList(growable: false);
+
+  Future<void> _showPatientHistory(List<DoctorBooking> bookings) async {
+    final appointmentId = _appointmentId;
+    final booking = appointmentId == null
+        ? null
+        : bookings
+              .where((item) => item.appointment.id == appointmentId)
+              .firstOrNull;
+    final repository = context.read<DoctorWorkspaceRepository>();
+    final userId = context.read<AuthController>().currentUser?.id ?? '';
+    if (booking == null || userId.isEmpty) return;
+    setState(() => _loadingHistory = true);
+    try {
+      final history = await repository.loadPatientHistory(
+        userId: userId,
+        patientId: booking.appointment.patientId,
+      );
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _PatientHistorySheet(
+          patientName: booking.patientName,
+          history: history,
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message = 'Không tải được lịch sử khám của bệnh nhân.');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
 
   Future<void> _save() async {
     final repository = context.read<DoctorWorkspaceRepository>();
@@ -232,6 +267,22 @@ class _DoctorClinicalWritePageState extends State<DoctorClinicalWritePage> {
                       _loadExisting();
                     },
             ),
+            if (_appointmentId != null) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _saving || _loadingHistory
+                    ? null
+                    : () => _showPatientHistory(bookings),
+                icon: _loadingHistory
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.history_edu_outlined),
+                label: const Text('Lịch sử khám của bệnh nhân'),
+              ),
+            ],
             if (bookings.isEmpty) ...[
               const SizedBox(height: 12),
               const Text(
@@ -440,5 +491,88 @@ class _DoctorClinicalWritePageState extends State<DoctorClinicalWritePage> {
         maxLength: 500,
       ),
     ],
+  );
+}
+
+class _PatientHistorySheet extends StatelessWidget {
+  const _PatientHistorySheet({
+    required this.patientName,
+    required this.history,
+  });
+
+  final String patientName;
+  final DoctorPatientHistory history;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.72,
+      minChildSize: 0.45,
+      maxChildSize: 0.94,
+      builder: (_, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            'Lịch sử khám: $patientName',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Chỉ hiển thị lịch và hồ sơ do chính bạn lập cho bệnh nhân này.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Lần khám (${history.visits.length})',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          for (final visit in history.visits)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.event_note_outlined),
+              title: Text(
+                '${visit.date.day.toString().padLeft(2, '0')}/${visit.date.month.toString().padLeft(2, '0')}/${visit.date.year}',
+              ),
+              subtitle: Text(
+                visit.status == 'COMPLETED' ? 'Đã hoàn tất' : 'Đã xác nhận',
+              ),
+            ),
+          const Divider(height: 30),
+          Text(
+            'Hồ sơ khám (${history.healthRecords.length})',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          if (history.healthRecords.isEmpty)
+            const Text('Chưa có hồ sơ khám trước đó.'),
+          for (final record in history.healthRecords)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(record.diagnosis),
+              subtitle: Text(
+                record.notes.isEmpty ? record.recordType : record.notes,
+              ),
+            ),
+          const Divider(height: 30),
+          Text(
+            'Kết quả CLS (${history.testResults.length})',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          if (history.testResults.isEmpty)
+            const Text('Chưa có kết quả CLS trước đó.'),
+          for (final result in history.testResults)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(result.testName),
+              subtitle: Text(
+                result.conclusion.isEmpty
+                    ? result.resultDescription
+                    : result.conclusion,
+              ),
+            ),
+        ],
+      ),
+    ),
   );
 }

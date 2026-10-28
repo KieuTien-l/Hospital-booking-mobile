@@ -92,11 +92,21 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
                     '${slot.startTime ?? '--:--'} – ${slot.endTime ?? '--:--'}',
                 startTime: slot.startTime,
                 endTime: slot.endTime,
+                startsAt: slot.startsAt,
                 available: slot.isAvailable,
               ),
         ];
       }
-      final firstAvailable = mapped.entries
+      final now = DateTime.now();
+      final visibleSlots = <DateTime, List<AppointmentTimeOption>>{
+        for (final entry in mapped.entries)
+          entry.key: upcomingAppointmentTimeOptions(
+            entry.key,
+            entry.value,
+            now: now,
+          ),
+      };
+      final firstAvailable = visibleSlots.entries
           .where((entry) => entry.value.isNotEmpty)
           .map((entry) => entry.key)
           .firstOrNull;
@@ -104,7 +114,7 @@ class _RescheduleAppointmentPageState extends State<RescheduleAppointmentPage> {
         _doctor = doctor;
         _slotsByDate
           ..clear()
-          ..addAll(mapped);
+          ..addAll(visibleSlots);
         _selectedDate = firstAvailable ?? _startDate;
         _selectedSlot = null;
         _loading = false;

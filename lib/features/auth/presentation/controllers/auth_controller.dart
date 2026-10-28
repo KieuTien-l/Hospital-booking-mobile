@@ -5,7 +5,16 @@ import 'package:flutter/foundation.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 
-enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
+enum AuthStatus {
+  initial,
+  loading,
+  authenticated,
+
+  /// The credentials are valid, but an administrator has disabled access.
+  locked,
+  unauthenticated,
+  error,
+}
 
 class AuthController extends ChangeNotifier {
   // The public constructor keeps the dependency name descriptive at call sites.
@@ -22,6 +31,7 @@ class AuthController extends ChangeNotifier {
   UserEntity? _currentUser;
   String? _errorMessage;
   bool _restoringSession = false;
+  bool _refreshAfterRestore = false;
   // Every asynchronous auth operation captures this value.  A response that
   // started before logout must never be allowed to restore a signed-in UI.
   var _sessionEpoch = 0;
@@ -31,6 +41,7 @@ class AuthController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isLoading => _status == AuthStatus.loading;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+  bool get isLocked => _status == AuthStatus.locked;
 
   Future<void> _restoreSession() async {
     if (_restoringSession) return;
@@ -42,11 +53,7 @@ class AuthController extends ChangeNotifier {
     try {
       final user = await _authRepo.getCurrentUser();
       if (epoch != _sessionEpoch) return;
-      _currentUser = user;
-      _status = _currentUser == null
-          ? AuthStatus.unauthenticated
-          : AuthStatus.authenticated;
-      _errorMessage = null;
+      _applyLoadedUser(user);
     } catch (error) {
       if (epoch != _sessionEpoch) return;
       _currentUser = null;
@@ -58,6 +65,10 @@ class AuthController extends ChangeNotifier {
       _restoringSession = false;
     }
     if (epoch == _sessionEpoch) notifyListeners();
+    if (_refreshAfterRestore && epoch == _sessionEpoch) {
+      _refreshAfterRestore = false;
+      _restoreSession();
+    }
   }
 
   void _onAuthStateChanged(String? userId) {
@@ -72,7 +83,12 @@ class AuthController extends ChangeNotifier {
     // Login and registration already load their profile explicitly. Ignoring
     // this duplicate event while loading prevents an old restore from
     // overwriting the final signed-out state after registration.
-    if (_status == AuthStatus.loading || _restoringSession) return;
+    if (_status == AuthStatus.loading || _restoringSession) {
+      // Firebase can emit the auth event before the first server profile read
+      // completes. Reload once it settles so account changes are never lost.
+      _refreshAfterRestore = true;
+      return;
+    }
     _restoreSession();
   }
 
@@ -83,9 +99,9 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentUser = await _authRepo.login(email: email, password: password);
+      final user = await _authRepo.login(email: email, password: password);
       if (epoch != _sessionEpoch) return;
-      _status = AuthStatus.authenticated;
+      _applyLoadedUser(user);
     } catch (error) {
       if (epoch != _sessionEpoch) return;
       _currentUser = null;
@@ -167,5 +183,27 @@ class AuthController extends ChangeNotifier {
 
   String _messageFrom(Object error) {
     return error.toString().replaceFirst('Exception: ', '');
+  }
+
+  void _applyLoadedUser(UserEntity? user) {
+    if (user == null) {
+      _currentUser = null;
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = null;
+      return;
+    }
+    if (!user.isActive) {
+      // Do not expose the disabled profile to pages that could continue using
+      // it. The Firebase session is retained only so the user can explicitly
+      // sign out from the lock screen; Rules and Workers reject every
+      // protected operation while the account is inactive.
+      _currentUser = null;
+      _status = AuthStatus.locked;
+      _errorMessage = 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.';
+      return;
+    }
+    _currentUser = user;
+    _status = AuthStatus.authenticated;
+    _errorMessage = null;
   }
 }

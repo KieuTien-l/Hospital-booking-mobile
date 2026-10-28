@@ -16,6 +16,7 @@ class AppointmentDoctorCard extends StatelessWidget {
     required this.onDateSelected,
     required this.onSlotSelected,
     required this.onInfo,
+    this.now,
   });
   final AppointmentDoctorOption doctor;
   final bool expanded;
@@ -25,17 +26,23 @@ class AppointmentDoctorCard extends StatelessWidget {
   final VoidCallback onInfo;
   final ValueChanged<DateTime> onDateSelected;
   final ValueChanged<AppointmentTimeOption> onSlotSelected;
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
     final dates = doctor.schedule.keys.map(DateUtils.dateOnly).toSet().toList()
       ..sort();
-    final slots =
+    final scheduledSlots =
         doctor.schedule.entries
             .where((entry) => DateUtils.isSameDay(entry.key, date))
             .firstOrNull
             ?.value ??
         const <AppointmentTimeOption>[];
+    final slots = upcomingAppointmentTimeOptions(
+      date,
+      scheduledSlots,
+      now: now,
+    );
     final avatar = Container(
       width: 88,
       height: 108,

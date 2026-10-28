@@ -25,12 +25,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -70,7 +72,7 @@ class _RegisterPageState extends State<RegisterPage> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
       fullName: _fullNameController.text.trim(),
-      phone: '', // No phone field in UI yet
+      phone: _phoneController.text.trim(),
     );
 
     if (!mounted) return;
@@ -293,6 +295,29 @@ class _RegisterPageState extends State<RegisterPage> {
                                             Icons.email_outlined,
                                           ),
                                           validator: AuthValidators.email,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        _label('Số điện thoại'),
+                                        TextFormField(
+                                          controller: _phoneController,
+                                          keyboardType: TextInputType.phone,
+                                          textInputAction: TextInputAction.next,
+                                          autofillHints: const [
+                                            AutofillHints.telephoneNumber,
+                                          ],
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                            LengthLimitingTextInputFormatter(
+                                              11,
+                                            ),
+                                          ],
+                                          decoration: _decoration(
+                                            'Nhập số điện thoại...',
+                                            Icons.phone_outlined,
+                                          ),
+                                          validator:
+                                              AuthValidators.vietnamesePhone,
                                         ),
                                         const SizedBox(height: 20),
                                         _label('Mật khẩu'),

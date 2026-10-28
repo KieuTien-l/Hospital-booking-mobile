@@ -10,6 +10,33 @@ export default {
   async fetch(request, env) {
     const headers = corsHeaders(request, env);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
+    const url = new URL(request.url);
+    // These two pages are deliberately informational only.  A redirect back
+    // from a payment provider is never proof of payment; only its signed
+    // webhook below is allowed to mark a Firestore transaction PAID.
+    if (request.method === 'GET' && ['/payments/return', '/payments/cancel'].includes(url.pathname)) {
+      return paymentReturnPage(url.pathname === '/payments/return', headers);
+    }
+    if (url.pathname === '/payments/payos-webhook' && request.method === 'POST') {
+      try {
+        return json(await payosWebhook(request, env), 200, headers);
+      } catch (error) {
+        const status = error instanceof HttpError ? error.status : 500;
+        if (!(error instanceof HttpError)) console.error('payOS webhook failed');
+        return json({ error: { message: error instanceof HttpError ? error.message : 'Không thể xử lý thông báo thanh toán.' } }, status, headers);
+      }
+    }
+    if (url.pathname.startsWith('/payments/')) {
+      try {
+        const session = await authenticatedUser(request, env.FIREBASE_PROJECT_ID);
+        const firestore = new FirestoreRest(env);
+        return json(await patientPaymentRequest(request, url, session.uid, firestore, env), 200, headers);
+      } catch (error) {
+        const status = error instanceof HttpError ? error.status : 500;
+        if (!(error instanceof HttpError)) console.error('patient payment worker failed');
+        return json({ error: { message: error instanceof HttpError ? error.message : 'Không thể hoàn tất yêu cầu thanh toán.' } }, status, headers);
+      }
+    }
     if (request.method === 'GET' && new URL(request.url).pathname === '/health') {
       try {
         const credentials = parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
@@ -19,7 +46,6 @@ export default {
         return json({ service: 'healway-admin-command', configured: false }, 503, headers);
       }
     }
-    const url = new URL(request.url);
     if (url.pathname.startsWith('/doctor/')) {
       try {
         const session = await authenticatedUser(request, env.FIREBASE_PROJECT_ID);
@@ -80,15 +106,15 @@ async function commandInput(request) {
  * after its full validation and transaction have been ported from
  * functions/src/commands.js. There is no generic "write any document" route.
  */
-async function executeCommand(command, uid, firestore) {
+export async function executeCommand(command, uid, firestore) {
   if (command.operation === 'createDoctor') return provisionDoctor(command, uid, firestore);
   const fingerprint = await commandDigest(command);
   return firestore.runTransaction(async (tx) => {
     const receiptPath = `ADMIN_COMMANDS/${uid}_${command.requestId}`;
     const receipt = await tx.get(receiptPath);
     if (receipt) {
-      if (receipt.fingerprint !== fingerprint) throw new HttpError(409, 'Mã yêu cầu đã được dùng cho nội dung khác.');
-      return receipt.result;
+      if (receipt.data.fingerprint !== fingerprint) throw new HttpError(409, 'Mã yêu cầu đã được dùng cho nội dung khác.');
+      return receipt.data.result;
     }
     const context = new AdminCommandContext(tx, uid, command);
     const result = await context.execute();
@@ -130,6 +156,392 @@ function patientCommandOperation(operation) {
 }
 
 /**
+ * Payment is intentionally a separate HTTP surface from /adminCommand:
+ * patients may initiate and inspect only their own payment links, while an
+ * administrator never receives a generic ability to write payment states.
+ */
+async function patientPaymentRequest(request, url, uid, firestore, env) {
+  if (url.pathname === '/payments/create' && request.method === 'POST') {
+    return createPayOSPayment(await paymentInput(request), uid, firestore, env, url.origin);
+  }
+  const match = url.pathname.match(/^\/payments\/([^/]+)(?:\/(cancel))?$/);
+  if (!match) throw new HttpError(404, 'Không tìm thấy dịch vụ thanh toán.');
+  const paymentId = requiredId(match[1], 'Mã giao dịch');
+  if (!match[2] && request.method === 'GET') {
+    return paymentForPatient(paymentId, uid, firestore, env);
+  }
+  if (match[2] === 'cancel' && request.method === 'POST') {
+    return cancelPayOSPayment(paymentId, await paymentInput(request), uid, firestore, env);
+  }
+  throw new HttpError(405, 'Phương thức thanh toán không được hỗ trợ.');
+}
+
+async function paymentInput(request) {
+  const length = Number(request.headers.get('content-length') || 0);
+  if (length > maxBodyBytes) throw new HttpError(400, 'Yêu cầu thanh toán quá lớn.');
+  let body;
+  try { body = await request.json(); } catch (_) { throw new HttpError(400, 'Dữ liệu thanh toán không hợp lệ.'); }
+  if (!body || typeof body !== 'object' || Array.isArray(body) || JSON.stringify(body).length > maxBodyBytes) {
+    throw new HttpError(400, 'Dữ liệu thanh toán không hợp lệ.');
+  }
+  return body;
+}
+
+async function activePatientForPayment(tx, uid) {
+  const account = await tx.get(`TAI_KHOAN/${uid}`);
+  if (!account || account.data.role !== 'patient' || account.data.isActive !== true ||
+      !['ACTIVE', 'APPROVED'].includes(account.data.status)) {
+    throw new HttpError(403, 'Tài khoản bệnh nhân không còn hoạt động.');
+  }
+  const profiles = await tx.query('BENH_NHAN', [{ field: 'authUserId', op: 'EQUAL', value: uid }], 2);
+  if (profiles.length !== 1 || profiles[0].data.isActive === false || profiles[0].data.status === 'ARCHIVED') {
+    throw new HttpError(403, 'Không tìm thấy hồ sơ bệnh nhân đang hoạt động.');
+  }
+  return { id: profiles[0].id, ...profiles[0].data };
+}
+
+function payableAmount(appointment, doctor) {
+  const fee = Number.isFinite(appointment.consultationFeeSnapshot)
+    ? appointment.consultationFeeSnapshot
+    : doctor.consultationFee;
+  const perPerson = boundedNumber(fee, 'Phí khám', 1000, 100000000, true);
+  const people = boundedNumber(appointment.peopleCount ?? 1, 'Số người', 1, 100, true);
+  const amount = perPerson * people;
+  if (!Number.isSafeInteger(amount) || amount > 100000000) {
+    throw new HttpError(409, 'Số tiền thanh toán không hợp lệ.');
+  }
+  return amount;
+}
+
+function paymentJson(id, data) {
+  return {
+    id,
+    appointmentId: textOrEmpty(data.appointmentId),
+    amount: numberOrZero(data.amount),
+    status: textOrEmpty(data.status) || 'PENDING',
+    paymentMethod: textOrEmpty(data.paymentMethod) || 'PAYOS',
+    orderCode: typeof data.orderCode === 'number' ? data.orderCode : null,
+    checkoutUrl: textOrEmpty(data.checkoutUrl) || null,
+    qrCode: textOrEmpty(data.qrCode) || null,
+    paymentLinkId: textOrEmpty(data.paymentLinkId) || null,
+    transactionCode: textOrEmpty(data.transactionCode) || null,
+    expiresAt: data.expiresAt instanceof Date ? data.expiresAt.toISOString() : null,
+    paidAt: data.paidAt instanceof Date ? data.paidAt.toISOString() : null,
+  };
+}
+
+async function paymentForPatient(paymentId, uid, firestore, env) {
+  const snapshot = await firestore.readTransaction(async (tx) => {
+    const patient = await activePatientForPayment(tx, uid);
+    const payment = await tx.get(`THANH_TOAN/${paymentId}`);
+    if (!payment || payment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    return { patientId: patient.id, payment: payment.data };
+  });
+  // Webhooks are the primary confirmation channel. This provider lookup is a
+  // signed, user-initiated reconciliation fallback for when a mobile user
+  // returns before PayOS has delivered/retried its webhook.
+  if (!['CREATING', 'PENDING'].includes(snapshot.payment.status) || !snapshot.payment.orderCode) {
+    return paymentJson(paymentId, snapshot.payment);
+  }
+  const provider = await getPayOSPaymentLink(payosConfig(env), snapshot.payment.orderCode);
+  if (provider.orderCode !== snapshot.payment.orderCode || provider.amount !== snapshot.payment.amount) {
+    throw new HttpError(409, 'Thông tin đối soát PayOS không khớp giao dịch.');
+  }
+  if (!['PAID', 'CANCELLED', 'EXPIRED'].includes(provider.status)) {
+    return paymentJson(paymentId, snapshot.payment);
+  }
+  return firestore.runTransaction(async (tx) => {
+    const current = await tx.get(`THANH_TOAN/${paymentId}`);
+    if (!current || current.data.patientId !== snapshot.patientId) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    if (current.data.status === 'PAID') return paymentJson(paymentId, current.data);
+    const status = provider.status === 'PAID' ? 'PAID' : provider.status === 'CANCELLED' ? 'CANCELLED' : 'FAILED';
+    const changes = status === 'PAID'
+      ? { status, paymentLinkId: provider.paymentLinkId || current.data.paymentLinkId || '', transactionCode: provider.reference || '', paidAt: serverTimestamp(), updatedAt: serverTimestamp() }
+      : { status, providerCode: provider.status, providerDescription: 'PayOS đối soát: liên kết không còn hiệu lực.', updatedAt: serverTimestamp() };
+    tx.update(`THANH_TOAN/${paymentId}`, changes);
+    tx.create(`NHAT_KY_ADMIN/payment_reconcile_${paymentId}`, {
+      actorId: 'payos-status-check', action: status === 'PAID' ? 'paymentPaid' : 'paymentFailed', targetCollection: 'THANH_TOAN', targetId: paymentId,
+      reason: 'Đối soát trạng thái trực tiếp với PayOS.', before: { status: current.data.status }, after: changes, createdAt: serverTimestamp(),
+    });
+    if (status === 'PAID') {
+      tx.create(`THONG_BAO/payment_paid_${paymentId}`, {
+        title: 'Thanh toán thành công', content: `PayOS đã xác nhận thanh toán cho lịch hẹn ${current.data.appointmentId}.`,
+        patientId: current.data.patientId, appointmentId: current.data.appointmentId, status: 'SENT', channel: 'in_app', isRead: false,
+        createdAt: serverTimestamp(), createdBy: 'payos-status-check',
+      });
+    }
+    return paymentJson(paymentId, { ...current.data, ...changes });
+  });
+}
+
+async function createPayOSPayment(body, uid, firestore, env, requestOrigin) {
+  const appointmentId = requiredId(body.appointmentId, 'Mã lịch hẹn');
+  const requestId = requiredId(body.requestId, 'Mã yêu cầu');
+  const paymentId = `pay_${requestId}`;
+  const prepared = await firestore.runTransaction(async (tx) => {
+    const patient = await activePatientForPayment(tx, uid);
+    const appointment = await tx.get(`LICH_HEN/${appointmentId}`);
+    if (!appointment || appointment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy lịch hẹn cần thanh toán.');
+    if (!['PENDING', 'CONFIRMED', 'COMPLETED'].includes(appointment.data.status)) {
+      throw new HttpError(409, 'Chỉ tạo thanh toán cho lịch hẹn đang chờ, đã xác nhận hoặc đã hoàn tất.');
+    }
+    const alreadyPaid = await tx.query('THANH_TOAN', [{ field: 'appointmentId', op: 'EQUAL', value: appointmentId }], 20);
+    if (alreadyPaid.some((row) => row.data.status === 'PAID')) {
+      throw new HttpError(409, 'Lịch hẹn này đã được thanh toán.');
+    }
+    const existing = await tx.get(`THANH_TOAN/${paymentId}`);
+    if (existing) {
+      if (existing.data.patientId !== patient.id || existing.data.appointmentId !== appointmentId) {
+        throw new HttpError(409, 'Mã yêu cầu đã được dùng cho giao dịch khác.');
+      }
+      return { payment: paymentJson(paymentId, existing.data), patient };
+    }
+    const activePending = alreadyPaid.find((row) => ['CREATING', 'PENDING'].includes(row.data.status));
+    if (activePending) return { payment: paymentJson(activePending.id, activePending.data), patient };
+    const doctor = await tx.get(`BAC_SI/${requiredId(appointment.data.doctorId, 'Bác sĩ')}`);
+    if (!doctor) throw new HttpError(409, 'Không tìm thấy bác sĩ của lịch hẹn.');
+    const amount = payableAmount(appointment.data, doctor.data);
+    const orderCode = nextPayOSOrderCode();
+    // Randomness makes a collision extremely unlikely, but it is not a
+    // business guarantee. Refuse the transaction before it is persisted so a
+    // client retry gets a fresh order code rather than two Firestore payments
+    // pointing at one PayOS order.
+    const sameOrder = await tx.query('THANH_TOAN', [
+      { field: 'orderCode', op: 'EQUAL', value: orderCode },
+    ], 1);
+    if (sameOrder.length) {
+      throw new HttpError(503, 'Đang tạo mã thanh toán mới. Vui lòng thử lại.');
+    }
+    const record = {
+      patientId: patient.id, appointmentId, amount, paymentMethod: 'PAYOS', status: 'CREATING',
+      orderCode, requestId, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    };
+    tx.create(`THANH_TOAN/${paymentId}`, record);
+    tx.create(`NHAT_KY_ADMIN/payment_create_${paymentId}`, {
+      actorId: uid, action: 'paymentCreate', targetCollection: 'THANH_TOAN', targetId: paymentId,
+      reason: 'Bệnh nhân tạo yêu cầu thanh toán PayOS.', before: null, after: { appointmentId, amount, orderCode }, createdAt: serverTimestamp(),
+    });
+    return { payment: paymentJson(paymentId, { ...record, id: paymentId }), patient };
+  });
+  if (prepared.payment.checkoutUrl) return prepared.payment;
+  if (prepared.payment.status === 'PENDING') return prepared.payment;
+  const config = payosConfig(env, requestOrigin);
+  let link;
+  try {
+    link = await createPayOSLink(config, prepared.payment);
+  } catch (error) {
+    await firestore.runTransaction(async (tx) => {
+      const current = await tx.get(`THANH_TOAN/${prepared.payment.id}`);
+      if (current && current.data.status === 'CREATING') {
+        tx.update(`THANH_TOAN/${prepared.payment.id}`, { status: 'CREATE_FAILED', updatedAt: serverTimestamp() });
+      }
+    });
+    throw error;
+  }
+  return firestore.runTransaction(async (tx) => {
+    const current = await tx.get(`THANH_TOAN/${prepared.payment.id}`);
+    if (!current) throw new HttpError(409, 'Yêu cầu thanh toán không còn tồn tại.');
+    if (current.data.patientId !== prepared.patient.id) throw new HttpError(403, 'Không thể xác nhận giao dịch của hồ sơ khác.');
+    if (current.data.status === 'PAID') return paymentJson(prepared.payment.id, current.data);
+    const expiresAt = new Date(link.expiresAt * 1000);
+    const changes = {
+      status: 'PENDING', paymentLinkId: link.paymentLinkId, checkoutUrl: link.checkoutUrl,
+      qrCode: link.qrCode || '', expiresAt, updatedAt: serverTimestamp(),
+    };
+    tx.update(`THANH_TOAN/${prepared.payment.id}`, changes);
+    return paymentJson(prepared.payment.id, { ...current.data, ...changes });
+  });
+}
+
+async function cancelPayOSPayment(paymentId, body, uid, firestore, env) {
+  const reason = optionalText(body.reason, 250) || 'Bệnh nhân hủy thanh toán.';
+  const current = await firestore.readTransaction(async (tx) => {
+    const patient = await activePatientForPayment(tx, uid);
+    const payment = await tx.get(`THANH_TOAN/${paymentId}`);
+    if (!payment || payment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    if (!['CREATING', 'PENDING', 'CREATE_FAILED'].includes(payment.data.status)) {
+      throw new HttpError(409, 'Giao dịch này không thể hủy.');
+    }
+    return payment.data;
+  });
+  if (current.paymentLinkId) await cancelPayOSLink(payosConfig(env), current.orderCode, reason);
+  return firestore.runTransaction(async (tx) => {
+    const latest = await tx.get(`THANH_TOAN/${paymentId}`);
+    if (!latest || latest.data.patientId !== current.patientId) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    if (latest.data.status === 'PAID') throw new HttpError(409, 'Giao dịch đã thanh toán, không thể hủy link.');
+    const changes = { status: 'CANCELLED', cancellationReason: reason, cancelledAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    tx.update(`THANH_TOAN/${paymentId}`, changes);
+    return paymentJson(paymentId, { ...latest.data, ...changes });
+  });
+}
+
+function nextPayOSOrderCode() {
+  // The value remains within JavaScript's safe integer range and has a
+  // one-million-value random suffix per second, avoiding a client-controlled
+  // order number or accidental reuse after a retry.
+  return Math.floor(Date.now() / 1000) * 1_000_000 + crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
+}
+
+function payosConfig(env, origin = null) {
+  const clientId = requiredText(env.PAYOS_CLIENT_ID, 'PayOS Client ID', 300);
+  const apiKey = requiredText(env.PAYOS_API_KEY, 'PayOS API Key', 500);
+  const checksumKey = requiredText(env.PAYOS_CHECKSUM_KEY, 'PayOS Checksum Key', 500);
+  const base = origin || 'https://healway-admin-command.healway-hospital.workers.dev';
+  const returnUrl = validExternalUrl(env.PAYOS_RETURN_URL || `${base}/payments/return`, 'PayOS return URL');
+  const cancelUrl = validExternalUrl(env.PAYOS_CANCEL_URL || `${base}/payments/cancel`, 'PayOS cancel URL');
+  return { clientId, apiKey, checksumKey, returnUrl, cancelUrl };
+}
+
+function validExternalUrl(value, label) {
+  let uri;
+  try { uri = new URL(value); } catch (_) { throw new HttpError(503, `${label} không hợp lệ.`); }
+  if (uri.protocol !== 'https:' || uri.username || uri.password || uri.search || uri.hash) {
+    throw new HttpError(503, `${label} phải là URL HTTPS hợp lệ.`);
+  }
+  return uri.toString();
+}
+
+async function createPayOSLink(config, payment) {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    orderCode: payment.orderCode, amount: payment.amount, description: `KHAM ${payment.orderCode}`,
+    cancelUrl: config.cancelUrl, returnUrl: config.returnUrl, expiredAt: now + 15 * 60,
+    items: [{ name: 'Phí khám', quantity: 1, price: payment.amount }],
+  };
+  payload.signature = await payosSignature({
+    amount: payload.amount, cancelUrl: payload.cancelUrl, description: payload.description,
+    orderCode: payload.orderCode, returnUrl: payload.returnUrl,
+  }, config.checksumKey);
+  let response;
+  try {
+    response = await fetch('https://api-merchant.payos.vn/v2/payment-requests', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-client-id': config.clientId, 'x-api-key': config.apiKey }, body: JSON.stringify(payload),
+    });
+  } catch (_) { throw new HttpError(503, 'Không thể kết nối cổng thanh toán PayOS.'); }
+  const body = await safeJson(response);
+  if (!response.ok || body?.code !== '00' || !body?.data?.checkoutUrl || !body?.data?.paymentLinkId) {
+    throw new HttpError(503, 'PayOS chưa tạo được liên kết thanh toán. Vui lòng thử lại.');
+  }
+  return { paymentLinkId: body.data.paymentLinkId, checkoutUrl: body.data.checkoutUrl, qrCode: body.data.qrCode, expiresAt: Number(body.data.expiredAt || payload.expiredAt) };
+}
+
+async function cancelPayOSLink(config, orderCode, reason) {
+  const response = await fetch(`https://api-merchant.payos.vn/v2/payment-requests/${encodeURIComponent(String(orderCode))}/cancel`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-client-id': config.clientId, 'x-api-key': config.apiKey }, body: JSON.stringify({ cancellationReason: reason }),
+  });
+  const body = await safeJson(response);
+  if (!response.ok || body?.code !== '00') throw new HttpError(503, 'PayOS chưa hủy được liên kết thanh toán.');
+}
+
+async function getPayOSPaymentLink(config, orderCode) {
+  let response;
+  try {
+    response = await fetch(`https://api-merchant.payos.vn/v2/payment-requests/${encodeURIComponent(String(orderCode))}`, {
+      headers: { 'x-client-id': config.clientId, 'x-api-key': config.apiKey },
+    });
+  } catch (_) { throw new HttpError(503, 'Không thể đối soát trạng thái với PayOS.'); }
+  const body = await safeJson(response);
+  if (!response.ok || body?.code !== '00' || !body?.data || typeof body.signature !== 'string') {
+    throw new HttpError(503, 'PayOS chưa trả được trạng thái giao dịch.');
+  }
+  const expected = await payosSignature(body.data, config.checksumKey);
+  if (!secureEqual(body.signature, expected)) throw new HttpError(502, 'Phản hồi PayOS có chữ ký không hợp lệ.');
+  const data = objectValue(body.data);
+  return {
+    orderCode: boundedNumber(data.orderCode, 'Mã đơn PayOS', 1, Number.MAX_SAFE_INTEGER, true),
+    amount: boundedNumber(data.amount, 'Số tiền PayOS', 1, 100000000, true),
+    status: requiredText(data.status, 'Trạng thái PayOS', 30).toUpperCase(),
+    paymentLinkId: textOrEmpty(data.id) || textOrEmpty(data.paymentLinkId),
+    reference: textOrEmpty(data.reference),
+  };
+}
+
+async function payosWebhook(request, env) {
+  const body = await paymentInput(request);
+  const signature = requiredText(body.signature, 'Chữ ký PayOS', 200);
+  const data = objectValue(body.data);
+  const expected = await payosSignature(data, requiredText(env.PAYOS_CHECKSUM_KEY, 'PayOS Checksum Key', 500));
+  if (!secureEqual(signature, expected)) throw new HttpError(401, 'Webhook PayOS có chữ ký không hợp lệ.');
+  const orderCode = boundedNumber(data.orderCode, 'Mã đơn PayOS', 1, Number.MAX_SAFE_INTEGER, true);
+  const firestore = new FirestoreRest(env);
+  return firestore.runTransaction(async (tx) => {
+    const rows = await tx.query('THANH_TOAN', [{ field: 'orderCode', op: 'EQUAL', value: orderCode }], 2);
+    // PayOS sends a signed sample when a webhook URL is registered. Acknowledge
+    // an unknown order without ever creating a transaction from it.
+    if (rows.length === 0) return { acknowledged: true, sample: true };
+    if (rows.length !== 1) throw new HttpError(409, 'Mã đơn PayOS không duy nhất.');
+    const payment = rows[0];
+    if (payment.data.paymentLinkId && payment.data.paymentLinkId !== data.paymentLinkId) {
+      throw new HttpError(409, 'Liên kết PayOS không khớp giao dịch.');
+    }
+    const amount = boundedNumber(data.amount, 'Số tiền PayOS', 1, 100000000, true);
+    if (amount !== payment.data.amount) throw new HttpError(409, 'Số tiền PayOS không khớp giao dịch.');
+    if (payment.data.status === 'PAID') return { acknowledged: true, paymentId: payment.id, status: 'PAID', duplicate: true };
+    const paid = body.success === true && data.code === '00';
+    const changes = paid
+      ? { status: 'PAID', paymentLinkId: data.paymentLinkId, transactionCode: textOrEmpty(data.reference), paidAt: serverTimestamp(), updatedAt: serverTimestamp() }
+      : { status: 'FAILED', paymentLinkId: data.paymentLinkId, providerCode: textOrEmpty(data.code), providerDescription: textOrEmpty(data.desc), updatedAt: serverTimestamp() };
+    tx.update(`THANH_TOAN/${payment.id}`, changes);
+    tx.create(`NHAT_KY_ADMIN/payment_webhook_${payment.id}`, {
+      actorId: 'payos-webhook', action: paid ? 'paymentPaid' : 'paymentFailed', targetCollection: 'THANH_TOAN', targetId: payment.id,
+      reason: paid ? 'PayOS xác nhận thanh toán.' : 'PayOS báo giao dịch không thành công.', before: { status: payment.data.status }, after: changes, createdAt: serverTimestamp(),
+    });
+    if (paid) {
+      tx.create(`THONG_BAO/payment_paid_${payment.id}`, {
+        title: 'Thanh toán thành công', content: `PayOS đã xác nhận thanh toán cho lịch hẹn ${payment.data.appointmentId}.`,
+        patientId: payment.data.patientId, appointmentId: payment.data.appointmentId, status: 'SENT', channel: 'in_app', isRead: false,
+        createdAt: serverTimestamp(), createdBy: 'payos-webhook',
+      });
+    }
+    return { acknowledged: true, paymentId: payment.id, status: changes.status };
+  });
+}
+
+export async function payosSignature(data, checksumKey) {
+  // Keep this aligned with PayOS' payment-request JavaScript sample. In
+  // particular, a plain object such as `transactions: {}` is coerced by its
+  // template literal to "[object Object]"; JSON-stringifying it instead
+  // produces a different HMAC and rejects a genuine status response.
+  const values = Object.entries(objectValue(data))
+    .filter(([, value]) => value !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, source]) => {
+      let value = source;
+      if (Array.isArray(value)) {
+        value = JSON.stringify(value.map((item) =>
+          item && typeof item === 'object' && !Array.isArray(item)
+            ? Object.fromEntries(Object.keys(item).sort().map((nestedKey) => [nestedKey, item[nestedKey]]))
+            : item,
+        ));
+      }
+      if ([null, undefined, 'undefined', 'null'].includes(value)) value = '';
+      return `${key}=${String(value)}`;
+    })
+    .join('&');
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(checksumKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(values));
+  return [...new Uint8Array(signature)].map((value) => value.toString(16).padStart(2, '0')).join('');
+}
+
+function secureEqual(left, right) {
+  if (left.length !== right.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < left.length; index++) mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return mismatch === 0;
+}
+
+function paymentReturnPage(success, headers) {
+  const pageHeaders = new Headers(headers);
+  pageHeaders.set('Content-Type', 'text/html; charset=UTF-8');
+  pageHeaders.set('Cache-Control', 'no-store');
+  const title = success ? 'Đã quay lại từ PayOS' : 'Đã hủy thanh toán';
+  const content = success
+    ? 'Yêu cầu thanh toán đã được gửi. Hãy quay lại ứng dụng và bấm “Kiểm tra trạng thái”. Chỉ webhook PayOS đã xác thực mới xác nhận giao dịch.'
+    : 'Bạn đã hủy trên trang PayOS. Hãy quay lại ứng dụng để hủy hoặc tạo lại liên kết khi cần.';
+  return new Response(`<!doctype html><html lang="vi"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui;max-width:560px;margin:48px auto;padding:0 20px"><h1>${title}</h1><p>${content}</p></body></html>`, { status: 200, headers: pageHeaders });
+}
+
+/**
  * Doctor screens read a deliberately narrow server projection.  In particular,
  * this is the only path that returns a patient's name/year/gender to a doctor;
  * the mobile client never gets unrestricted access to BENH_NHAN.
@@ -151,6 +563,18 @@ async function doctorWorkspaceRequest(request, url, uid, firestore) {
   }
   if (url.pathname === '/doctor/reports' && request.method === 'POST') {
     return submitDoctorReport(request, uid, firestore);
+  }
+  const completion = url.pathname.match(/^\/doctor\/appointments\/([^/]+)\/complete$/);
+  if (completion && request.method === 'POST') {
+    return completeDoctorAppointment(request, uid, firestore, requiredId(decodeURIComponent(completion[1]), 'Mã lịch hẹn'));
+  }
+  const patientHistory = url.pathname.match(/^\/doctor\/patients\/([^/]+)\/history$/);
+  if (patientHistory && request.method === 'GET') {
+    return doctorPatientHistory(
+      uid,
+      firestore,
+      requiredId(decodeURIComponent(patientHistory[1]), 'Mã bệnh nhân'),
+    );
   }
   if (url.pathname === '/doctor/health-records' && request.method === 'POST') {
     return saveClinicalRecord(request, uid, firestore, 'health');
@@ -183,20 +607,26 @@ async function activeDoctor(tx, uid) {
 }
 
 async function doctorDay(tx, doctor, date) {
-  const key = dayKey(date);
-  const scheduleRows = await tx.query('LICH_LAM_VIEC', [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
-  const schedules = scheduleRows
-    .filter((row) => dayKey(row.data.workDate) === key)
-    .map((row) => scheduleJson(row.id, row.data));
+  // Query the selected day on Firestore instead of reading an arbitrary first
+  // 301 historical records and filtering in memory. A busy doctor must still
+  // see today's work after accumulating a long schedule history.
+  const scheduleRows = await tx.query('LICH_LAM_VIEC', [
+    { field: 'doctorId', op: 'EQUAL', value: doctor.id },
+    { field: 'workDate', op: 'EQUAL', value: date },
+  ], 301);
+  const schedules = scheduleRows.map((row) => scheduleJson(row.id, row.data));
   const scheduleIds = new Set(schedules.map((row) => row.id));
-  const slotRows = await tx.query('CA_KHAM', [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
-  const slots = slotRows
-    .filter((row) => scheduleIds.has(row.data.workScheduleId))
-    .map((row) => slotJson(row.id, row.data));
-  const appointmentRows = await tx.query('LICH_HEN', [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
-  const appointments = appointmentRows.filter((row) =>
-    scheduleIds.has(row.data.workScheduleId) && dayKey(row.data.appointmentDate) === key,
+  const slotPages = await Promise.all(
+    schedules.map((schedule) => tx.query('CA_KHAM', [
+      { field: 'workScheduleId', op: 'EQUAL', value: schedule.id },
+    ], 301)),
   );
+  const slots = slotPages.flat().map((row) => slotJson(row.id, row.data));
+  const appointmentRows = await tx.query('LICH_HEN', [
+    { field: 'doctorId', op: 'EQUAL', value: doctor.id },
+    { field: 'appointmentDate', op: 'EQUAL', value: date },
+  ], 301);
+  const appointments = appointmentRows.filter((row) => scheduleIds.has(row.data.workScheduleId));
   const patients = new Map();
   for (const row of appointments) {
     const patientId = requiredId(row.data.patientId, 'Hồ sơ bệnh nhân');
@@ -249,6 +679,50 @@ async function submitDoctorReport(request, uid, firestore) {
       createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
     tx.create(receiptPath, { fingerprint, result, createdAt: serverTimestamp() });
+    return result;
+  });
+}
+
+/** A doctor may complete only their own, already-started confirmed visit.
+ * Counts remain held for the historical slot; completing a visit never
+ * reopens capacity or allows a terminal status to be reversed. */
+async function completeDoctorAppointment(request, uid, firestore, appointmentId) {
+  const body = await doctorJsonBody(request);
+  // Reject unexpected fields now, so this endpoint cannot become a disguised
+  // generic appointment-update API in a future app version.
+  if (Object.keys(body).length !== 0) throw new HttpError(400, 'Nội dung hoàn tất khám không hợp lệ.');
+  const requestId = requiredId(request.headers.get('Idempotency-Key'), 'Mã chống trùng');
+  const fingerprint = await commandDigest({ action: 'completeAppointment', appointmentId });
+  return firestore.runTransaction(async (tx) => {
+    const doctor = await activeDoctor(tx, uid);
+    const receiptPath = `DOCTOR_APPOINTMENT_COMMANDS/${doctor.id}_${requestId}`;
+    const receipt = await tx.get(receiptPath);
+    if (receipt) {
+      if (receipt.data.fingerprint !== fingerprint) throw new HttpError(409, 'Mã chống trùng đã được dùng cho thao tác khác.');
+      return receipt.data.result;
+    }
+    const appointment = await tx.get(`LICH_HEN/${appointmentId}`);
+    if (!appointment || appointment.data.doctorId !== doctor.id || typeof appointment.data.patientId !== 'string') {
+      throw new HttpError(403, 'Lịch hẹn không thuộc bác sĩ đang đăng nhập.');
+    }
+    if (!canDoctorComplete(appointment.data)) {
+      throw new HttpError(409, 'Chỉ hoàn tất được lịch đã xác nhận sau khi giờ khám bắt đầu.');
+    }
+    const changes = { status: 'COMPLETED', completedAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    const result = { id: appointmentId, status: 'COMPLETED', message: 'Đã hoàn tất khám và lưu lịch sử.' };
+    tx.update(`LICH_HEN/${appointmentId}`, changes);
+    tx.create(receiptPath, { fingerprint, result, createdAt: serverTimestamp() });
+    tx.create(`NHAT_KY_Y_TE/${doctor.id}_complete_${requestId}`, {
+      actorId: uid, doctorId: doctor.id, action: 'complete_appointment', collection: 'LICH_HEN',
+      targetId: appointmentId, appointmentId, patientId: appointment.data.patientId,
+      before: { status: appointment.data.status }, after: { status: 'COMPLETED' }, createdAt: serverTimestamp(),
+    });
+    tx.create(`THONG_BAO/doctor_complete_${appointmentId}`, {
+      title: 'Lịch khám đã hoàn tất',
+      content: `Lịch hẹn ${appointmentId} đã được bác sĩ hoàn tất. Bạn có thể xem lại lịch sử khám và hồ sơ liên quan.`,
+      patientId: appointment.data.patientId, appointmentId, status: 'SENT', channel: 'in_app', isRead: false,
+      createdAt: serverTimestamp(), createdBy: uid,
+    });
     return result;
   });
 }
@@ -348,11 +822,52 @@ async function clinicalRecordsForAppointment(url, uid, firestore, kind) {
   });
 }
 
-function doctorJson(data) {
+/**
+ * A doctor cannot search arbitrary patient charts. History becomes visible
+ * only after this doctor has a confirmed or completed appointment with the
+ * patient, and returns only records authored by that same doctor.
+ */
+async function doctorPatientHistory(uid, firestore, patientId) {
+  return firestore.readTransaction(async (tx) => {
+    const doctor = await activeDoctor(tx, uid);
+    const visits = (await tx.query('LICH_HEN', [
+      { field: 'doctorId', op: 'EQUAL', value: doctor.id },
+    ], 301))
+      .filter((row) => row.data.patientId === patientId && ['CONFIRMED', 'COMPLETED'].includes(row.data.status))
+      .map((row) => ({ id: row.id, date: dayKey(row.data.appointmentDate), status: textOrEmpty(row.data.status) }))
+      .filter((visit) => visit.date)
+      .sort((left, right) => right.date.localeCompare(left.date) || right.id.localeCompare(left.id));
+    if (!visits.length) {
+      throw new HttpError(403, 'Bác sĩ chỉ xem lịch sử của bệnh nhân có lịch khám hợp lệ.');
+    }
+    const visitIds = new Set(visits.map((visit) => visit.id));
+    const healthRecords = (await tx.query('HO_SO_SUC_KHOE', [
+      { field: 'doctorId', op: 'EQUAL', value: doctor.id },
+    ], 301))
+      .filter((row) => row.data.patientId === patientId && visitIds.has(row.data.appointmentId))
+      .map((row) => ({
+        id: row.id, diagnosis: textOrEmpty(row.data.diagnosis), notes: textOrEmpty(row.data.notes),
+        prescription: textOrEmpty(row.data.prescription), recordType: textOrEmpty(row.data.recordType) || 'OUTPATIENT',
+      }));
+    const testResults = (await tx.query('KET_QUA_CLS', [
+      { field: 'doctorId', op: 'EQUAL', value: doctor.id },
+    ], 301))
+      .filter((row) => row.data.patientId === patientId && visitIds.has(row.data.appointmentId))
+      .map((row) => ({
+        id: row.id, testName: textOrEmpty(row.data.testName), resultDescription: textOrEmpty(row.data.resultDescription),
+        resultType: textOrEmpty(row.data.resultType) || 'Khác', conclusion: textOrEmpty(row.data.conclusion),
+        referenceRange: textOrEmpty(row.data.referenceRange),
+      }));
+    return { patientId, visits, healthRecords, testResults };
+  });
+}
+
+export function doctorJson(data) {
   return {
     id: data.id, userId: data.userId, fullName: textOrEmpty(data.fullName), email: textOrEmpty(data.email), phone: textOrEmpty(data.phone),
     specialtyId: textOrEmpty(data.specialtyId), specialtyName: textOrEmpty(data.specialtyName), qualification: textOrEmpty(data.qualification),
     yearsOfExperience: numberOrZero(data.yearsOfExperience), consultationFee: numberOrZero(data.consultationFee),
+    ...(data.dateOfBirth ? { dateOfBirth: dayKey(data.dateOfBirth) } : {}),
     isActive: data.isActive !== false, status: textOrEmpty(data.status) || 'ACTIVE', avatarUrl: textOrEmpty(data.avatarUrl),
   };
 }
@@ -400,7 +915,13 @@ async function provisionDoctor(command, uid, firestore) {
       const specialty = await tx.get(`CHUYEN_KHOA/${fields.specialtyId}`);
       if (!specialty) throw new HttpError(404, 'Chuyên khoa không còn tồn tại.');
       active(specialty.data, 'Chuyên khoa');
-      const result = { id: authUserId, collection: 'BAC_SI', loginEmail, message: 'Đã tạo hồ sơ và tài khoản bác sĩ. Cần gửi email thiết lập mật khẩu.' };
+      const result = {
+        id: authUserId,
+        collection: 'BAC_SI',
+        loginEmail,
+        message:
+            'Đã tạo hồ sơ và tài khoản bác sĩ. Mật khẩu đăng nhập ban đầu là Password123@.',
+      };
       tx.create(`TAI_KHOAN/${authUserId}`, {
         email: loginEmail, fullName: fields.fullName, phone: fields.phone || '', role: 'doctor', isActive: true, status: 'ACTIVE',
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
@@ -598,6 +1119,9 @@ class AdminCommandContext {
     }
     const reason = requiredText(objectValue(this.command.values).cancellationReason, 'Lý do hủy', 1000);
     const slot = await this.get('CA_KHAM', appointment.timeSlotId);
+    if (appointmentHasStarted(appointment)) {
+      throw new HttpError(409, 'Không thể hủy lịch sau khi giờ khám đã bắt đầu.');
+    }
     const peopleCount = boundedNumber(appointment.peopleCount ?? 1, 'Số người', 1, 100, true);
     const others = await this.rows('LICH_HEN', 'timeSlotId', appointment.timeSlotId);
     const reservations = exactReservationCounts(slot, others);
@@ -624,6 +1148,9 @@ class AdminCommandContext {
     const slotId = requiredId(objectValue(this.command.values).timeSlotId, 'Ca khám mới');
     if (slotId === appointment.timeSlotId) throw new HttpError(400, 'Hãy chọn ca khám khác.');
     const oldSlot = await this.get('CA_KHAM', appointment.timeSlotId);
+    if (appointmentHasStarted(appointment)) {
+      throw new HttpError(409, 'Không thể đổi lịch sau khi giờ khám đã bắt đầu.');
+    }
     const peopleCount = boundedNumber(appointment.peopleCount ?? 1, 'Số người', 1, 100, true);
     const target = await this.destination(slotId, peopleCount);
     if (target.slot.doctorId !== appointment.doctorId || target.doctor.specialtyId !== appointment.specialtyId) {
@@ -728,7 +1255,11 @@ class AdminCommandContext {
     const fields = {
       doctorId: target.slot.doctorId, workScheduleId: target.slot.workScheduleId, timeSlotId: slotId,
       specialtyId: target.doctor.specialtyId, appointmentDate: target.schedule.workDate,
-      startTime: target.slot.startTime, endTime: target.slot.endTime, rescheduleReason: this.command.reason,
+      startTime: target.slot.startTime, endTime: target.slot.endTime,
+      // A new slot requires a new confirmation/check-in cycle. Queue and
+      // check-in values belong to the old slot and must never be carried over.
+      status: 'PENDING', queueNumber: deleteField(), checkInTime: deleteField(),
+      rescheduleReason: this.command.reason,
     };
     this.notification('reschedule', patient, before.patientId, 'Lịch khám đã thay đổi', `Mã lịch ${id}. Ngày ${dayKey(target.schedule.workDate)}, ${target.slot.startTime}. ${this.command.reason}`, id);
     return this.updated('LICH_HEN', id, before, fields);
@@ -964,19 +1495,20 @@ class AdminCommandContext {
     if (role === 'doctor' && doctors.length !== 1) throw new HttpError(409, 'Tài khoản bác sĩ phải có đúng một hồ sơ bác sĩ liên kết.');
     if (role !== before.role && (doctors.length || patients.length)) throw new HttpError(409, 'Không đổi vai trò tài khoản đã liên kết hồ sơ.');
     const enabled = values.isActive;
-    const accountChanges = { role, isActive: enabled, status: enabled ? 'ACTIVE' : 'INACTIVE' };
+    const linkedState = linkedAccountState(enabled);
+    const accountChanges = { role, ...linkedState.account };
     this.tx.update(`TAI_KHOAN/${id}`, { ...accountChanges, updatedAt: serverTimestamp() });
     // A user account and its profile are one operational identity. Updating
     // only TAI_KHOAN left BENH_NHAN/BAC_SI looking active in the Admin UI and
     // created a confusing, partially locked state.
     for (const patient of patients) {
       this.tx.update(`BENH_NHAN/${patient.id}`, {
-        isActive: enabled, status: enabled ? 'ACTIVE' : 'ARCHIVED', updatedAt: serverTimestamp(),
+        ...linkedState.patient, updatedAt: serverTimestamp(),
       });
     }
     for (const doctor of doctors) {
       this.tx.update(`BAC_SI/${doctor.id}`, {
-        isActive: enabled, status: enabled ? 'ACTIVE' : 'INACTIVE', acceptingBookings: enabled,
+        ...linkedState.doctor,
         updatedAt: serverTimestamp(),
       });
     }
@@ -1140,6 +1672,21 @@ async function requireActiveAdmin(uid, firestore) {
   }
 }
 
+// Keep the three documents that form one operational identity in sync. This
+// is deliberately pure so the lock/unlock invariant has a fast unit test in
+// addition to the transaction that applies it.
+export function linkedAccountState(enabled) {
+  return {
+    account: { isActive: enabled, status: enabled ? 'ACTIVE' : 'INACTIVE' },
+    patient: { isActive: enabled, status: enabled ? 'ACTIVE' : 'ARCHIVED' },
+    doctor: {
+      isActive: enabled,
+      status: enabled ? 'ACTIVE' : 'INACTIVE',
+      acceptingBookings: enabled,
+    },
+  };
+}
+
 class FirestoreRest {
   constructor(env) {
     if (!env.FIREBASE_PROJECT_ID) throw new HttpError(503, 'Dịch vụ Admin chưa được cấu hình.');
@@ -1214,7 +1761,7 @@ class FirestoreRest {
 
   async createAuthUser(email, displayName) {
     if (!this.webApiKey) throw new HttpError(503, 'Dịch vụ cấp tài khoản chưa được cấu hình Firebase Web API key.');
-    const password = randomPassword();
+    const password = INITIAL_DOCTOR_PASSWORD;
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(this.projectId)}/accounts?key=${encodeURIComponent(this.webApiKey)}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${await serviceAccessToken(this.credentials)}`, 'Content-Type': 'application/json' },
@@ -1543,10 +2090,9 @@ function cleanEntityFields(collection, values, create = false) {
   if (create && !result.fullName) throw new HttpError(400, 'Họ tên là bắt buộc.');
   return result;
 }
-function randomPassword() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return base64UrlBytes(bytes) + 'Aa1!';
-}
+// Requested initial credential for a newly provisioned doctor account. It is
+// sent only to Firebase Authentication; it is never stored in Firestore logs.
+const INITIAL_DOCTOR_PASSWORD = 'Password123@';
 async function safeJson(response) { try { return await response.json(); } catch (_) { return null; } }
 function active(data, label) {
   if (data.status !== 'ACTIVE' || data.isActive === false || data.acceptingBookings === false) {
@@ -1618,6 +2164,12 @@ function slotStart(workDate, startTime) {
   return new Date(day.getTime() + timeMinutes(startTime) * 60000);
 }
 function slotEnd(workDate, endTime) { return slotStart(workDate, endTime); }
+export function appointmentHasStarted(appointment, now = new Date()) {
+  return slotStart(appointment.appointmentDate, appointment.startTime) <= now;
+}
+export function canDoctorComplete(appointment, now = new Date()) {
+  return appointment?.status === 'CONFIRMED' && appointmentHasStarted(appointment, now);
+}
 function addDays(date, count) { return new Date(date.getTime() + count * 86400000); }
 
 async function commandDigest(value) {
@@ -1646,7 +2198,7 @@ function base64UrlBytes(value) { return btoa(String.fromCharCode(...value)).repl
 function base64UrlToBytes(value) { const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '='); return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)); }
 function pemBytes(value) { return base64UrlToBytes(value.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, '').replace(/\+/g, '-').replace(/\//g, '_')); }
 function corsHeaders(request, env) {
-  const headers = new Headers({ 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Content-Type': 'application/json; charset=UTF-8', Vary: 'Origin' });
+  const headers = new Headers({ 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key', 'Content-Type': 'application/json; charset=UTF-8', Vary: 'Origin' });
   const origin = request.headers.get('Origin');
   const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean);
   if (origin && allowed.includes(origin)) headers.set('Access-Control-Allow-Origin', origin);

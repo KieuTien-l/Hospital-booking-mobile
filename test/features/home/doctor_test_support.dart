@@ -74,6 +74,7 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
   Future<DoctorDayData> Function(DateTime date)? dayLoader;
   Future<List<DoctorReport>> Function()? historyLoader;
   Future<DoctorReport> Function(DoctorReportDraft draft)? sender;
+  Future<DoctorAppointmentCompletion> Function(String appointmentId)? completer;
   int dayCalls = 0, sendCalls = 0;
   @override
   Future<DoctorDayData> loadDay({
@@ -106,6 +107,21 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
   }
 
   @override
+  Future<DoctorAppointmentCompletion> completeAppointment({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) =>
+      completer?.call(appointmentId) ??
+      Future.value(
+        DoctorAppointmentCompletion(
+          id: appointmentId,
+          status: 'COMPLETED',
+          message: 'Đã hoàn tất khám và lưu lịch sử.',
+        ),
+      );
+
+  @override
   Future<DoctorClinicalSaveResult> saveHealthRecord({
     required String userId,
     required DoctorHealthRecordDraft draft,
@@ -134,4 +150,15 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
     required String userId,
     required String appointmentId,
   }) async => const [];
+
+  @override
+  Future<DoctorPatientHistory> loadPatientHistory({
+    required String userId,
+    required String patientId,
+  }) async => DoctorPatientHistory(
+    patientId: patientId,
+    visits: const [],
+    healthRecords: const [],
+    testResults: const [],
+  );
 }

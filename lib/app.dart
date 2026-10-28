@@ -9,10 +9,7 @@ import 'features/home/data/repositories/http_doctor_workspace_repository.dart';
 import 'features/home/data/repositories/unconfigured_doctor_workspace_repository.dart';
 
 import 'features/admin/presentation/controllers/admin_appointment_controller.dart';
-import 'features/admin/data/repositories/admin_management_repository_impl.dart';
-import 'features/admin/domain/repositories/admin_management_repository.dart';
 import 'features/admin/presentation/controllers/admin_dashboard_controller.dart';
-import 'features/admin/presentation/controllers/admin_management_controller.dart';
 import 'features/health_records/data/datasources/health_record_firebase_datasource.dart';
 import 'features/health_records/data/repositories/health_record_repository_impl.dart';
 import 'features/health_records/domain/repositories/health_record_repository.dart';
@@ -125,9 +122,6 @@ class App extends StatelessWidget {
         Provider<SpecialtyRepository>(
           create: (_) => SpecialtyRepositoryImpl(SpecialtyFirebaseDatasource()),
         ),
-        Provider<AdminManagementRepository>(
-          create: (_) => AdminManagementRepositoryImpl(),
-        ),
         Provider<DoctorRepository>(
           create: (_) => DoctorRepositoryImpl(DoctorFirebaseDatasource()),
         ),
@@ -216,11 +210,6 @@ class App extends StatelessWidget {
             specialtyRepository: context.read<SpecialtyRepository>(),
             doctorRepository: context.read<DoctorRepository>(),
             appointmentRepository: context.read<AppointmentRepository>(),
-          ),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => AdminManagementController(
-            context.read<AdminManagementRepository>(),
           ),
         ),
         ChangeNotifierProvider(

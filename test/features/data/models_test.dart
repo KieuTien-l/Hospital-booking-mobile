@@ -50,6 +50,7 @@ void main() {
             'email',
             'fullName',
             'isActive',
+            'status',
             'phone',
             'role',
             'updatedAt',

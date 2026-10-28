@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/themes/app_colors.dart';
@@ -10,6 +12,7 @@ import '../widgets/patient_home_background.dart';
 import '../controllers/doctor_workspace_controller.dart';
 import '../models/doctor_slot_availability.dart';
 import '../../domain/entities/doctor_workspace.dart';
+import '../../domain/repositories/doctor_workspace_repository.dart';
 
 class DoctorSlotDetailsPage extends StatefulWidget {
   const DoctorSlotDetailsPage({
@@ -49,9 +52,21 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
       : widget.workspace?.data?.bookings;
   String _query = '';
   int _filter = 0;
+  final Set<String> _completingAppointments = <String>{};
 
   bool _waiting(DoctorSlotBooking booking) =>
       booking.appointment.status == AppointmentStatus.confirmed;
+
+  bool _hasStarted(Appointment appointment) {
+    final date = appointment.appointmentDate;
+    final time = appointment.startTime?.split(':');
+    if (date == null || time == null || time.length != 2) return false;
+    final hour = int.tryParse(time[0]);
+    final minute = int.tryParse(time[1]);
+    if (hour == null || minute == null) return false;
+    final start = DateTime(date.year, date.month, date.day, hour, minute);
+    return !start.isAfter(DateTime.now());
+  }
 
   List<DoctorSlotBooking> get _bookings {
     final validSlot =
@@ -113,8 +128,71 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
     ],
   );
 
+  String _requestId() {
+    final random = Random.secure();
+    return List.generate(
+      24,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+  }
+
+  void _message(String message) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+
+  Future<void> _completeAppointment(DoctorSlotBooking booking) async {
+    final workspace = widget.workspace;
+    if (workspace == null || workspace.repository.isDemo) {
+      _message('Chức năng hoàn tất khám chỉ có trên dữ liệu hệ thống thật.');
+      return;
+    }
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hoàn tất khám?'),
+        content: Text(
+          'Xác nhận bệnh nhân ${booking.patientName} đã khám xong. '
+          'Trạng thái này không thể đổi ngược.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Quay lại'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Hoàn tất khám'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || approved != true) return;
+    setState(() => _completingAppointments.add(booking.appointment.id));
+    try {
+      final result = await workspace.repository.completeAppointment(
+        userId: workspace.userId,
+        appointmentId: booking.appointment.id,
+        requestId: _requestId(),
+      );
+      if (!mounted) return;
+      _message(result.message);
+      await workspace.refresh();
+    } on DoctorWorkspaceAccessException catch (error) {
+      if (mounted) _message(error.message);
+    } on StateError catch (error) {
+      if (mounted) _message(error.message);
+    } catch (_) {
+      if (mounted) _message('Không thể hoàn tất lịch khám. Vui lòng thử lại.');
+    } finally {
+      if (mounted) {
+        setState(() => _completingAppointments.remove(booking.appointment.id));
+      }
+    }
+  }
+
   Widget _patientCard(DoctorSlotBooking booking) {
     final appointment = booking.appointment;
+    final canCompleteNow = _hasStarted(appointment);
     final (status, color) = switch (appointment.status) {
       AppointmentStatus.completed => ('Đã khám', const Color(0xFF318653)),
       AppointmentStatus.pending => ('Chờ xác nhận', const Color(0xFFB87520)),
@@ -212,6 +290,31 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                   : 'Chưa cung cấp',
               style: const TextStyle(fontSize: 14, height: 1.5),
             ),
+            if (appointment.status == AppointmentStatus.confirmed &&
+                widget.workspace != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: ValueKey('complete-appointment-${appointment.id}'),
+                onPressed:
+                    _completingAppointments.contains(appointment.id) ||
+                        !canCompleteNow
+                    ? null
+                    : () => _completeAppointment(booking),
+                icon: _completingAppointments.contains(appointment.id)
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.task_alt_outlined),
+                label: Text(
+                  canCompleteNow ? 'Hoàn tất khám' : 'Chưa đến giờ hoàn tất',
+                ),
+              ),
+            ],
           ],
         ),
       ),

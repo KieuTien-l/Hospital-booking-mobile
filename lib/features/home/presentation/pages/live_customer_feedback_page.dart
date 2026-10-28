@@ -15,9 +15,12 @@ class LiveCustomerFeedbackPage extends StatefulWidget {
 }
 
 class _LiveCustomerFeedbackPageState extends State<LiveCustomerFeedbackPage> {
-  late final _profiles = FirebaseFirestore.instance
+  // Patient profiles have one canonical document whose id is the Firebase
+  // Auth UID. A broad `authUserId` query is both ambiguous for old duplicate
+  // profiles and cannot be proven safe by the current Firestore Rules.
+  late final _profile = FirebaseFirestore.instance
       .collection('BENH_NHAN')
-      .where('authUserId', isEqualTo: widget.userId)
+      .doc(widget.userId)
       .get();
   String? _patient;
   String? _requestId;
@@ -58,14 +61,14 @@ class _LiveCustomerFeedbackPageState extends State<LiveCustomerFeedbackPage> {
 
   @override
   Widget build(BuildContext context) =>
-      FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        future: _profiles,
-        builder: (context, profiles) {
-          if (!profiles.hasData) {
+      FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        future: _profile,
+        builder: (context, profile) {
+          if (!profile.hasData) {
             return Scaffold(
               appBar: AppBar(title: const Text('Phản hồi')),
               body: Center(
-                child: profiles.hasError
+                child: profile.hasError
                     ? const Text(
                         'Chưa tải được hồ sơ bệnh nhân. Vui lòng quay lại và thử lại.',
                       )
@@ -73,13 +76,13 @@ class _LiveCustomerFeedbackPageState extends State<LiveCustomerFeedbackPage> {
               ),
             );
           }
-          final records = profiles.data!.docs
-              .where(
-                (d) =>
-                    d.data()['status'] != 'ARCHIVED' &&
-                    d.data()['isActive'] != false,
-              )
-              .toList();
+          final document = profile.data!;
+          final records =
+              document.exists &&
+                  document.data()?['status'] != 'ARCHIVED' &&
+                  document.data()?['isActive'] != false
+              ? [document]
+              : const <DocumentSnapshot<Map<String, dynamic>>>[];
           if (_patient == null && records.length == 1) {
             _patient = records.single.id;
           }
@@ -150,12 +153,12 @@ class _LiveCustomerFeedbackPageState extends State<LiveCustomerFeedbackPage> {
                       DropdownMenuItem(
                         value: record.id,
                         child: Text(
-                          '${record.data()['fullName'] ?? record.id}',
+                          '${record.data()?['fullName'] ?? record.id}',
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                   ],
-                  onChanged: (v) => _patient = v,
+                  onChanged: (v) => setState(() => _patient = v),
                   validator: (v) =>
                       v == null ? 'Chọn hồ sơ gửi phản hồi.' : null,
                 ),

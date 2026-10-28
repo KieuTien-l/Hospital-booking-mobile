@@ -27,6 +27,7 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
   final _reason = TextEditingController();
   final _description = TextEditingController();
   String? _type, _scheduleId, _requestId, _submitError, _success;
+  String? _latestAdminResponse;
   var _schedules = const <dynamic>[];
   var _reports = const <DoctorReport>[];
   var _loadingSchedules = false, _loadingHistory = false, _sending = false;
@@ -131,6 +132,7 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
       _sending = true;
       _submitError = null;
       _success = null;
+      _latestAdminResponse = null;
     });
     try {
       final saved = await repository.submitReport(
@@ -145,12 +147,17 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
         ),
       );
       if (!mounted) return;
+      final adminResponse = saved.adminResponse?.trim() ?? '';
       // An older history fetch can complete after a successful submission.
       // Invalidate it so it cannot replace the just-inserted report.
       _historyRequest++;
       setState(() {
-        _reports = [saved, ..._reports.where((report) => report.id != saved.id)];
+        _reports = [
+          saved,
+          ..._reports.where((report) => report.id != saved.id),
+        ];
         _success = 'Đã gửi báo cáo. Đang chờ Admin xử lý.';
+        _latestAdminResponse = adminResponse.isEmpty ? null : adminResponse;
         _sending = false;
       });
     } catch (_) {
@@ -184,6 +191,19 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // A report must never look sendable when this screen has not
+            // received a verified doctor workspace and permission set.
+            if (_repository == null ||
+                _userId == null ||
+                _userId!.isEmpty ||
+                !_repository!.canSubmitReports)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Chức năng gửi báo cáo chưa sẵn sàng.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
             Text(
               'Thông tin báo cáo',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -304,9 +324,25 @@ class _DoctorReportsPageState extends State<DoctorReportsPage> {
                             style: const TextStyle(color: Colors.green),
                           ),
                         ),
+                      if (_latestAdminResponse != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            _latestAdminResponse!,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       FilledButton(
-                        onPressed: _sending || _success != null
+                        onPressed:
+                            _sending ||
+                                _success != null ||
+                                _repository == null ||
+                                _userId == null ||
+                                _userId!.isEmpty ||
+                                !_repository!.canSubmitReports
                             ? null
                             : _submit,
                         child: Text(

@@ -1,6 +1,10 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { AdminError, fail, text, id, number, choice, email, date, dayKey, minutes, timeText, workPeriod, bookingTime, transition, capacityChange, cleanFields, heldStatuses } from './policy.js';
+
+// Requested initial credential for a newly provisioned doctor account. It is
+// sent only to Firebase Authentication; it is never stored in Firestore logs.
+const INITIAL_DOCTOR_PASSWORD = 'Password123@';
 
 const stamp = () => FieldValue.serverTimestamp();
 const canonical = (v) => Array.isArray(v) ? v.map(canonical) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical(v[k])])) : v;
@@ -466,9 +470,9 @@ async function provisionDoctor(db, auth, uid, input) {
   });
   let user;
   try {
-    user = await auth.createUser({ email: loginEmail, displayName: fields.fullName, password: randomBytes(32).toString('base64url'), disabled: false });
+    user = await auth.createUser({ email: loginEmail, displayName: fields.fullName, password: INITIAL_DOCTOR_PASSWORD, disabled: false });
     await ref.update({ authUserId: user.uid, status: 'AUTH_CREATED', updatedAt: stamp() });
-    const result = { id: user.uid, collection: 'BAC_SI', loginEmail, message: 'Đã tạo hồ sơ và tài khoản bác sĩ. Cần gửi email thiết lập mật khẩu.' };
+    const result = { id: user.uid, collection: 'BAC_SI', loginEmail, message: 'Đã tạo hồ sơ và tài khoản bác sĩ. Mật khẩu đăng nhập ban đầu là Password123@.' };
     await db.runTransaction(async (tx) => {
       const actor = snapshotData(await tx.get(db.collection('TAI_KHOAN').doc(uid)));
       if (actor.role !== 'admin' || !actor.isActive) fail('Quyền admin đã thay đổi.', 'permission-denied');

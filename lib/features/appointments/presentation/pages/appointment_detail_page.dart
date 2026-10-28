@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../profile/presentation/widgets/health_records_date_filter.dart';
 import '../../domain/entities/appointment.dart';
+import '../../../payments/presentation/pages/payos_checkout_page.dart';
 import '../controllers/appointment_controller.dart';
 import '../models/appointment_history_ui_model.dart';
 import 'reschedule_appointment_page.dart';
@@ -26,6 +27,24 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   bool get _canManage =>
       _appointment.status == AppointmentStatus.pending ||
       _appointment.status == AppointmentStatus.confirmed;
+
+  bool get _canPay =>
+      !widget.item.isPaid &&
+      (_appointment.status == AppointmentStatus.pending ||
+          _appointment.status == AppointmentStatus.confirmed ||
+          _appointment.status == AppointmentStatus.completed);
+
+  Future<void> _payWithPayos() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => PayosCheckoutPage(
+          appointmentId: _appointment.id,
+          doctorName: widget.item.doctorName,
+          specialtyName: widget.item.specialtyName,
+        ),
+      ),
+    );
+  }
 
   Future<void> _cancelAppointment() async {
     final reason = await _askForCancellationReason();
@@ -146,6 +165,15 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
                       )
                     : const Icon(Icons.cancel_outlined),
                 label: const Text('Hủy lịch'),
+              ),
+            ],
+            if (_canPay) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                key: const ValueKey('payos-payment'),
+                onPressed: _working ? null : _payWithPayos,
+                icon: const Icon(Icons.qr_code_2_outlined),
+                label: const Text('Thanh toán qua PayOS'),
               ),
             ],
           ],

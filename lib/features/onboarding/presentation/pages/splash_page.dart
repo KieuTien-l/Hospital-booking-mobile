@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../auth/presentation/pages/login_page.dart';
+import '../../../../core/routes/auth_gate.dart';
 import '../../domain/repositories/onboarding_repository.dart';
 
 class SplashPage extends StatefulWidget {
@@ -27,7 +27,9 @@ class _SplashPageState extends State<SplashPage> {
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const LoginPage()),
+      // AuthGate decides between Login, the correct role home, and the
+      // account-locked screen after AuthController has restored Firebase.
+      MaterialPageRoute<void>(builder: (_) => const AuthGate()),
     );
   }
 

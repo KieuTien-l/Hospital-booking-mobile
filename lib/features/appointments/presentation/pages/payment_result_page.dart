@@ -6,6 +6,8 @@ import '../widgets/payment_summary_card.dart';
 import 'booking_success_page.dart';
 import 'payment_method_page.dart';
 
+/// Legacy preview-only result page. It does not confirm PayOS payment.
+@Deprecated('Use PayosCheckoutPage from AppointmentDetailPage.')
 class PaymentResultPage extends StatelessWidget {
   const PaymentResultPage({super.key, required this.payment});
   final PaymentUiModel payment;

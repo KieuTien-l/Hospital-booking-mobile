@@ -6,6 +6,7 @@ import '../../../doctors/domain/entities/time_slot.dart';
 import '../../../doctors/domain/entities/work_schedule.dart';
 import '../../domain/entities/doctor_workspace.dart';
 import '../controllers/doctor_workspace_controller.dart';
+import '../pages/doctor_slot_details_page.dart';
 
 enum DoctorAppointmentsDisplayState { loading, empty, error, data }
 
@@ -32,6 +33,7 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     this.timeSlots = const [],
     this.bookings = const [],
     this.workspace,
+    this.errorMessage,
   });
   final DoctorAppointmentsDisplayState state;
   final DateTime? selectedDate;
@@ -47,6 +49,7 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
   final List<TimeSlot> timeSlots;
   final List<DoctorBooking> bookings;
   final DoctorWorkspaceController? workspace;
+  final String? errorMessage;
 
   static String _dateLabel(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -81,11 +84,14 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     WorkSchedule schedule,
     _ScheduleAppointmentCounts counts,
   ) {
+    final slots = timeSlots
+        .where((slot) => slot.workScheduleId == schedule.id)
+        .toList(growable: false);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -121,9 +127,39 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text('${value.$1}: ${value.$2}'),
                 ),
+              if (slots.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Chọn ca để xem bệnh nhân và cập nhật trạng thái khám:',
+                ),
+                const SizedBox(height: 10),
+                for (final slot in slots)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => DoctorSlotDetailsPage(
+                              schedule: schedule,
+                              slot: slot,
+                              bookings: bookings,
+                              workspace: workspace,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.people_outline),
+                      label: Text(
+                        'Ca ${slot.startTime ?? '—'} – ${slot.endTime ?? '—'}',
+                      ),
+                    ),
+                  ),
+              ],
               const SizedBox(height: 20),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(sheetContext).pop(),
                 child: const Text('Đóng'),
               ),
             ],
@@ -221,7 +257,9 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                     loading
                         ? 'Vui lòng chờ trong giây lát.'
                         : error
-                        ? 'Lịch khám hiện chưa thể hiển thị. Vui lòng quay lại sau.'
+                        ? (errorMessage?.trim().isNotEmpty == true
+                              ? errorMessage!
+                              : 'Lịch khám hiện chưa thể hiển thị. Vui lòng quay lại sau.')
                         : 'Lịch và ca làm cho ngày đang chọn sẽ xuất hiện khi dữ liệu được kết nối.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(

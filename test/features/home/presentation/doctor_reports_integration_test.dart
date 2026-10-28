@@ -158,7 +158,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Không thể tải ca được phân công.'), findsNothing);
       expect(find.text('Không thể tải lịch sử báo cáo.'), findsNothing);
-      expect(find.text('Đã xác nhận'), findsOneWidget);
+      expect(find.text('Đã phê duyệt\nĐã xác nhận'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

@@ -155,4 +155,51 @@ void main() {
     );
     expect(result.status, DoctorReportStatus.pending);
   });
+
+  test(
+    'Patient history stays on the scoped doctor endpoint and parses records',
+    () async {
+      final repository = HttpDoctorWorkspaceRepository(
+        baseUrl: 'https://backend.example.test',
+        tokenProvider: (_) async => 'token',
+        client: MockClient((request) async {
+          expect(
+            request.url.toString(),
+            'https://backend.example.test/doctor/patients/patient-1/history',
+          );
+          expect(request.method, 'GET');
+          return http.Response(
+            jsonEncode({
+              'patientId': 'patient-1',
+              'visits': [
+                {'id': 'visit-1', 'date': '2026-10-19', 'status': 'COMPLETED'},
+              ],
+              'healthRecords': [
+                {
+                  'id': 'record-1',
+                  'diagnosis': 'Cảm cúm',
+                  'notes': '',
+                  'prescription': '',
+                  'recordType': 'OUTPATIENT',
+                },
+              ],
+              'testResults': const [],
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final history = await repository.loadPatientHistory(
+        userId: 'account',
+        patientId: 'patient-1',
+      );
+
+      expect(history.patientId, 'patient-1');
+      expect(history.visits.single.status, 'COMPLETED');
+      expect(history.healthRecords.single.diagnosis, 'Cảm cúm');
+    },
+  );
 }

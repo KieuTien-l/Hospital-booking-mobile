@@ -27,6 +27,15 @@ class AppointmentFirebaseDatasource {
   // direct transaction path used by the Firestore rules tests.
   final AdminCommands? _bookingCommands;
 
+  /// Production reservations are server commands.  The direct transaction is
+  /// intentionally retained only for local debug/emulator tests, where it
+  /// verifies the paired Firestore Rules transaction.
+  bool get _mayUseDirectFirestore => !kReleaseMode;
+
+  BookingException get _workerRequired => const BookingException(
+    'Dịch vụ đặt lịch chưa được cấu hình cho bản phát hành. Vui lòng liên hệ quản trị viên.',
+  );
+
   CollectionReference<Map<String, dynamic>> get _appointments =>
       _firestore.collection(AppointmentModel.collectionName);
   CollectionReference<Map<String, dynamic>> get _timeSlots =>
@@ -111,6 +120,7 @@ class AppointmentFirebaseDatasource {
     if (_bookingCommands != null) {
       return _createAppointmentThroughWorker(appointment);
     }
+    if (!_mayUseDirectFirestore) return Future.error(_workerRequired);
     return _createAppointmentDirect(appointment);
   }
 
@@ -340,6 +350,7 @@ class AppointmentFirebaseDatasource {
     if (_bookingCommands != null) {
       return _cancelAppointmentThroughWorker(appointmentId, cancellationReason);
     }
+    if (!_mayUseDirectFirestore) return Future.error(_workerRequired);
     return _cancelAppointmentDirect(appointmentId, cancellationReason);
   }
 
@@ -406,6 +417,13 @@ class AppointmentFirebaseDatasource {
         );
       }
       final slot = TimeSlotModel.fromFirestore(slotSnapshot);
+      final appointmentDate = appointment.appointmentDate;
+      if (appointmentDate == null ||
+          !_isFutureSlot(slot, appointmentDate, appointment.startTime ?? '')) {
+        throw const BookingException(
+          'Không thể hủy lịch khi ca khám đã bắt đầu.',
+        );
+      }
       if (slot.reservationCounts[appointment.id] != appointment.peopleCount ||
           (slot.bookedCount ?? -1) < appointment.peopleCount) {
         throw const BookingException(
@@ -496,6 +514,7 @@ class AppointmentFirebaseDatasource {
         newEndTime: newEndTime,
       );
     }
+    if (!_mayUseDirectFirestore) return Future.error(_workerRequired);
     return _rescheduleAppointmentDirect(
       appointmentId: appointmentId,
       newWorkScheduleId: newWorkScheduleId,
@@ -662,8 +681,15 @@ class AppointmentFirebaseDatasource {
           'Ca khám cũ không còn tồn tại; cần quản trị viên xử lý dữ liệu.',
         );
       }
+      final oldSlot = TimeSlotModel.fromFirestore(oldSlotSnapshot);
+      final oldDate = appointment.appointmentDate;
+      if (oldDate == null ||
+          !_isFutureSlot(oldSlot, oldDate, appointment.startTime ?? '')) {
+        throw const BookingException(
+          'Không thể đổi lịch khi ca khám cũ đã bắt đầu.',
+        );
+      }
       if (oldSlotRef.id != newSlotRef.id) {
-        final oldSlot = TimeSlotModel.fromFirestore(oldSlotSnapshot);
         if (oldSlot.reservationCounts[appointment.id] !=
                 appointment.peopleCount ||
             (oldSlot.bookedCount ?? -1) < appointment.peopleCount) {

@@ -98,6 +98,39 @@ void main() {
       );
     },
   );
+
+  test(
+    'a cancelled appointment with an old slot link is not an active alert',
+    () async {
+      final appointments = _Appointments();
+      final controller = AdminAppointmentController(
+        appointmentRepository: appointments,
+        doctorRepository: _Doctors(),
+        workScheduleRepository: _Schedules(),
+        timeSlotRepository: _Slots(),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(appointments.close);
+
+      final load = controller.load();
+      appointments.add([
+        _appointment('active-broken', timeSlotId: 'missing-slot'),
+        _appointment(
+          'cancelled-historical',
+          timeSlotId: 'old-missing-slot',
+          status: AppointmentStatus.cancelled,
+        ),
+      ]);
+      await load;
+
+      expect(
+        controller.invalidRelationshipRecords.map(
+          (record) => record.appointment.id,
+        ),
+        ['active-broken'],
+      );
+    },
+  );
 }
 
 Appointment _appointment(

@@ -40,6 +40,13 @@ class UnconfiguredDoctorWorkspaceRepository
   }) async => _unavailable();
 
   @override
+  Future<DoctorAppointmentCompletion> completeAppointment({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) async => _unavailable();
+
+  @override
   Future<DoctorClinicalSaveResult> saveHealthRecord({
     required String userId,
     required DoctorHealthRecordDraft draft,
@@ -61,5 +68,11 @@ class UnconfiguredDoctorWorkspaceRepository
   Future<List<DoctorTestResultSummary>> loadTestResults({
     required String userId,
     required String appointmentId,
+  }) async => _unavailable();
+
+  @override
+  Future<DoctorPatientHistory> loadPatientHistory({
+    required String userId,
+    required String patientId,
   }) async => _unavailable();
 }

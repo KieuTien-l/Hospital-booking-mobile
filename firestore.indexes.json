@@ -33,29 +33,25 @@
       ]
     },
     {
-      "collectionGroup": "PHAN_HOI",
+      "collectionGroup": "LICH_HEN",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "userId",
+          "fieldPath": "doctorId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
+          "fieldPath": "appointmentDate",
+          "order": "ASCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "THONG_BAO",
+      "collectionGroup": "PHAN_HOI",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
+          "fieldPath": "patientId",
           "order": "ASCENDING"
         },
         {

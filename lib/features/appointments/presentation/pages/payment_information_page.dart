@@ -9,6 +9,9 @@ import '../widgets/payment_bottom_actions.dart';
 import '../widgets/payment_page_layout.dart';
 import 'payment_method_page.dart';
 
+/// Legacy preview-only payment page. Production payments start from an
+/// appointment's "Thanh toán qua PayOS" action and never use this route.
+@Deprecated('Use PayosCheckoutPage from AppointmentDetailPage.')
 class PaymentInformationPage extends StatefulWidget {
   const PaymentInformationPage({
     super.key,

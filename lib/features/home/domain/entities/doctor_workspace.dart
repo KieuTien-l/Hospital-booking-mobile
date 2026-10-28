@@ -137,6 +137,18 @@ class DoctorClinicalSaveResult {
   final String id, message;
 }
 
+class DoctorAppointmentCompletion {
+  const DoctorAppointmentCompletion({
+    required this.id,
+    required this.status,
+    required this.message,
+  });
+
+  final String id;
+  final String status;
+  final String message;
+}
+
 class DoctorHealthRecordSummary {
   const DoctorHealthRecordSummary({
     required this.id,
@@ -163,4 +175,32 @@ class DoctorTestResultSummary {
       resultType,
       conclusion,
       referenceRange;
+}
+
+/// Read-only history returned only after the Worker verifies that this doctor
+/// has a valid confirmed/completed appointment with the patient.
+class DoctorPatientHistory {
+  const DoctorPatientHistory({
+    required this.patientId,
+    required this.visits,
+    required this.healthRecords,
+    required this.testResults,
+  });
+
+  final String patientId;
+  final List<DoctorPatientVisit> visits;
+  final List<DoctorHealthRecordSummary> healthRecords;
+  final List<DoctorTestResultSummary> testResults;
+}
+
+class DoctorPatientVisit {
+  const DoctorPatientVisit({
+    required this.id,
+    required this.date,
+    required this.status,
+  });
+
+  final String id;
+  final DateTime date;
+  final String status;
 }

@@ -26,6 +26,7 @@ class SelectAppointmentTimePage extends StatefulWidget {
     required this.initialDate,
     this.doctors,
     this.onContinue,
+    this.now,
   });
   final Specialty specialty;
   final DateTime initialDate;
@@ -34,6 +35,9 @@ class SelectAppointmentTimePage extends StatefulWidget {
   /// An explicit list is useful for previews and widget tests.
   final List<AppointmentDoctorOption>? doctors;
   final ValueChanged<AppointmentTimeSelection>? onContinue;
+
+  /// Test-only clock override. Production always uses the device time.
+  final DateTime? now;
 
   @override
   State<SelectAppointmentTimePage> createState() =>
@@ -106,6 +110,7 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                   label: '${slot.startTime ?? ''} - ${slot.endTime ?? ''}',
                   startTime: slot.startTime,
                   endTime: slot.endTime,
+                  startsAt: slot.startsAt,
                   available: slot.isAvailable,
                 ),
             ],
@@ -349,6 +354,7 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                               ),
                             ),
                           ),
+                          now: widget.now,
                           onDateSelected: (date) {
                             if (!DateUtils.isSameDay(date, _date)) {
                               setState(() {

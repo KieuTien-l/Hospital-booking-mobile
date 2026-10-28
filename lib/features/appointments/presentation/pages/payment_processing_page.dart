@@ -7,6 +7,8 @@ import '../widgets/payment_page_layout.dart';
 import '../widgets/payment_status_badge.dart';
 import 'payment_result_page.dart';
 
+/// Legacy preview-only payment page. It does not create a real transaction.
+@Deprecated('Use PayosCheckoutPage from AppointmentDetailPage.')
 class PaymentProcessingPage extends StatelessWidget {
   const PaymentProcessingPage({
     super.key,

@@ -914,10 +914,10 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
               error: true,
             )
           else if (invalid.isEmpty && !controller.isLoading)
-            const Text('Không phát hiện liên kết lịch hẹn sai.')
+            const Text('Không phát hiện liên kết sai ở lịch hẹn đang hiệu lực.')
           else if (invalid.isNotEmpty)
             Text(
-              'Cần kiểm tra ${invalid.length} lịch hẹn: ${invalid.take(5).map((item) => item.appointment.id).join(', ')}',
+              'Cần kiểm tra ${invalid.length} lịch hẹn đang hiệu lực: ${invalid.take(5).map((item) => item.appointment.id).join(', ')}',
               style: const TextStyle(color: AppColors.error),
             ),
           const SizedBox(height: 8),

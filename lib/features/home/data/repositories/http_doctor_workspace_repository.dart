@@ -71,6 +71,13 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
                 ? _client.get(uri, headers: headers)
                 : _client.post(uri, headers: headers, body: jsonEncode(body)))
             .timeout(const Duration(seconds: 20));
+    Map<String, dynamic>? decoded;
+    try {
+      final value = jsonDecode(utf8.decode(response.bodyBytes));
+      if (value is Map<String, dynamic>) decoded = value;
+    } catch (_) {
+      // A non-JSON gateway response is handled by the generic error below.
+    }
     if (response.statusCode == 401) {
       await _expired(
         userId,
@@ -78,14 +85,23 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
       );
     }
     if (response.statusCode == 403) {
+      final error = decoded?['error'];
+      if (error is Map &&
+          error['message']?.toString().trim().isNotEmpty == true) {
+        throw DoctorWorkspaceAccessException(error['message'].toString());
+      }
       throw const DoctorWorkspaceAccessException(
         'Bạn không có quyền xem hoặc cập nhật dữ liệu này.',
       );
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final error = decoded?['error'];
+      if (error is Map &&
+          error['message']?.toString().trim().isNotEmpty == true) {
+        throw StateError(error['message'].toString());
+      }
       throw StateError('Không thể kết nối dữ liệu bác sĩ. Vui lòng thử lại.');
     }
-    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Phản hồi backend không hợp lệ.');
     }
@@ -191,6 +207,31 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     ),
   );
 
+  @override
+  Future<DoctorAppointmentCompletion> completeAppointment({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) async {
+    final data = await _request(
+      userId,
+      'doctor/appointments/${Uri.encodeComponent(appointmentId)}/complete',
+      requestId: requestId,
+      body: const <String, dynamic>{},
+    );
+    final id = data['id']?.toString().trim() ?? '';
+    final status = data['status']?.toString().trim() ?? '';
+    final message = data['message']?.toString().trim() ?? '';
+    if (id.isEmpty || status != 'COMPLETED' || message.isEmpty) {
+      throw const FormatException('Phản hồi hoàn tất khám không hợp lệ.');
+    }
+    return DoctorAppointmentCompletion(
+      id: id,
+      status: status,
+      message: message,
+    );
+  }
+
   DoctorClinicalSaveResult _clinicalResult(Map<String, dynamic> data) {
     final id = data['id']?.toString().trim() ?? '';
     final message = data['message']?.toString().trim() ?? '';
@@ -287,4 +328,53 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
             ),
           )
           .toList(growable: false);
+
+  @override
+  Future<DoctorPatientHistory> loadPatientHistory({
+    required String userId,
+    required String patientId,
+  }) async {
+    final data = await _request(
+      userId,
+      'doctor/patients/${Uri.encodeComponent(patientId)}/history',
+    );
+    final visits = _list(data, 'visits')
+        .map(
+          (item) => DoctorPatientVisit(
+            id: item['id'] as String,
+            date: DateTime.parse(item['date'] as String),
+            status: item['status'] as String,
+          ),
+        )
+        .toList(growable: false);
+    final healthRecords = _list(data, 'healthRecords')
+        .map(
+          (item) => DoctorHealthRecordSummary(
+            id: item['id'] as String,
+            diagnosis: item['diagnosis'] as String,
+            notes: item['notes'] as String,
+            prescription: item['prescription'] as String,
+            recordType: item['recordType'] as String,
+          ),
+        )
+        .toList(growable: false);
+    final testResults = _list(data, 'testResults')
+        .map(
+          (item) => DoctorTestResultSummary(
+            id: item['id'] as String,
+            testName: item['testName'] as String,
+            resultDescription: item['resultDescription'] as String,
+            resultType: item['resultType'] as String,
+            conclusion: item['conclusion'] as String,
+            referenceRange: item['referenceRange'] as String,
+          ),
+        )
+        .toList(growable: false);
+    return DoctorPatientHistory(
+      patientId: data['patientId'] as String,
+      visits: visits,
+      healthRecords: healthRecords,
+      testResults: testResults,
+    );
+  }
 }

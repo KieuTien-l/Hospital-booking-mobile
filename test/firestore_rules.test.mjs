@@ -12,12 +12,20 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
 
 const projectId = 'demo-healway-rules';
+const configuredEmulatorPort = process.env.FIRESTORE_EMULATOR_HOST
+  ?.match(/:(\d+)$/)?.[1];
+const firestorePort = Number.parseInt(
+  configuredEmulatorPort ?? process.env.FIRESTORE_EMULATOR_PORT ?? '9080',
+  10,
+);
 let testEnvironment;
 
 const databaseFor = (userId) =>
@@ -41,21 +49,45 @@ async function seedFirestore() {
         isActive: true,
         role: 'patient',
       }),
+      set(['TAI_KHOAN', 'locked-patient-user'], {
+        isActive: false,
+        role: 'patient',
+        status: 'INACTIVE',
+      }),
       set(['TAI_KHOAN', 'doctor-user'], { isActive: true, role: 'doctor' }),
+      set(['TAI_KHOAN', 'disabled-doctor-user'], {
+        isActive: true,
+        role: 'doctor',
+      }),
       set(['TAI_KHOAN', 'admin-user'], { isActive: true, role: 'admin' }),
       set(['BENH_NHAN', 'patient-1'], { authUserId: 'patient-user' }),
       set(['BENH_NHAN', 'patient-2'], { authUserId: 'other-patient-user' }),
+      set(['BENH_NHAN', 'locked-patient-1'], {
+        authUserId: 'locked-patient-user',
+      }),
       set(['BAC_SI', 'doctor-1'], {
         userId: 'doctor-user',
+        status: 'ACTIVE',
+      }),
+      set(['BAC_SI', 'disabled-doctor-1'], {
+        userId: 'disabled-doctor-user',
+        isActive: false,
         status: 'ACTIVE',
       }),
       set(['LICH_HEN', 'appointment-1'], {
         patientId: 'patient-1',
         doctorId: 'doctor-1',
+        status: 'PENDING',
       }),
       set(['LICH_HEN', 'appointment-2'], {
         patientId: 'patient-2',
         doctorId: 'doctor-2',
+        status: 'PENDING',
+      }),
+      set(['LICH_HEN', 'disabled-doctor-appointment'], {
+        patientId: 'patient-1',
+        doctorId: 'disabled-doctor-1',
+        status: 'PENDING',
       }),
       set(['THONG_BAO', 'notification-1'], {
         patientId: 'patient-1',
@@ -64,6 +96,50 @@ async function seedFirestore() {
       set(['THONG_BAO', 'notification-2'], {
         patientId: 'patient-2',
         isRead: false,
+      }),
+      set(['LICH_HEN', 'past-appointment'], {
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        workScheduleId: 'past-schedule',
+        timeSlotId: 'past-slot',
+        specialtyId: 'specialty-1',
+        appointmentDate: new Date('2020-01-01T00:00:00.000Z'),
+        startTime: '08:00',
+        endTime: '08:30',
+        peopleCount: 1,
+        status: 'PENDING',
+      }),
+      set(['CA_KHAM', 'past-slot'], {
+        workScheduleId: 'past-schedule',
+        doctorId: 'doctor-1',
+        appointmentId: 'past-appointment',
+        bookedCount: 1,
+        capacity: 5,
+        reservationCounts: {'past-appointment': 1},
+        startsAt: new Date('2020-01-01T08:00:00.000Z'),
+        status: 'AVAILABLE',
+      }),
+      set(['LICH_HEN', 'future-appointment'], {
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        workScheduleId: 'future-schedule',
+        timeSlotId: 'future-slot',
+        specialtyId: 'specialty-1',
+        appointmentDate: new Date('2030-01-01T00:00:00.000Z'),
+        startTime: '08:00',
+        endTime: '08:30',
+        peopleCount: 1,
+        status: 'PENDING',
+      }),
+      set(['CA_KHAM', 'future-slot'], {
+        workScheduleId: 'future-schedule',
+        doctorId: 'doctor-1',
+        appointmentId: 'future-appointment',
+        bookedCount: 1,
+        capacity: 5,
+        reservationCounts: {'future-appointment': 1},
+        startsAt: new Date('2030-01-01T08:00:00.000Z'),
+        status: 'AVAILABLE',
       }),
     ]);
   });
@@ -74,7 +150,7 @@ before(async () => {
     projectId,
     firestore: {
       host: '127.0.0.1',
-      port: 9080,
+      port: firestorePort,
       rules: await readFile('firestore.rules', 'utf8'),
     },
   });
@@ -122,12 +198,95 @@ test('patient can mark only their own THONG_BAO notification as read', async () 
   );
 });
 
+async function cancelAppointment(database, appointmentId, slotId) {
+  return runTransaction(database, async (transaction) => {
+    transaction.update(doc(database, 'LICH_HEN', appointmentId), {
+      status: 'CANCELLED',
+      cancellationReason: 'Không thể đến khám',
+      updatedAt: new Date(),
+    });
+    transaction.update(doc(database, 'CA_KHAM', slotId), {
+      bookedCount: 0,
+      status: 'AVAILABLE',
+      appointmentId,
+      reservationCounts: {},
+      updatedAt: new Date(),
+    });
+  });
+}
+
+test('patient cannot cancel after a slot starts but can cancel a future slot', async () => {
+  await assertFails(
+    cancelAppointment(patientDatabase(), 'past-appointment', 'past-slot'),
+  );
+  await assertSucceeds(
+    cancelAppointment(patientDatabase(), 'future-appointment', 'future-slot'),
+  );
+});
+
 test('doctor accesses appointments assigned to their doctor profile only', async () => {
   await assertSucceeds(
     getDoc(doc(doctorDatabase(), 'LICH_HEN', 'appointment-1')),
   );
   await assertFails(
     getDoc(doc(doctorDatabase(), 'LICH_HEN', 'appointment-2')),
+  );
+});
+
+test('locked patients cannot read, create, or update a patient profile', async () => {
+  const locked = databaseFor('locked-patient-user');
+  await assertFails(getDoc(doc(locked, 'BENH_NHAN', 'locked-patient-1')));
+  await assertFails(
+    setDoc(doc(locked, 'BENH_NHAN', 'locked-patient-user'), {
+      authUserId: 'locked-patient-user',
+      fullName: 'Nguyễn Bị Khóa',
+      phone: '0912345678',
+      email: 'locked@example.com',
+      isActive: true,
+      status: 'ACTIVE',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('active patient can create only a valid canonical first profile', async () => {
+  const database = databaseFor('patient-user');
+  await assertSucceeds(
+    setDoc(doc(database, 'BENH_NHAN', 'patient-user'), {
+      authUserId: 'patient-user',
+      fullName: 'Nguyễn Minh Anh',
+      phone: '0912345678',
+      email: 'anh@example.com',
+      isActive: true,
+      status: 'ACTIVE',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    setDoc(doc(database, 'BENH_NHAN', 'another-profile'), {
+      authUserId: 'patient-user',
+      fullName: 'Nguyễn Minh Anh',
+      phone: '0912345678',
+      email: 'anh@example.com',
+      isActive: true,
+      status: 'ACTIVE',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('a disabled doctor cannot read or mutate appointment data directly', async () => {
+  const disabledDoctor = databaseFor('disabled-doctor-user');
+  await assertFails(
+    getDoc(doc(disabledDoctor, 'LICH_HEN', 'disabled-doctor-appointment')),
+  );
+  await assertFails(
+    updateDoc(doc(doctorDatabase(), 'LICH_HEN', 'appointment-1'), {
+      status: 'CANCELLED',
+    }),
   );
 });
 
@@ -138,7 +297,7 @@ test('admin can read every appointment', async () => {
   assert.equal(snapshot.data().patientId, 'patient-2');
 });
 
-test('admin cannot save a schedule for a missing doctor', async () => {
+test('admin clients cannot write schedules directly; adminCommand must do it', async () => {
   await assertFails(
     setDoc(doc(adminDatabase(), 'LICH_LAM_VIEC', 'invalid-schedule'), {
       doctorId: 'missing-doctor',
@@ -150,8 +309,8 @@ test('admin cannot save a schedule for a missing doctor', async () => {
   );
 });
 
-test('admin can save a schedule for an active doctor', async () => {
-  await assertSucceeds(
+test('admin clients cannot bypass adminCommand for an active doctor either', async () => {
+  await assertFails(
     setDoc(doc(adminDatabase(), 'LICH_LAM_VIEC', 'valid-schedule'), {
       doctorId: 'doctor-1',
       workDate: new Date(),

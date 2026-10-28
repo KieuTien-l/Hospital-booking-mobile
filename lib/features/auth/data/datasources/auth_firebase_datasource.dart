@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -38,12 +40,11 @@ class AuthFirebaseDatasource {
         throw const AuthException('Unable to authenticate this account.');
       }
 
-      final user = await _getUserProfile(firebaseUser);
-      if (!user.isActive) {
-        await _auth.signOut();
-        throw const AuthException('This account is inactive.');
-      }
-      return user;
+      // The UI needs the profile, including `isActive`, to distinguish a
+      // deliberately locked account from a failed sign-in.  AuthController
+      // then routes a locked profile to the dedicated lock screen; Firestore
+      // Rules and the Worker still deny all protected operations.
+      return await _getUserProfile(firebaseUser);
     } on AuthException {
       await _auth.signOut();
       rethrow;
@@ -62,6 +63,7 @@ class AuthFirebaseDatasource {
     String fullName,
     String phone,
   ) async {
+    User? createdUser;
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -71,6 +73,7 @@ class AuthFirebaseDatasource {
       if (firebaseUser == null) {
         throw const AuthException('Unable to create this account.');
       }
+      createdUser = firebaseUser;
 
       final user = UserModel(
         id: firebaseUser.uid,
@@ -106,12 +109,38 @@ class AuthFirebaseDatasource {
       rethrow;
     } on FirebaseAuthException catch (error) {
       throw AuthException(_registerMessage(error));
-    } on FirebaseException {
-      await _auth.signOut();
-      throw const AuthException('Unable to create the account profile.');
+    } on FirebaseException catch (error) {
+      // `createUserWithEmailAndPassword` succeeds before Firestore validates
+      // the profile.  Remove that brand-new Auth account when the batch is
+      // rejected so the email can be corrected and registered again.
+      await _discardFailedRegistration(createdUser);
+      throw AuthException(_profileCreateMessage(error));
     } catch (_) {
-      await _auth.signOut();
+      await _discardFailedRegistration(createdUser);
       throw const AuthException('Unable to register. Please try again.');
+    }
+  }
+
+  Future<void> _discardFailedRegistration(User? createdUser) async {
+    if (createdUser != null) {
+      try {
+        await createdUser.delete();
+      } catch (_) {
+        // Signing out still protects the current session if the network drops
+        // before Firebase can remove the just-created account.
+      }
+    }
+    await _auth.signOut();
+  }
+
+  String _profileCreateMessage(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'Không thể lưu hồ sơ tài khoản. Vui lòng kiểm tra lại thông tin rồi thử lại.';
+      case 'unavailable':
+        return 'Không thể kết nối để tạo hồ sơ. Vui lòng kiểm tra mạng rồi thử lại.';
+      default:
+        return 'Không thể tạo hồ sơ tài khoản. Vui lòng thử lại.';
     }
   }
 
@@ -137,13 +166,21 @@ class AuthFirebaseDatasource {
       final account = await _firestore
           .collection('TAI_KHOAN')
           .doc(firebaseUser.uid)
-          .get(const GetOptions(source: Source.server));
+          .get(const GetOptions(source: Source.server))
+          // A login must not leave the screen loading forever if Firestore is
+          // offline. We cannot safely decide whether the account is locked
+          // without the server profile, so surface a clear retryable error.
+          .timeout(const Duration(seconds: 15));
       if (!account.exists) {
         throw const AuthException('Không tìm thấy hồ sơ tài khoản.');
       }
       return UserModel.fromFirestore(account);
     } on AuthException {
       rethrow;
+    } on TimeoutException {
+      throw const AuthException(
+        'Không thể kiểm tra trạng thái tài khoản. Vui lòng kiểm tra mạng rồi thử lại.',
+      );
     } on FirebaseException catch (error) {
       throw AuthException(_profileLoadMessage(error));
     }

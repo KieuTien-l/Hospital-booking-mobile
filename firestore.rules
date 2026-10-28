@@ -5,10 +5,26 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // The first production datasets predate `status` and, for doctor
+    // profiles, `isActive`.  Missing flags therefore mean legacy-active;
+    // explicit inactive/archived states always win.  This keeps a migrated
+    // client model and the Rules evaluation in agreement without letting an
+    // explicit disabled account through.
+    function hasLegacyActiveStatus(data) {
+      return !data.keys().hasAll(['status']) ||
+          data.status in ['ACTIVE', 'APPROVED'];
+    }
+
+    function hasLegacyEnabledFlag(data) {
+      return !data.keys().hasAll(['isActive']) || data.isActive == true;
+    }
+
     function hasActiveAccount() {
+      let account = get(
+          /databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid));
       return signedIn() &&
-          get(/databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid))
-              .data.isActive == true;
+          hasLegacyEnabledFlag(account.data) &&
+          hasLegacyActiveStatus(account.data);
     }
 
     function hasActiveRole(role) {
@@ -27,22 +43,45 @@ service cloud.firestore {
               .data.authUserId == request.auth.uid;
     }
 
-    // Profile edits need only verify the signed-in Firebase user owns the
-    // profile document. This avoids coupling a patient's own profile update
-    // to a separate account-document lookup.
-    function ownsPatientProfile(patientId) {
+    // A locked account must not be able to keep changing its profile with an
+    // already-issued Firebase token.  Registration writes TAI_KHOAN and the
+    // first BENH_NHAN profile in one batch, so creation uses getAfter below.
+    function hasActivePatientAccountAfter() {
+      let account = getAfter(
+          /databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid));
       return signedIn() &&
-          get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
-              .data.authUserId == request.auth.uid;
+          account.data.isActive == true &&
+          account.data.role == 'patient' &&
+          hasLegacyActiveStatus(account.data);
+    }
+
+    function canCreateOwnPatientProfile(patientId) {
+      return patientId == request.auth.uid &&
+          hasActivePatientAccountAfter() &&
+          request.resource.data.authUserId == request.auth.uid &&
+          request.resource.data.isActive == true &&
+          request.resource.data.status == 'ACTIVE' &&
+          request.resource.data.createdAt == request.time &&
+          request.resource.data.updatedAt == request.time &&
+          request.resource.data.keys().hasOnly([
+            'authUserId', 'fullName', 'phone', 'email', 'isActive', 'status',
+            'dateOfBirth', 'gender', 'address', 'avatarUrl',
+            'insuranceNumber', 'ethnicity', 'occupation', 'ward', 'district',
+            'province', 'country', 'nationalId',
+            'relationshipToAccountHolder', 'createdAt', 'updatedAt'
+          ]) && isValidPatientProfile();
     }
 
     function isDoctor(doctorId) {
       let doctor = get(/databases/$(database)/documents/BAC_SI/$(doctorId));
       let account = get(/databases/$(database)/documents/TAI_KHOAN/$(request.auth.uid));
       return signedIn() &&
-          account.data.isActive == true &&
+          hasLegacyEnabledFlag(account.data) &&
+          hasLegacyActiveStatus(account.data) &&
           account.data.role == 'doctor' &&
-          doctor.data.status == 'ACTIVE' &&
+          doctor.data.keys().hasAll(['userId']) &&
+          hasLegacyEnabledFlag(doctor.data) &&
+          hasLegacyActiveStatus(doctor.data) &&
           (doctor.data.userId == request.auth.uid ||
               (account.data.keys().hasAll(['accountKey']) &&
                   account.data.accountKey is string &&
@@ -54,7 +93,7 @@ service cloud.firestore {
     function hasBookablePatient(patientId) {
       let patient = get(/databases/$(database)/documents/BENH_NHAN/$(patientId));
       return ownsPatient(patientId) &&
-          patient.data.isActive != false &&
+          hasLegacyEnabledFlag(patient.data) &&
           (!patient.data.keys().hasAll(['status']) ||
               patient.data.status != 'ARCHIVED');
     }
@@ -307,6 +346,7 @@ service cloud.firestore {
       let expectedCount = resource.data.peopleCount;
       return ownsPatient(resource.data.patientId) &&
           resource.data.status in ['PENDING', 'CONFIRMED'] &&
+          slotHasNotStarted(slotBefore, resource.data.appointmentDate) &&
           request.resource.data.patientId == resource.data.patientId &&
           request.resource.data.doctorId == resource.data.doctorId &&
           request.resource.data.workScheduleId == resource.data.workScheduleId &&
@@ -332,6 +372,7 @@ service cloud.firestore {
       let newSchedule = get(/databases/$(database)/documents/LICH_LAM_VIEC/$(request.resource.data.workScheduleId));
       return ownsPatient(resource.data.patientId) &&
           resource.data.status in ['PENDING', 'CONFIRMED'] &&
+          slotHasNotStarted(oldSlot, resource.data.appointmentDate) &&
           request.resource.data.patientId == resource.data.patientId &&
           request.resource.data.doctorId == resource.data.doctorId &&
           request.resource.data.specialtyId == resource.data.specialtyId &&
@@ -389,27 +430,6 @@ service cloud.firestore {
                   newSlotAfter.data.status == 'AVAILABLE') ||
               (newSlotAfter.data.bookedCount == newSlot.data.capacity &&
                   newSlotAfter.data.status == 'BOOKED'));
-    }
-
-    function canDoctorUpdateAppointment() {
-      return isDoctor(resource.data.doctorId) &&
-          request.resource.data.patientId == resource.data.patientId &&
-          request.resource.data.doctorId == resource.data.doctorId &&
-          request.resource.data.workScheduleId == resource.data.workScheduleId &&
-          request.resource.data.timeSlotId == resource.data.timeSlotId &&
-          ((resource.data.status == request.resource.data.status) ||
-              (resource.data.status == 'PENDING' &&
-                  request.resource.data.status in ['CONFIRMED', 'CANCELLED']) ||
-              (resource.data.status == 'CONFIRMED' &&
-                  request.resource.data.status in ['COMPLETED', 'CANCELLED', 'NO_SHOW'])) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status',
-            'note',
-            'queueNumber',
-            'checkInTime',
-            'cancellationReason',
-            'updatedAt'
-          ]);
     }
 
     function canManageOwnSchedule() {
@@ -528,14 +548,11 @@ service cloud.firestore {
     }
 
     match /BENH_NHAN/{patientId} {
-      // Keep the query in PatientFirebaseDatasource valid: Firestore can
-      // prove a `where('authUserId', '==', request.auth.uid)` query only when
-      // this condition is expressed against the queried document itself.
-      allow read: if isAdmin() ||
-          (signedIn() && resource.data.authUserId == request.auth.uid);
-      allow create: if signedIn() && patientId == request.auth.uid &&
-          request.resource.data.authUserId == request.auth.uid;
-      allow update: if ownsPatientProfile(patientId) &&
+      // A profile is read and edited only by an active owner. The app uses
+      // the canonical UID document id, not an unrestricted profile query.
+      allow read: if isAdmin() || ownsPatient(patientId);
+      allow create: if canCreateOwnPatientProfile(patientId);
+      allow update: if ownsPatient(patientId) &&
               request.resource.data.authUserId == resource.data.authUserId &&
               request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                 'fullName',
@@ -586,8 +603,8 @@ service cloud.firestore {
       allow create: if canCreateAppointment(appointmentId);
       // Admin appointment actions use adminCommand so status transitions and
       // slot counters are performed in one server transaction.
-      allow update: if canDoctorUpdateAppointment() ||
-          canUpdateOwnAppointment() || canCancelOwnAppointment(appointmentId) ||
+      allow update: if canUpdateOwnAppointment() ||
+          canCancelOwnAppointment(appointmentId) ||
           canRescheduleOwnAppointment(appointmentId);
       allow delete: if false;
     }

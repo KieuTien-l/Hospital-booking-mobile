@@ -84,6 +84,14 @@ class FirebaseAdminCommands implements AdminCommands {
       }
       return uri.replace(path: '/$project/asia-southeast1/adminCommand');
     }
+    // Firebase Functions would require the Blaze plan.  A production build
+    // must therefore receive the trusted Worker URL explicitly instead of
+    // silently falling back to a backend that may not exist.
+    if (kReleaseMode) {
+      throw const AdminCommandException(
+        'Dịch vụ quản trị chưa được cấu hình cho bản phát hành. Vui lòng liên hệ quản trị viên.',
+      );
+    }
     return Uri.https(
       'asia-southeast1-$project.cloudfunctions.net',
       '/adminCommand',

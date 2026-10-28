@@ -69,7 +69,9 @@ void main() {
           isA<AdminCommandException>().having(
             (e) => e.message,
             'message',
-            contains(code == 404 ? 'chưa được triển khai' : 'Không có quyền'),
+            contains(
+              code == 404 ? 'Không tìm thấy backend Admin' : 'Không có quyền',
+            ),
           ),
         ),
       );

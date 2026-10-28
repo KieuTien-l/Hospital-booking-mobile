@@ -347,6 +347,7 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                 timeSlots: workspace?.data?.slots ?? const [],
                 bookings: workspace?.data?.bookings ?? const [],
                 workspace: workspace,
+                errorMessage: dashboardError ? workspace?.errorMessage : null,
               ),
               if (workspace?.data != null) ...[
                 const SizedBox(height: 14),

@@ -298,12 +298,7 @@ void main() {
         findsNothing,
       );
       expect(find.byTooltip('Đăng xuất'), findsNothing);
-      await tester.ensureVisible(find.text('Kiểm tra biểu mẫu'));
-      await tester.tap(find.text('Kiểm tra biểu mẫu'));
-      await tester.pumpAndSettle();
-      expect(find.text('Vui lòng chọn loại vấn đề.'), findsOneWidget);
-      expect(find.text('Vui lòng nhập lý do.'), findsOneWidget);
-      expect(find.text('Vui lòng nhập mô tả chi tiết.'), findsOneWidget);
+      expect(find.text('Chức năng gửi báo cáo chưa sẵn sàng.'), findsOneWidget);
       final reason = find.byKey(const ValueKey('doctor-report-reason'));
       await tester.ensureVisible(reason);
       await tester.enterText(reason, 'Nội dung nhập để kiểm thử');
