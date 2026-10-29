@@ -170,7 +170,6 @@ class AppointmentFirebaseDatasource {
     final scheduleDocument = _workSchedules.doc(appointment.workScheduleId);
     final doctorDocument = _doctors.doc(appointment.doctorId);
     final patientDocument = _patients.doc(appointment.patientId);
-    final notificationDocument = _notifications.doc();
 
     return _firestore.runTransaction((transaction) async {
       final slotSnapshot = await transaction.get(slotDocument);
@@ -291,40 +290,8 @@ class AppointmentFirebaseDatasource {
         'reservationCounts': reservationCounts,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      transaction.set(notificationDocument, {
-        'patientId': savedAppointment.patientId,
-        'appointmentId': appointmentDocument.id,
-        'title': 'Đặt lịch thành công',
-        'content': _bookingNotificationContent(
-          patientName: patient.fullName,
-          doctorName: doctor.fullName,
-          date: schedule.workDate!,
-          startTime: slot.startTime!,
-        ),
-        'isRead': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
       return savedAppointment;
     });
-  }
-
-  String _bookingNotificationContent({
-    required String patientName,
-    required String doctorName,
-    required DateTime date,
-    required String startTime,
-  }) {
-    final recipient = patientName.trim().isEmpty ? 'bạn' : patientName.trim();
-    final doctor = doctorName.trim().isEmpty
-        ? 'bác sĩ đã chọn'
-        : 'BS. ${doctorName.trim()}';
-    final dateLabel =
-        '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/${date.year}';
-    final content =
-        'Chào $recipient, lịch hẹn với $doctor lúc $startTime ngày '
-        '$dateLabel đã được ghi nhận.';
-    return content.length <= 300 ? content : '${content.substring(0, 297)}…';
   }
 
   Future<Appointment> updateAppointment(Appointment appointment) async {

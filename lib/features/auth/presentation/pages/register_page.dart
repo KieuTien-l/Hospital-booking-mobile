@@ -414,24 +414,27 @@ class _RegisterPageState extends State<RegisterPage> {
                                           },
                                         ),
                                         const SizedBox(height: 16),
-                                        CheckboxListTile(
-                                          value: _acceptedTerms,
-                                          onChanged: (value) => setState(
-                                            () =>
-                                                _acceptedTerms = value ?? false,
-                                          ),
-                                          controlAffinity:
-                                              ListTileControlAffinity.leading,
-                                          contentPadding: EdgeInsets.zero,
-                                          activeColor: _blue,
-                                          checkColor: Colors.white,
-                                          title: const Text(
-                                            'Tôi đã đọc, đồng ý với các điều khoản sử dụng và cho phép Bệnh viện sử dụng thông tin, dữ liệu phục vụ khám chữa bệnh',
-                                            style: TextStyle(
-                                              fontFamily: 'BeVietnamPro',
-                                              fontSize: 12,
-                                              height: 1.6,
-                                              color: Color(0xFF384C5D),
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: CheckboxListTile(
+                                            value: _acceptedTerms,
+                                            onChanged: (value) => setState(
+                                              () =>
+                                                  _acceptedTerms = value ?? false,
+                                            ),
+                                            controlAffinity:
+                                                ListTileControlAffinity.leading,
+                                            contentPadding: EdgeInsets.zero,
+                                            activeColor: _blue,
+                                            checkColor: Colors.white,
+                                            title: const Text(
+                                              'Tôi đã đọc, đồng ý với các điều khoản sử dụng và cho phép Bệnh viện sử dụng thông tin, dữ liệu phục vụ khám chữa bệnh',
+                                              style: TextStyle(
+                                                fontFamily: 'BeVietnamPro',
+                                                fontSize: 12,
+                                                height: 1.6,
+                                                color: Color(0xFF384C5D),
+                                              ),
                                             ),
                                           ),
                                         ),

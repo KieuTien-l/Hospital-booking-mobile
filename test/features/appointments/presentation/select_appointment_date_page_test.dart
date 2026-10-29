@@ -147,15 +147,10 @@ void main() {
     );
   }
 
-  testWidgets('Month navigation crosses year and stops at current month', (
+  testWidgets('Month navigation is limited to the two-week booking window', (
     tester,
   ) async {
     await showPage(tester, today: DateTime(2026, 12, 8));
-    await tester.tap(find.byTooltip('Tháng sau'));
-    await tester.pumpAndSettle();
-    expect(find.text('Tháng 1 - 2027'), findsOneWidget);
-    await tester.tap(find.byTooltip('Tháng trước'));
-    await tester.pumpAndSettle();
     expect(find.text('Tháng 12 - 2026'), findsOneWidget);
     expect(
       tester
@@ -163,6 +158,16 @@ void main() {
             find.byWidgetPredicate(
               (widget) =>
                   widget is IconButton && widget.tooltip == 'Tháng trước',
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byWidgetPredicate(
+              (widget) => widget is IconButton && widget.tooltip == 'Tháng sau',
             ),
           )
           .onPressed,

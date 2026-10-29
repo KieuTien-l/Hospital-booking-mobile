@@ -8,10 +8,8 @@ import 'package:provider/provider.dart';
 
 import '../../../core/themes/app_colors.dart';
 import '../../../core/utils/model_value_parser.dart';
-import '../../appointments/domain/entities/appointment.dart';
 import '../../home/presentation/widgets/patient_home_background.dart';
 import '../data/admin_repository.dart';
-import 'controllers/admin_appointment_controller.dart';
 import 'controllers/admin_dashboard_controller.dart';
 import '../data/admin_commands.dart';
 import 'admin_editor.dart';
@@ -491,13 +489,10 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     if (_selected == 18) return _reportsPanel();
     if (section.collection == null) return _settings();
     final dataset = _controller.dataset(section.collection!);
-    final appointmentController = section.collection == 'LICH_HEN'
-        ? context.watch<AdminAppointmentController?>()
-        : null;
     if (dataset.loading) {
       return _panel(
         section.title,
-        'Đang kết nối Firebase',
+        'Đang tải dữ liệu',
         const LinearProgressIndicator(),
       );
     }
@@ -511,7 +506,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
             _notice(dataset.error!, error: true),
             const SizedBox(height: 16),
             const Text(
-              'Không thể xác định dữ liệu hiện tại. Dữ liệu demo không thay thế kết quả lỗi truy cập.',
+              'Không thể xác định dữ liệu hiện tại.',
               style: TextStyle(color: _muted),
             ),
             const SizedBox(height: 16),
@@ -525,7 +520,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
               onPressed: () =>
                   setState(() => _demoPreviews.add(section.collection!)),
               icon: const Icon(Icons.preview_outlined),
-              label: const Text('Xem giao diện DEMO'),
+              label: const Text('Xem dữ liệu minh họa'),
             ),
           ],
         ),
@@ -622,10 +617,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
       children: [
         _sectionIntro(section, dataset),
         const SizedBox(height: 18),
-        if (appointmentController != null) ...[
-          _appointmentAuditPanel(appointmentController),
-          const SizedBox(height: 18),
-        ],
         if (_createButton(section) != null) ...[
           Align(
             alignment: Alignment.centerRight,
@@ -633,28 +624,9 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
           ),
           const SizedBox(height: 16),
         ],
-        if (dataset.error != null) ...[
-          _notice(
-            '${dataset.error!} Bạn đang xem DEMO theo yêu cầu, không phải dữ liệu Firebase.',
-            error: true,
-          ),
-          TextButton(
-            onPressed: () =>
-                setState(() => _demoPreviews.remove(section.collection)),
-            child: const Text('Quay lại trạng thái kết nối'),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (demo)
-          _notice(
-            dataset.error != null
-                ? 'DEMO · Chưa xác minh được dữ liệu ${section.collection}. Bản ghi minh họa không lưu Firebase.'
-                : 'DEMO · Collection ${section.collection} chưa có bản ghi. Dữ liệu bên dưới chỉ minh họa và không lưu Firebase.',
-          ),
-        if (demo) const SizedBox(height: 18),
         _panel(
           'Danh sách ${section.title.toLowerCase()}',
-          '${demo ? '1 bản ghi minh họa' : '${dataset.records.length} bản ghi trên Firebase'} · Chọn dòng để xem chi tiết',
+          '${demo ? records.length : dataset.records.length} mục · Chọn dòng để xem chi tiết',
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -695,7 +667,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                         child: TextField(
                           controller: _search,
                           decoration: const InputDecoration(
-                            hintText: 'Tìm tên, mã, số điện thoại…',
+                            hintText: 'Tìm tên hoặc số điện thoại…',
                             prefixIcon: Icon(Icons.search),
                           ),
                           onChanged: _onSearchChanged,
@@ -889,58 +861,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     );
   }
 
-  AppointmentStatus? _appointmentStatusFor(String value) => switch (value) {
-    'PENDING' => AppointmentStatus.pending,
-    'CONFIRMED' => AppointmentStatus.confirmed,
-    'COMPLETED' => AppointmentStatus.completed,
-    'CANCELLED' => AppointmentStatus.cancelled,
-    'NO_SHOW' => AppointmentStatus.noShow,
-    _ => null,
-  };
-
-  Widget _appointmentAuditPanel(AdminAppointmentController controller) {
-    final invalid = controller.invalidRelationshipRecords;
-    return _panel(
-      'Kiểm tra quan hệ lịch hẹn',
-      controller.isLoading
-          ? 'Đang đối chiếu lịch hẹn, ca khám, lịch làm việc và bác sĩ'
-          : '${controller.records.length} lịch hẹn đã được kiểm tra',
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (controller.hasError)
-            _notice(
-              controller.errorMessage ?? 'Không thể kiểm tra quan hệ lịch hẹn.',
-              error: true,
-            )
-          else if (invalid.isEmpty && !controller.isLoading)
-            const Text('Không phát hiện liên kết sai ở lịch hẹn đang hiệu lực.')
-          else if (invalid.isNotEmpty)
-            Text(
-              'Cần kiểm tra ${invalid.length} lịch hẹn đang hiệu lực: ${invalid.take(5).map((item) => item.appointment.id).join(', ')}',
-              style: const TextStyle(color: AppColors.error),
-            ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: controller.isLoading
-                ? null
-                : () => controller.load(
-                    force: true,
-                    filter: AdminAppointmentFilter(
-                      status: _appointmentStatusFor(_status),
-                      doctorId: _doctor == 'Tất cả' ? null : _doctor,
-                      specialtyId: _specialty == 'Tất cả' ? null : _specialty,
-                      date: _date,
-                    ),
-                  ),
-            icon: const Icon(Icons.fact_check_outlined, size: 18),
-            label: const Text('Lọc và kiểm tra bằng backend'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _pickReportPeriod() async {
     final range = await showDateRangePicker(
       context: context,
@@ -1093,8 +1013,58 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     },
   );
 
+  String _referenceLabel(String field, Object? value) {
+    final id = readReferenceId(value);
+    if (id.isEmpty) return 'Chưa cập nhật';
+    final label = _controller.referenceName(field, value);
+    return label == id ? 'Chưa cập nhật' : label;
+  }
+
+  String _recordTitle(AdminSection section, AdminRecord record) {
+    final data = record.data;
+    return switch (section.collection) {
+      'BAC_SI' => readString(data['fullName'], fallback: 'Bác sĩ'),
+      'BENH_NHAN' => readString(data['fullName'], fallback: 'Bệnh nhân'),
+      'CHUYEN_KHOA' => readString(data['name'], fallback: 'Chuyên khoa'),
+      'LICH_HEN' =>
+        'Lịch hẹn · ${_referenceLabel('patientId', data['patientId'])}',
+      'LICH_LAM_VIEC' =>
+        'Lịch làm việc · ${_referenceLabel('doctorId', data['doctorId'])}',
+      'CA_KHAM' => 'Ca khám · ${_referenceLabel('doctorId', data['doctorId'])}',
+      'THANH_TOAN' =>
+        'Thanh toán ${_format('amount', data['amount'])} · ${_referenceLabel('patientId', data['patientId'])}',
+      _ => readString(
+        data['title'] ?? data['fullName'] ?? data['name'],
+        fallback: section.title,
+      ),
+    };
+  }
+
+  String _recordSubtitle(AdminSection section, AdminRecord record) {
+    final data = record.data;
+    return switch (section.collection) {
+      'LICH_HEN' => [
+        _format('appointmentDate', data['appointmentDate']),
+        _format('startTime', data['startTime']),
+      ].where((value) => value != 'Chưa cập nhật').join(' · '),
+      'LICH_LAM_VIEC' => [
+        _format('workDate', data['workDate']),
+        if (readString(data['startTime']).isNotEmpty)
+          '${_format('startTime', data['startTime'])}–${_format('endTime', data['endTime'])}',
+      ].where((value) => value != 'Chưa cập nhật').join(' · '),
+      'CA_KHAM' =>
+        '${_format('startTime', data['startTime'])}–${_format('endTime', data['endTime'])}',
+      'THANH_TOAN' => [
+        _format('paymentMethod', data['paymentMethod']),
+        _format('status', data['status']),
+      ].where((value) => value != 'Chưa cập nhật').join(' · '),
+      _ => '',
+    };
+  }
+
   Widget _recordCard(AdminSection section, AdminRecord record, bool demo) =>
       Card(
+        key: ValueKey('record-${record.id}'),
         color: const Color(0xFFF5FBFF),
         margin: const EdgeInsets.only(bottom: 12),
         shape: RoundedRectangleBorder(
@@ -1115,7 +1085,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        record.id,
+                        _recordTitle(section, record),
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -1126,15 +1096,13 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                     const Icon(Icons.chevron_right, size: 18, color: _blue),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  demo
-                      ? 'DEMO cục bộ'
-                      : record.isSample
-                      ? 'Mẫu trên Firebase'
-                      : 'Firebase',
-                  style: const TextStyle(fontSize: 10, color: _muted),
-                ),
+                if (_recordSubtitle(section, record).isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _recordSubtitle(section, record),
+                    style: const TextStyle(fontSize: 11, color: _muted),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 const Divider(height: 1, color: _line),
                 const SizedBox(height: 8),
@@ -1261,44 +1229,13 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                         const Divider(height: 26),
                         Row(
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        adminSections[2].icon,
-                                        size: 17,
-                                        color: _blue,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          record.id,
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: _blue,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (demo || record.isSample) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      demo
-                                          ? 'DEMO cục bộ'
-                                          : 'Mẫu trên Firebase',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: _muted,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
+                            const Icon(
+                              Icons.person_outline,
+                              size: 17,
+                              color: _blue,
                             ),
+                            const SizedBox(width: 8),
+                            const Spacer(),
                             const Text(
                               'Xem hồ sơ →',
                               style: TextStyle(fontSize: 11, color: _blue),
@@ -1378,7 +1315,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                 dataRowMaxHeight: 76,
                 showCheckboxColumn: false,
                 columns: [
-                  const DataColumn(label: Text('Mã / Nguồn')),
+                  const DataColumn(label: Text('Thông tin')),
                   for (final label in section.columns.values)
                     DataColumn(
                       label: Text(
@@ -1394,45 +1331,35 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                 rows: [
                   for (final record in records)
                     DataRow(
+                      key: ValueKey('record-${record.id}'),
                       onSelectChanged: (_) => _detail(section, record, demo),
                       cells: [
                         DataCell(
                           SizedBox(
-                            width: 145,
+                            width: 220,
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(section.icon, size: 17, color: _blue),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        record.id,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
                                 Text(
-                                  demo
-                                      ? 'DEMO cục bộ'
-                                      : record.isSample
-                                      ? 'Mẫu trên Firebase'
-                                      : 'Firebase',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: demo || record.isSample
-                                        ? const Color(0xFFAD6A10)
-                                        : _blue,
+                                  _recordTitle(section, record),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
+                                if (_recordSubtitle(section, record).isNotEmpty)
+                                  Text(
+                                    _recordSubtitle(section, record),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: _muted,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -1522,18 +1449,17 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      SelectableText(
-                        record.id,
+                      Text(
+                        _recordTitle(section, record),
                         style: const TextStyle(fontSize: 12, color: _muted),
                       ),
-                      const SizedBox(height: 12),
-                      _badge(
-                        demo
-                            ? 'DEMO cục bộ'
-                            : record.isSample
-                            ? 'Mẫu trên Firebase'
-                            : 'Firebase',
-                      ),
+                      if (_recordSubtitle(section, record).isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _recordSubtitle(section, record),
+                          style: const TextStyle(fontSize: 12, color: _muted),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1553,7 +1479,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                     builder: (context, _) => TabBarView(
                       children: [
                         _detailFields(section, {
-                          'id': record.id,
                           for (final field in section.columns.keys)
                             field: record.data[field],
                           for (final field in [
@@ -1567,7 +1492,11 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                               field: record.data[field],
                         }),
                         if (!demo) _relatedRecords(section, record),
-                        _detailFields(section, record.data),
+                        _detailFields(
+                          section,
+                          record.data,
+                          hideTechnicalFields: true,
+                        ),
                       ],
                     ),
                   ),
@@ -1605,45 +1534,54 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     ),
   );
 
-  Widget _detailFields(AdminSection section, Map<String, dynamic> fields) =>
-      SingleChildScrollView(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final entry in fields.entries)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5FBFF),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      section.columns[entry.key] ??
-                          adminFieldLabels[entry.key] ??
-                          entry.key,
-                      style: const TextStyle(color: _muted, fontSize: 11),
-                    ),
-                    const SizedBox(height: 6),
-                    SelectableText(
-                      _format(entry.key, entry.value),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.6,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+  Widget _detailFields(
+    AdminSection section,
+    Map<String, dynamic> fields, {
+    bool hideTechnicalFields = false,
+  }) => SingleChildScrollView(
+    padding: const EdgeInsets.all(22),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final entry in fields.entries)
+          if (!hideTechnicalFields || !_isTechnicalDetailField(entry.key))
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5FBFF),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _line),
               ),
-          ],
-        ),
-      );
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    section.columns[entry.key] ??
+                        adminFieldLabels[entry.key] ??
+                        entry.key,
+                    style: const TextStyle(color: _muted, fontSize: 11),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    _format(entry.key, entry.value),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.6,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      ],
+    ),
+  );
+
+  bool _isTechnicalDetailField(String field) =>
+      field.endsWith('Id') ||
+      {'avatarUrl', 'source', 'seedVersion', 'isTestData'}.contains(field);
+
   Widget _relatedRecords(AdminSection section, AdminRecord record) {
     final relation = switch (section.collection) {
       'BENH_NHAN' => ('patientId', [1, 7, 10, 11]),
@@ -1812,7 +1750,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
 
   Widget _badge(String label) {
     final color = switch (label) {
-      'Chờ xác nhận' => const Color(0xFFA66B12),
+      'Chờ thanh toán' => const Color(0xFFA66B12),
       'Đã xác nhận' || 'Còn chỗ' => _blue,
       'Hoàn thành' ||
       'Đã thanh toán' ||
@@ -1841,8 +1779,8 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
   }
 
   String _format(String field, Object? value) {
-    if (value == null || value == '') return 'Chưa có dữ liệu';
-    if (field.endsWith('Id')) return _controller.referenceName(field, value);
+    if (value == null || value == '') return 'Chưa cập nhật';
+    if (field.endsWith('Id')) return _referenceLabel(field, value);
     if (value is bool) return value ? 'Có' : 'Không';
     if ([
       'status',
@@ -1879,7 +1817,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
       return value.entries.map((e) => '${e.key}: ${e.value}').join('\n');
     }
     if (value is List) {
-      return value.isEmpty ? 'Chưa có dữ liệu' : value.join(', ');
+      return value.isEmpty ? 'Chưa cập nhật' : value.join(', ');
     }
     return '$value';
   }
@@ -1897,7 +1835,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
   String _statusText(String status) => status == 'INACTIVE' && _selected == 5
       ? 'Không hoạt động'
       : const {
-              'PENDING': 'Chờ xác nhận',
+              'PENDING': 'Chờ thanh toán',
               'CONFIRMED': 'Đã xác nhận',
               'COMPLETED': 'Hoàn thành',
               'CANCELLED': 'Đã hủy',

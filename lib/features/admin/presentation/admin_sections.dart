@@ -61,7 +61,6 @@ const adminSections = [
     Icons.account_balance_wallet_outlined,
     'THANH_TOAN',
     {
-      'transactionCode': 'Mã giao dịch',
       'patientId': 'Bệnh nhân',
       'amount': 'Số tiền',
       'paymentMethod': 'Phương thức',
@@ -180,7 +179,7 @@ const adminFieldLabels = {
   'workDate': 'Ngày làm việc',
   'amount': 'Số tiền',
   'consultationFee': 'Phí khám',
-  'isActive': 'Hoạt động',
+  'isActive': 'Đang hoạt động',
   'role': 'Vai trò',
   'source': 'Nguồn bản ghi',
   'seedVersion': 'Phiên bản dữ liệu mẫu',
@@ -212,4 +211,8 @@ const adminFieldLabels = {
   'failureCode': 'Mã lỗi',
   'slotDuration': 'Thời lượng ca (phút)',
   'capacity': 'Sức chứa',
+  'startsAt': 'Thời điểm bắt đầu',
+  'endsAt': 'Thời điểm kết thúc',
+  'startAt': 'Thời điểm bắt đầu',
+  'endAt': 'Thời điểm kết thúc',
 };

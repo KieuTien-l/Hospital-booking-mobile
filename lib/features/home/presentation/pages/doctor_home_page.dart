@@ -362,55 +362,6 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                   label: const Text('Ghi hồ sơ khám / kết quả CLS'),
                 ),
               ],
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface.withValues(alpha: .7),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      size: 20,
-                      color: AppColors.textOnPrimary,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Trạng thái dữ liệu',
-                            style: textTheme.titleSmall?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            workspace == null
-                                ? 'Lịch và thống kê chưa được kết nối. Các chỉ số hiển thị “—” khi chưa có dữ liệu được xác minh.'
-                                : dashboardLoading
-                                ? 'Đang đồng bộ lịch làm việc và lịch hẹn.'
-                                : dashboardError
-                                ? 'Không thể đồng bộ dữ liệu. Vui lòng thử lại sau.'
-                                : (workspace.data?.schedules.isEmpty ?? true)
-                                ? 'Chưa có ca làm được phân công cho ngày đã chọn.'
-                                : 'Lịch và thống kê đang được đồng bộ từ hệ thống.',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),

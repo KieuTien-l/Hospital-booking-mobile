@@ -27,7 +27,7 @@ void main() {
     );
     expect(
       tester
-          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Chờ xác nhận'))
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Chờ thanh toán'))
           .selected,
       isTrue,
     );

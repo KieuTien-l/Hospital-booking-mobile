@@ -104,8 +104,6 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),
-              Text('Mã: ${schedule.id}'),
-              const SizedBox(height: 12),
               Text(
                 'Ngày: ${schedule.workDate == null ? 'Chưa có dữ liệu' : _dateLabel(schedule.workDate!)}',
               ),
@@ -307,7 +305,9 @@ class _ScheduleCard extends StatelessWidget {
               color: AppColors.textOnPrimary,
             ),
             title: Text(
-              'Lịch ${schedule.id}',
+              schedule.workDate == null
+                  ? 'Lịch làm việc'
+                  : 'Lịch làm việc · ${DoctorTodayAppointmentsSection._dateLabel(schedule.workDate!)}',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,

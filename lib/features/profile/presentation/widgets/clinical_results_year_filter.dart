@@ -62,6 +62,7 @@ class ClinicalResultsYearFilter extends StatelessWidget {
           style: TextButton.styleFrom(
             foregroundColor: AppColors.textOnPrimary,
             textStyle: const TextStyle(
+              fontFamily: 'BeVietnamPro',
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),

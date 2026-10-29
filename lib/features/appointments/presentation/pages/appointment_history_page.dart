@@ -423,7 +423,9 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
                       ),
                       child: Row(
                         children: [
-                          for (final tab in AppointmentHistoryTab.values)
+                          for (final tab in AppointmentHistoryTab.values.where(
+                            (tab) => tab != AppointmentHistoryTab.noShow,
+                          ))
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(

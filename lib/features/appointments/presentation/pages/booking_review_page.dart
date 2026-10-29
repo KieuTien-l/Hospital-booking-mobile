@@ -23,12 +23,18 @@ class BookingReviewPage extends StatefulWidget {
     this.onAddSpecialty,
     this.onConfirmBooking,
     this.onSubmitBooking,
+    this.onBookingSubmitted,
   });
   final List<AppointmentConfirmationResult> items;
   final ValueChanged<AppointmentConfirmationResult>? onRemoveSpecialty;
   final VoidCallback? onAddSpecialty;
   final ValueChanged<List<AppointmentConfirmationResult>>? onConfirmBooking;
   final BookingReviewSubmitter? onSubmitBooking;
+
+  /// Lets the live flow continue to checkout after a temporary reservation
+  /// has been created. Demo and preview flows retain their existing success
+  /// screen behavior.
+  final Future<void> Function()? onBookingSubmitted;
 
   @override
   State<BookingReviewPage> createState() => _BookingReviewPageState();
@@ -94,6 +100,11 @@ class _BookingReviewPageState extends State<BookingReviewPage> {
     setState(() => _submitting = false);
     if (error != null) {
       _message(error);
+      return;
+    }
+    final onBookingSubmitted = widget.onBookingSubmitted;
+    if (onBookingSubmitted != null) {
+      await onBookingSubmitted();
       return;
     }
     Navigator.of(context).pushAndRemoveUntil<void>(

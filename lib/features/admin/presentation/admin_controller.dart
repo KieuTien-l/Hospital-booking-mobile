@@ -22,8 +22,8 @@ class AdminDataset {
       : error != null
       ? 'Chưa đọc được'
       : useDemo
-      ? 'DEMO · chưa có bản ghi'
-      : 'Firebase';
+      ? 'Chưa có bản ghi'
+      : 'Sẵn sàng';
 }
 
 class AdminController extends ChangeNotifier {
@@ -81,6 +81,10 @@ class AdminController extends ChangeNotifier {
       'patientId' => 'BENH_NHAN',
       'doctorId' => 'BAC_SI',
       'specialtyId' => 'CHUYEN_KHOA',
+      'appointmentId' => 'LICH_HEN',
+      'workScheduleId' => 'LICH_LAM_VIEC',
+      'timeSlotId' => 'CA_KHAM',
+      'paymentId' => 'THANH_TOAN',
       'userId' || 'authUserId' || 'assigneeId' || 'actorId' => 'TAI_KHOAN',
       _ => null,
     };
@@ -90,7 +94,13 @@ class AdminController extends ChangeNotifier {
         if (record.id == id) {
           return readString(
             record.data['fullName'] ?? record.data['name'],
-            fallback: id,
+            fallback: switch (field) {
+              'appointmentId' => 'Lịch hẹn',
+              'workScheduleId' => 'Lịch làm việc',
+              'timeSlotId' => 'Ca khám',
+              'paymentId' => 'Thanh toán',
+              _ => id,
+            },
           );
         }
       }

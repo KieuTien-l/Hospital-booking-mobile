@@ -5,6 +5,7 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../doctors/domain/entities/doctor.dart';
 import '../../../doctors/presentation/widgets/doctor_detail_section.dart';
+import '../../domain/repositories/doctor_workspace_repository.dart';
 import '../controllers/doctor_workspace_controller.dart';
 import '../widgets/doctor_account_security.dart';
 
@@ -85,10 +86,6 @@ class DoctorProfilePage extends StatelessWidget {
     return normalizedPrimary.isEmpty ? fallback : normalizedPrimary;
   }
 
-  String? _dateOfBirthLabel(DateTime? date) => date == null
-      ? null
-      : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
@@ -160,49 +157,12 @@ class DoctorProfilePage extends StatelessWidget {
                 'Thông tin cá nhân',
                 'Họ tên, ngày sinh, liên hệ',
                 Icons.person_outline_rounded,
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _field(
-                      'Họ và tên',
-                      value: name,
-                      key: ValueKey('doctor-name-${user?.id}-$name'),
-                    ),
-                    const SizedBox(height: 16),
-                    _field(
-                      'Ngày sinh',
-                      value: _dateOfBirthLabel(doctor?.dateOfBirth),
-                    ),
-                    const SizedBox(height: 16),
-                    _field(
-                      'Email',
-                      value: _firstVerifiedValue(doctor?.email, user?.email),
-                      key: ValueKey(
-                        'doctor-email-${user?.id}-${doctor?.email}-${user?.email}',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _field(
-                      'Số điện thoại',
-                      value: _firstVerifiedValue(doctor?.phone, user?.phone),
-                      key: ValueKey(
-                        'doctor-phone-${user?.id}-${doctor?.phone}-${user?.phone}',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Hồ sơ hiện ở chế độ chỉ đọc. Quyền chỉnh sửa và chức năng lưu đang chờ xác minh.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const FilledButton(
-                      onPressed: null,
-                      child: Text('Lưu thay đổi'),
-                    ),
-                  ],
+                _PersonalProfileEditor(
+                  doctor: doctor,
+                  fullName: name,
+                  email: _firstVerifiedValue(doctor?.email, user?.email) ?? '',
+                  phone: _firstVerifiedValue(doctor?.phone, user?.phone) ?? '',
+                  workspace: context.watch<DoctorWorkspaceController?>(),
                 ),
               ),
               _section(
@@ -212,7 +172,13 @@ class DoctorProfilePage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _field('Chuyên khoa', value: doctor?.specialtyName),
+                    _field(
+                      'Chuyên khoa',
+                      value: _firstVerifiedValue(
+                        doctor?.specialtyName,
+                        'Chưa cập nhật',
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     _field('Học vị', value: doctor?.qualification),
                     const SizedBox(height: 16),
@@ -349,6 +315,171 @@ class DoctorProfilePage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PersonalProfileEditor extends StatefulWidget {
+  const _PersonalProfileEditor({
+    required this.doctor,
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    required this.workspace,
+  });
+  final Doctor? doctor;
+  final String fullName, email, phone;
+  final DoctorWorkspaceController? workspace;
+
+  @override
+  State<_PersonalProfileEditor> createState() => _PersonalProfileEditorState();
+}
+
+class _PersonalProfileEditorState extends State<_PersonalProfileEditor> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _name;
+  late final TextEditingController _birthDate;
+  late final TextEditingController _email;
+  late final TextEditingController _phone;
+  DateTime? _dateOfBirth;
+  var _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.fullName);
+    _birthDate = TextEditingController(
+      text: _dateText(widget.doctor?.dateOfBirth),
+    );
+    _email = TextEditingController(text: widget.email);
+    _phone = TextEditingController(text: widget.phone);
+    _dateOfBirth = widget.doctor?.dateOfBirth;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _birthDate.dispose();
+    _email.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  String _dateText(DateTime? value) => value == null
+      ? ''
+      : '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate() || _dateOfBirth == null) {
+      if (_dateOfBirth == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng chọn ngày sinh.')),
+        );
+      }
+      return;
+    }
+    final workspace = widget.workspace;
+    if (workspace == null) return;
+    setState(() => _saving = true);
+    try {
+      await workspace.repository.updatePersonalProfile(
+        userId: workspace.userId,
+        draft: DoctorPersonalProfileDraft(
+          fullName: _name.text.trim(),
+          email: _email.text.trim(),
+          phone: _phone.text.trim(),
+          dateOfBirth: _dateOfBirth!,
+        ),
+      );
+      await workspace.refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã lưu thông tin cá nhân.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', '')),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.workspace != null && !_saving;
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            controller: _name,
+            enabled: enabled,
+            decoration: const InputDecoration(labelText: 'Họ và tên'),
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Nhập họ và tên.'
+                : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            readOnly: true,
+            enabled: enabled,
+            controller: _birthDate,
+            decoration: const InputDecoration(labelText: 'Ngày sinh'),
+            onTap: !enabled
+                ? null
+                : () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _dateOfBirth ?? DateTime(1990),
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null && mounted) {
+                      setState(() {
+                        _dateOfBirth = date;
+                        _birthDate.text = _dateText(date);
+                      });
+                    }
+                  },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _email,
+            enabled: enabled,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Email liên hệ'),
+            validator: (value) =>
+                value == null ||
+                    !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                        .hasMatch(value.trim())
+                ? 'Email không hợp lệ.'
+                : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _phone,
+            enabled: enabled,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(labelText: 'Số điện thoại'),
+            validator: (value) =>
+                value == null || !RegExp(r'^0\d{9,10}$').hasMatch(value.trim())
+                ? 'Số điện thoại không hợp lệ.'
+                : null,
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: enabled ? _save : null,
+            child: Text(_saving ? 'Đang lưu…' : 'Lưu thay đổi'),
+          ),
+        ],
       ),
     );
   }

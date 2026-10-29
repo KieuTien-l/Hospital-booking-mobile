@@ -30,6 +30,12 @@ class UnconfiguredDoctorWorkspaceRepository
   }) async => _unavailable();
 
   @override
+  Future<void> updatePersonalProfile({
+    required String userId,
+    required DoctorPersonalProfileDraft draft,
+  }) async => _unavailable();
+
+  @override
   Future<List<DoctorReport>> loadReports({required String userId}) async =>
       _unavailable();
 

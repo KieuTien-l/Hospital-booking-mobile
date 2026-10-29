@@ -169,22 +169,29 @@ void main() {
     (tester) async {
       final repository = _Repository();
       await pumpWorkspace(tester, repository, const Size(1440, 1000));
+      repository.emit('BENH_NHAN', [
+        const AdminRecord('PATIENT-A', {'fullName': 'An'}),
+        const AdminRecord('PATIENT-B', {'fullName': 'Bình'}),
+      ]);
       repository.emit('LICH_HEN', [
-        const AdminRecord('APPT-A', {'patientId': 'An', 'status': 'PENDING'}),
+        const AdminRecord('APPT-A', {
+          'patientId': 'PATIENT-A',
+          'status': 'PENDING',
+        }),
         const AdminRecord('APPT-B', {
-          'patientId': 'Bình',
+          'patientId': 'PATIENT-B',
           'status': 'CONFIRMED',
         }),
       ]);
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ListTile, 'Lịch hẹn'));
       await tester.pumpAndSettle();
-      expect(find.text('APPT-A'), findsOneWidget);
-      expect(find.text('APPT-B'), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-APPT-A')), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-APPT-B')), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'Bình');
       await tester.pumpAndSettle();
-      expect(find.text('APPT-A'), findsNothing);
-      await tester.tap(find.text('APPT-B'));
+      expect(find.byKey(const ValueKey('record-APPT-A')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('record-APPT-B')));
       await tester.pumpAndSettle();
       expect(find.text('Chi tiết lịch hẹn'), findsOneWidget);
       await tester.tap(find.text('Đóng'));
@@ -200,8 +207,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Đã xác nhận').last);
       await tester.pumpAndSettle();
-      expect(find.text('APPT-A'), findsNothing);
-      expect(find.text('APPT-B'), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-APPT-A')), findsNothing);
+      expect(find.byKey(const ValueKey('record-APPT-B')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await repository.close();
@@ -218,22 +225,17 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ListTile, 'Lịch hẹn'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Collection LICH_HEN chưa có bản ghi'),
-        findsOneWidget,
-      );
-      expect(find.text('DEMO cục bộ'), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-DEMO-001')), findsOneWidget);
       expect(tester.takeException(), isNull);
       repository.streams['LICH_HEN']!.addError(
         FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
       );
       await tester.pumpAndSettle();
-      expect(find.text('DEMO cục bộ'), findsNothing);
+      expect(find.byKey(const ValueKey('record-DEMO-001')), findsNothing);
       expect(find.textContaining('quyền đọc'), findsOneWidget);
-      await tester.tap(find.text('Xem giao diện DEMO'));
+      await tester.tap(find.text('Xem dữ liệu minh họa'));
       await tester.pumpAndSettle();
-      expect(find.text('DEMO cục bộ'), findsOneWidget);
-      expect(find.textContaining('Chưa xác minh được dữ liệu'), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-DEMO-001')), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await repository.close();
     },
@@ -444,7 +446,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ListTile, 'Bác sĩ'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Thêm bác sĩ & tài khoản'));
+    await tester.tap(find.text('Thêm bác sĩ'));
     await tester.pumpAndSettle();
     Finder input(String label) => find.byWidgetPredicate(
       (w) => w is TextField && w.decoration?.labelText == label,
@@ -581,20 +583,29 @@ void main() {
       await tester.ensureVisible(metric);
       await tester.tap(metric);
       await tester.pumpAndSettle();
-      expect(find.text('TODAY-PENDING'), findsOneWidget);
-      expect(find.text('TODAY-CONFIRMED'), findsOneWidget);
-      expect(find.text('OLD-PENDING'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('record-TODAY-PENDING')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('record-TODAY-CONFIRMED')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('record-OLD-PENDING')), findsNothing);
       await capture(tester, 'appointments-1440');
       await tester.tap(find.widgetWithText(ChoiceChip, 'Hoàn thành'));
       await tester.pumpAndSettle();
       expect(find.text('Không có kết quả phù hợp.'), findsOneWidget);
-      expect(find.text('TODAY-CONFIRMED'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('record-TODAY-CONFIRMED')),
+        findsNothing,
+      );
       await tester.tap(find.widgetWithText(ListTile, 'Tổng quan'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Tiền đã thu'));
       await tester.tap(find.text('Tiền đã thu'));
       await tester.pumpAndSettle();
-      expect(find.text('PAY-1'), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-PAY-1')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await repository.close();
@@ -621,8 +632,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'TODAY');
       await tester.pumpAndSettle();
-      expect(find.text('TODAY-PENDING'), findsOneWidget);
-      expect(find.text('TODAY-CONFIRMED'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('record-TODAY-PENDING')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('record-TODAY-CONFIRMED')),
+        findsNothing,
+      );
       await tester.tap(find.widgetWithText(ListTile, 'Bác sĩ'));
       await tester.pumpAndSettle();
       await capture(tester, 'doctors-1440');
@@ -632,17 +649,26 @@ void main() {
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         'TODAY',
       );
-      expect(find.text('TODAY-PENDING'), findsOneWidget);
-      expect(find.text('TODAY-CONFIRMED'), findsNothing);
-      await tester.tap(find.text('TODAY-PENDING'));
+      expect(
+        find.byKey(const ValueKey('record-TODAY-PENDING')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('record-TODAY-CONFIRMED')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(const ValueKey('record-TODAY-PENDING')));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(Tab, 'Liên quan'));
       await tester.pumpAndSettle();
-      expect(find.text('PAY-1'), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-PAY-1')), findsOneWidget);
       await capture(tester, 'appointment-detail-1440');
       await tester.tap(find.text('Đóng'));
       await tester.pumpAndSettle();
-      expect(find.text('TODAY-PENDING'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('record-TODAY-PENDING')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await repository.close();
@@ -668,16 +694,19 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = 1.3;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Thêm bác sĩ & tài khoản'));
-      await tester.tap(find.text('Thêm bác sĩ & tài khoản'));
+      await tester.ensureVisible(find.text('Thêm bác sĩ'));
+      await tester.tap(find.text('Thêm bác sĩ'));
       await tester.pumpAndSettle();
-      expect(find.text('Thêm bác sĩ và cấp tài khoản'), findsOneWidget);
+      expect(
+        find.text('Nhập thông tin chuyên môn và liên hệ của bác sĩ.'),
+        findsOneWidget,
+      );
       await capture(tester, 'doctor-create-320');
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Hủy'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('DR-1'));
-      await tester.tap(find.text('DR-1'));
+      await tester.ensureVisible(find.byKey(const ValueKey('record-DR-1')));
+      await tester.tap(find.byKey(const ValueKey('record-DR-1')));
       await tester.pumpAndSettle();
       expect(find.text('Thao tác quản trị'), findsOneWidget);
       await tester.tap(find.text('Thao tác quản trị'));
@@ -710,7 +739,7 @@ void main() {
       await tester.tap(find.text('Không hoạt động').last);
       await tester.pumpAndSettle();
       expect(find.text('Không có kết quả phù hợp.'), findsOneWidget);
-      expect(find.text('WS-1'), findsNothing);
+      expect(find.byKey(const ValueKey('record-WS-1')), findsNothing);
       await tester.tap(statusFilter);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Tất cả').last);
@@ -718,11 +747,11 @@ void main() {
       await tester.tap(find.widgetWithText(ChoiceChip, 'Theo ngày'));
       await tester.pumpAndSettle();
       await capture(tester, 'schedules-1440');
-      await tester.tap(find.text('WS-1'));
+      await tester.tap(find.byKey(const ValueKey('record-WS-1')));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(Tab, 'Liên quan'));
       await tester.pumpAndSettle();
-      expect(find.text('SLOT-1'), findsOneWidget);
+      expect(find.byKey(const ValueKey('record-SLOT-1')), findsOneWidget);
       await tester.tap(find.text('Đóng'));
       await tester.pumpAndSettle();
       tester.view.physicalSize = const Size(320, 780);

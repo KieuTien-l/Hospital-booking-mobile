@@ -22,8 +22,7 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
   final _messages = <_SupportMessage>[
     const _SupportMessage(
       fromPatient: false,
-      text:
-          'Chào bạn. Hãy chọn một câu hỏi bên dưới hoặc nhập câu hỏi để nhận hướng dẫn sử dụng HealWay.',
+      text: 'Chào bạn. Hãy chọn một câu hỏi bên dưới hoặc nhập câu hỏi để nhận hướng dẫn sử dụng HealWay.',
     ),
   ];
 
@@ -46,7 +45,9 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
     if (value.isEmpty) return;
     setState(() {
       _messages.add(_SupportMessage(fromPatient: true, text: value));
-      _messages.add(_SupportMessage(fromPatient: false, text: _answerFor(value)));
+      _messages.add(
+        _SupportMessage(fromPatient: false, text: _answerFor(value)),
+      );
       _questionController.clear();
     });
   }
@@ -57,7 +58,7 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
       return 'Vào Đặt khám, chọn hồ sơ, chuyên khoa, ngày và khung giờ trống. Sau khi xác nhận, bạn sẽ nhận được thông báo trong ứng dụng.';
     }
     if (normalized.contains('hủy') || normalized.contains('đổi')) {
-      return 'Vào Lịch đặt khám, chọn lịch ở trạng thái Chờ xác nhận hoặc Đã xác nhận, rồi chọn Thay đổi lịch hoặc Hủy lịch.';
+      return 'Vào Lịch đặt khám, chọn lịch ở trạng thái Đã xác nhận, rồi chọn Thay đổi lịch hoặc Hủy lịch.';
     }
     if (normalized.contains('kết quả') || normalized.contains('xét nghiệm')) {
       return 'Vào Kết quả cận lâm sàng để xem dữ liệu bệnh viện đã trả. Bạn có thể lọc theo loại và năm.';
@@ -79,7 +80,10 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           foregroundColor: AppColors.textOnPrimary,
-          title: Text(_title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(
+            _title,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
         body: SafeArea(
           child: Center(
@@ -119,19 +123,20 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                'Cách đặt lịch khám?',
-                'Cách thay đổi hoặc hủy lịch?',
-                'Xem kết quả xét nghiệm ở đâu?',
-                'Thanh toán viện phí như thế nào?',
-              ]
-                  .map(
-                    (question) => ActionChip(
-                      label: Text(question),
-                      onPressed: () => _ask(question),
-                    ),
-                  )
-                  .toList(),
+              children:
+                  [
+                        'Cách đặt lịch khám?',
+                        'Cách thay đổi hoặc hủy lịch?',
+                        'Xem kết quả xét nghiệm ở đâu?',
+                        'Thanh toán viện phí như thế nào?',
+                      ]
+                      .map(
+                        (question) => ActionChip(
+                          label: Text(question),
+                          onPressed: () => _ask(question),
+                        ),
+                      )
+                      .toList(),
             ),
           ],
         ),
@@ -168,13 +173,17 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
   );
 
   Widget _messageBubble(_SupportMessage message) => Align(
-    alignment: message.fromPatient ? Alignment.centerRight : Alignment.centerLeft,
+    alignment: message.fromPatient
+        ? Alignment.centerRight
+        : Alignment.centerLeft,
     child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       constraints: const BoxConstraints(maxWidth: 440),
       decoration: BoxDecoration(
-        color: message.fromPatient ? AppColors.textOnPrimary : AppColors.surface,
+        color: message.fromPatient
+            ? AppColors.textOnPrimary
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
@@ -310,7 +319,10 @@ class _PatientSupportPageState extends State<PatientSupportPage> {
               const SizedBox(height: 6),
               Text(
                 section.content,
-                style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
             ],
           ],

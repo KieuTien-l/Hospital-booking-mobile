@@ -164,6 +164,23 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     );
   }
 
+  @override
+  Future<void> updatePersonalProfile({
+    required String userId,
+    required DoctorPersonalProfileDraft draft,
+  }) async {
+    await _request(
+      userId,
+      'doctor/profile',
+      body: {
+        'fullName': draft.fullName,
+        'email': draft.email,
+        'phone': draft.phone,
+        'dateOfBirth': _date(draft.dateOfBirth),
+      },
+    );
+  }
+
   DoctorReport _report(Map<String, dynamic> data) {
     final status = switch (data['status']) {
       'PENDING' => DoctorReportStatus.pending,

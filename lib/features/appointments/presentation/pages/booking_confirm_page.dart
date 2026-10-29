@@ -9,7 +9,7 @@ import '../../../doctors/domain/entities/work_schedule.dart';
 import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../controllers/appointment_controller.dart';
-import 'booking_success_page.dart';
+import '../../../payments/presentation/pages/payos_checkout_page.dart';
 
 class BookingConfirmPage extends StatefulWidget {
   const BookingConfirmPage({
@@ -78,7 +78,13 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
 
     if (result != null && mounted) {
       Navigator.of(context).pushAndRemoveUntil<void>(
-        MaterialPageRoute(builder: (_) => const BookingSuccessPage()),
+        MaterialPageRoute(
+          builder: (_) => PayosCheckoutPage(
+            appointmentId: result.id,
+            doctorName: widget.doctor.fullName,
+            specialtyName: widget.doctor.specialtyName ?? 'Chưa cập nhật',
+          ),
+        ),
         (route) => route.isFirst,
       );
     } else {

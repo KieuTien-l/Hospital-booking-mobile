@@ -92,34 +92,37 @@ class _PatientClinicalResultsPageState
         child: FractionallySizedBox(
           heightFactor: .8,
           child: Column(
-          children: [
-            ListTile(
-              title: const Text(
-                'Chọn loại cận lâm sàng',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              trailing: IconButton(
-                tooltip: 'Đóng',
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _types.length,
-                itemBuilder: (context, index) => ListTile(
-                  title: Text(_types[index]),
-                  selected: index == _selectedType,
-                  selectedColor: AppColors.textOnPrimary,
-                  trailing: index == _selectedType
-                      ? const Icon(Icons.check, color: AppColors.textOnPrimary)
-                      : null,
-                  onTap: () => Navigator.of(context).pop(index),
+            children: [
+              ListTile(
+                title: const Text(
+                  'Chọn loại cận lâm sàng',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                trailing: IconButton(
+                  tooltip: 'Đóng',
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
-            ),
-          ],
-        ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _types.length,
+                  itemBuilder: (context, index) => ListTile(
+                    title: Text(_types[index]),
+                    selected: index == _selectedType,
+                    selectedColor: AppColors.textOnPrimary,
+                    trailing: index == _selectedType
+                        ? const Icon(
+                            Icons.check,
+                            color: AppColors.textOnPrimary,
+                          )
+                        : null,
+                    onTap: () => Navigator.of(context).pop(index),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -182,7 +185,7 @@ class _PatientClinicalResultsPageState
               ),
               const SizedBox(height: 6),
               Text(
-                '${widget.patient.fullName.toUpperCase()} (${widget.patient.id})',
+                widget.patient.fullName.toUpperCase(),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,

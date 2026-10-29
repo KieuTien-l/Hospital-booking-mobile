@@ -1,5 +1,16 @@
 import '../entities/doctor_workspace.dart';
 
+class DoctorPersonalProfileDraft {
+  const DoctorPersonalProfileDraft({
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    required this.dateOfBirth,
+  });
+  final String fullName, email, phone;
+  final DateTime dateOfBirth;
+}
+
 class DoctorWorkspaceAccessException implements Exception {
   const DoctorWorkspaceAccessException(this.message);
   final String message;
@@ -15,6 +26,10 @@ abstract interface class DoctorWorkspaceRepository {
   Future<DoctorDayData> loadDay({
     required String userId,
     required DateTime date,
+  });
+  Future<void> updatePersonalProfile({
+    required String userId,
+    required DoctorPersonalProfileDraft draft,
   });
   Future<List<DoctorReport>> loadReports({required String userId});
   Future<DoctorReport> submitReport({

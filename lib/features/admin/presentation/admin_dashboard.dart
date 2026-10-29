@@ -31,7 +31,6 @@ class _AdminDashboard extends StatelessWidget {
     // The workspace owns the complete data grid. These controllers provide
     // the domain backend aggregates and relationship audit for the overview.
     final liveDashboard = context.watch<AdminDashboardController?>();
-    final liveAppointments = context.watch<AdminAppointmentController?>();
     final appointments = controller.dataset('LICH_HEN');
     final payments = controller.dataset('THANH_TOAN');
     final selected =
@@ -259,7 +258,7 @@ class _AdminDashboard extends StatelessWidget {
                 ),
                 _metric(
                   width,
-                  'Chờ xác nhận',
+                  'Chờ thanh toán',
                   '$pending',
                   Icons.pending_actions_outlined,
                   appointments,
@@ -291,9 +290,9 @@ class _AdminDashboard extends StatelessWidget {
             );
           },
         ),
-        if (liveDashboard != null || liveAppointments != null) ...[
+        if (liveDashboard != null) ...[
           const SizedBox(height: 16),
-          _quocVietBackendStatus(context, liveDashboard, liveAppointments),
+          _quocVietBackendStatus(context, liveDashboard),
         ],
         if (missingPaymentDates > 0 &&
             payments.error == null &&
@@ -447,52 +446,6 @@ class _AdminDashboard extends StatelessWidget {
           'Các nhóm công việc thường dùng',
           _quickAccess(),
         ),
-        const SizedBox(height: 16),
-        ExpansionTile(
-          leading: const Icon(Icons.storage_rounded, size: 23, color: _blue),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-          backgroundColor: const Color(0xEFFFFFFF),
-          collapsedBackgroundColor: const Color(0xBFFFFFFF),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          collapsedShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Trạng thái dữ liệu',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-          subtitle: const Text(
-            'Thống kê gồm bản ghi mẫu đã lưu; không cộng DEMO cục bộ.',
-            style: TextStyle(fontSize: 11, color: _muted),
-          ),
-          children: [
-            for (final section in adminSections.where(
-              (s) => s.collection != null,
-            ))
-              ListTile(
-                dense: true,
-                title: Text(
-                  section.title,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                subtitle: Text(
-                  controller.dataset(section.collection!).error ??
-                      (controller
-                                  .dataset(section.collection!)
-                                  .records
-                                  .isEmpty &&
-                              !controller.dataset(section.collection!).loading
-                          ? 'Chưa có bản ghi'
-                          : controller
-                                .dataset(section.collection!)
-                                .sourceLabel),
-                  style: const TextStyle(fontSize: 11, color: _muted),
-                ),
-              ),
-          ],
-        ),
       ],
     );
   }
@@ -500,13 +453,9 @@ class _AdminDashboard extends StatelessWidget {
   Widget _quocVietBackendStatus(
     BuildContext context,
     AdminDashboardController? dashboard,
-    AdminAppointmentController? appointments,
   ) {
-    final hasError =
-        dashboard?.hasError == true || appointments?.hasError == true;
-    final loading =
-        dashboard?.isLoading == true || appointments?.isLoading == true;
-    final issueCount = appointments?.invalidRelationshipRecords.length ?? 0;
+    final hasError = dashboard?.hasError == true;
+    final loading = dashboard?.isLoading == true;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -549,13 +498,6 @@ class _AdminDashboard extends StatelessWidget {
               'Lịch hẹn: ${dashboard?.appointmentCount ?? 0}',
               style: const TextStyle(color: _muted),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Liên kết lịch hẹn cần kiểm tra: $issueCount',
-              style: TextStyle(
-                color: issueCount > 0 ? AppColors.error : _muted,
-              ),
-            ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -563,9 +505,6 @@ class _AdminDashboard extends StatelessWidget {
                     ? null
                     : () {
                         context.read<AdminDashboardController?>()?.refresh();
-                        context.read<AdminAppointmentController?>()?.load(
-                          force: true,
-                        );
                       },
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Làm mới dữ liệu quản trị'),
@@ -575,7 +514,6 @@ class _AdminDashboard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 dashboard?.errorMessage ??
-                    appointments?.errorMessage ??
                     'Không thể đồng bộ dữ liệu quản trị.',
                 style: const TextStyle(color: AppColors.error),
               ),

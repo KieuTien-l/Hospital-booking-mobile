@@ -250,7 +250,7 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   );
 
   String _statusLabel(AppointmentStatus status) => switch (status) {
-    AppointmentStatus.pending => 'Chờ xác nhận',
+    AppointmentStatus.pending => 'Chờ thanh toán',
     AppointmentStatus.confirmed => 'Đã xác nhận',
     AppointmentStatus.completed => 'Đã hoàn thành',
     AppointmentStatus.cancelled => 'Đã hủy',

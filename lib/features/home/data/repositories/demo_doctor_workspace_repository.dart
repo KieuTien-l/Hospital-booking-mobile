@@ -40,6 +40,16 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
   }
 
   @override
+  Future<void> updatePersonalProfile({
+    required String userId,
+    required DoctorPersonalProfileDraft draft,
+  }) => Future.error(
+    const DoctorWorkspaceAccessException(
+      'Không thể sửa hồ sơ trong chế độ minh họa.',
+    ),
+  );
+
+  @override
   Future<List<DoctorReport>> loadReports({required String userId}) async =>
       const [];
   @override

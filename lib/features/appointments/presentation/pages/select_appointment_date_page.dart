@@ -6,6 +6,7 @@ import '../../../doctors/domain/repositories/doctor_repository.dart';
 import '../../../doctors/presentation/controllers/schedule_controller.dart';
 import '../../../home/presentation/widgets/patient_home_background.dart';
 import '../../../specialties/domain/entities/specialty.dart';
+import '../models/appointment_booking_window.dart';
 import '../models/appointment_calendar_demo_data.dart';
 import '../widgets/appointment_calendar.dart';
 import '../widgets/appointment_calendar_legend.dart';
@@ -51,18 +52,22 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
   int _availabilityRequest = 0;
 
   DateTime get _today => DateUtils.dateOnly(widget.today ?? DateTime.now());
+  DateTime get _windowStart => appointmentBookingWindowStart(_today);
+  DateTime get _windowEnd => appointmentBookingWindowEnd(_today);
   bool get _loadsLiveAvailability =>
       widget.availableDates == null && !widget.useDemoData;
   Set<DateTime> _normalize(Set<DateTime> dates) =>
       dates.map(DateUtils.dateOnly).toSet();
   Set<DateTime> get _available {
-    if (widget.availableDates != null) {
-      return _normalize(widget.availableDates!);
-    }
-    if (widget.useDemoData) {
-      return AppointmentCalendarDemoData.availableDates(_month);
-    }
-    return _liveAvailableDates;
+    final source = switch ((widget.availableDates, widget.useDemoData)) {
+      (final values?, _) => _normalize(values),
+      (null, true) => AppointmentCalendarDemoData.availableDates(_month),
+      (null, false) => _liveAvailableDates,
+    };
+    return {
+      for (final date in source)
+        if (isWithinAppointmentBookingWindow(date, _today)) date,
+    };
   }
 
   Set<DateTime> get _holidays => widget.holidayDates == null
@@ -74,7 +79,7 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
   @override
   void initState() {
     super.initState();
-    _month = DateTime(_today.year, _today.month);
+    _month = DateTime(_windowStart.year, _windowStart.month);
     if (_loadsLiveAvailability) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _loadLiveAvailability(),
@@ -85,11 +90,15 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
   @override
   void didUpdateWidget(covariant SelectAppointmentDatePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final currentMonth = DateTime(_today.year, _today.month);
-    if (_month.isBefore(currentMonth)) _month = currentMonth;
+    final firstMonth = DateTime(_windowStart.year, _windowStart.month);
+    final lastMonth = DateTime(_windowEnd.year, _windowEnd.month);
+    if (_month.isBefore(firstMonth)) _month = firstMonth;
+    if (_month.isAfter(lastMonth)) _month = lastMonth;
     final selected = _selected;
     if (selected != null &&
-        (selected.isBefore(_today) || !_available.contains(selected))) {
+        (selected.isBefore(_today) ||
+            !isWithinAppointmentBookingWindow(selected, _today) ||
+            !_available.contains(selected))) {
       _selected = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) widget.onDateSelected?.call(null);
@@ -104,7 +113,11 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
   }
 
   void _select(DateTime date) {
-    if (date.isBefore(_today) || !_available.contains(date)) return;
+    if (date.isBefore(_today) ||
+        !isWithinAppointmentBookingWindow(date, _today) ||
+        !_available.contains(date)) {
+      return;
+    }
     setState(() => _selected = date);
     widget.onDateSelected?.call(date);
   }
@@ -128,6 +141,13 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
     if (!_loadsLiveAvailability) return;
     final request = ++_availabilityRequest;
     final visibleMonth = DateTime(_month.year, _month.month);
+    final visibleMonthEnd = DateTime(_month.year, _month.month + 1, 0);
+    final start = _windowStart.isAfter(visibleMonth)
+        ? _windowStart
+        : visibleMonth;
+    final end = _windowEnd.isBefore(visibleMonthEnd)
+        ? _windowEnd
+        : visibleMonthEnd;
     setState(() {
       _loadingLiveAvailability = true;
       _liveAvailabilityError = null;
@@ -141,19 +161,18 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
       final doctors = await doctorRepository.getDoctorsBySpecialty(
         widget.specialty.id,
       );
-      final dayCount = DateUtils.getDaysInMonth(
-        visibleMonth.year,
-        visibleMonth.month,
-      );
+      final dayCount = end.difference(start).inDays + 1;
       final schedules = await scheduleController.loadWeeklySchedulesForDoctors(
         doctors: doctors,
-        startDate: visibleMonth,
+        startDate: start,
         days: dayCount,
       );
       final dates = <DateTime>{
         for (final byDay in schedules.values)
           for (final entry in byDay.entries)
-            if (entry.value.isNotEmpty && !entry.key.isBefore(_today))
+            if (entry.value.isNotEmpty &&
+                !entry.key.isBefore(_today) &&
+                isWithinAppointmentBookingWindow(entry.key, _today))
               DateUtils.dateOnly(entry.key),
       };
       if (!mounted || request != _availabilityRequest) return;
@@ -230,16 +249,26 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
                           onDateSelected: _select,
                           onPreviousMonth:
                               _month.isAfter(
-                                DateTime(_today.year, _today.month),
+                                DateTime(_windowStart.year, _windowStart.month),
                               )
                               ? () => _changeMonth(-1)
                               : null,
-                          onNextMonth: () => _changeMonth(1),
+                          onNextMonth:
+                              _month.isBefore(
+                                DateTime(_windowEnd.year, _windowEnd.month),
+                              )
+                              ? () => _changeMonth(1)
+                              : null,
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
                     const AppointmentCalendarLegend(),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Chỉ nhận lịch từ ${_windowStart.day.toString().padLeft(2, '0')}/${_windowStart.month.toString().padLeft(2, '0')} đến ${_windowEnd.day.toString().padLeft(2, '0')}/${_windowEnd.month.toString().padLeft(2, '0')}.',
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
                     if (_loadsLiveAvailability && _loadingLiveAvailability)
                       const Padding(
                         padding: EdgeInsets.only(top: 16),
@@ -271,7 +300,7 @@ class _SelectAppointmentDatePageState extends State<SelectAppointmentDatePage> {
                       const Padding(
                         padding: EdgeInsets.only(top: 12),
                         child: Text(
-                          'Chưa có khung giờ trống trong tháng này.',
+                          'Chưa có khung giờ trống trong khoảng hai tuần này.',
                           style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ),

@@ -68,7 +68,7 @@ class BookingReviewActions extends StatelessWidget {
                     foregroundColor: Colors.white,
                   ),
                   child: const Text(
-                    'Xác nhận đặt khám',
+                    'Tiếp tục thanh toán',
                     textAlign: TextAlign.center,
                   ),
                 );

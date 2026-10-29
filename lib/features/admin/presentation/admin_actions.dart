@@ -137,7 +137,6 @@ extension _AdminActions on _AdminWorkspaceState {
             initial: value('consultationFee', '0'),
           ),
           field('biography', 'Giới thiệu', input: AdminInput.multiline),
-          field('avatarUrl', 'URL ảnh đại diện (HTTPS)'),
         ];
       case 'CHUYEN_KHOA':
         return [
@@ -400,7 +399,7 @@ extension _AdminActions on _AdminWorkspaceState {
       icon: const Icon(Icons.add, size: 18),
       label: Text(
         section.collection == 'BAC_SI'
-            ? 'Thêm bác sĩ & tài khoản'
+            ? 'Thêm bác sĩ'
             : section.collection == 'THONG_BAO'
             ? 'Soạn thông báo'
             : 'Thêm ${section.title.toLowerCase()}',
@@ -423,13 +422,13 @@ extension _AdminActions on _AdminWorkspaceState {
     };
     await _editor(
       title: collection == 'BAC_SI'
-          ? 'Thêm bác sĩ và cấp tài khoản'
+          ? 'Thêm bác sĩ'
           : 'Thêm ${section.title.toLowerCase()}',
       description: collection == 'BAC_SI'
-          ? 'Admin tạo tài khoản bác sĩ. Bác sĩ sẽ thiết lập mật khẩu qua email; phiên admin được giữ nguyên. Email liên hệ khác với email đăng nhập.'
+          ? 'Nhập thông tin chuyên môn và liên hệ của bác sĩ.'
           : collection == 'LICH_LAM_VIEC'
-          ? 'Tự sinh ca khám. Không tạo lịch Chủ nhật; thứ bảy chỉ trước 12:00. Máy chủ kiểm tra trùng giờ trước khi lưu.'
-          : 'Tạo bản ghi thật trên hệ thống. Máy chủ kiểm tra quyền, liên kết và lưu nhật ký; dữ liệu DEMO cục bộ không được sửa.',
+          ? 'Chọn ngày và khung giờ làm việc của bác sĩ.'
+          : 'Nhập thông tin cần thiết để tạo bản ghi.',
       fields: _editFields(collection, null),
       operation: operation,
       collection: collection,
@@ -447,8 +446,8 @@ extension _AdminActions on _AdminWorkspaceState {
       builder: (dialogContext) => Theme(
         data: _adminTheme(dialogContext),
         child: AdminEditor(
-          title: 'Thêm bác sĩ và cấp tài khoản',
-          description: 'Tài khoản mới luôn có vai trò Bác sĩ. Máy chủ tạo tài khoản đăng nhập, TAI_KHOAN và BAC_SI theo cùng quy trình có thể khôi phục; phiên admin hiện tại được giữ nguyên.',
+          title: 'Thêm bác sĩ',
+          description: 'Nhập thông tin chuyên môn và liên hệ của bác sĩ.',
           fields: _editFields('BAC_SI', null),
           submitLabel: 'Tạo',
           onSubmit: (values, reason, requestId) => commands.execute({
@@ -511,15 +510,6 @@ extension _AdminActions on _AdminWorkspaceState {
           c == 'THONG_BAO' && d['status'] == 'DRAFT')
         ('delete', 'Xóa bản ghi chưa sử dụng'),
       if (c == 'LICH_LAM_VIEC') ('copy', 'Sao chép sang ngày khác'),
-      if (c == 'LICH_HEN') ...[
-        if (d['status'] == 'PENDING') ('confirm', 'Xác nhận lịch hẹn'),
-        if (['PENDING', 'CONFIRMED'].contains(d['status'])) ...[
-          ('reschedule', 'Đổi lịch khám'),
-          ('cancel', 'Hủy lịch hẹn'),
-        ],
-        if (d['status'] == 'CONFIRMED') ('noShow', 'Đánh dấu vắng mặt'),
-        ('note', 'Ghi chú nội bộ'),
-      ],
       if (c == 'TAI_KHOAN') ('access', 'Quản lý quyền / khóa tài khoản'),
       if (c == 'TAI_KHOAN' && d['role'] == 'doctor' ||
           c == 'BAC_SI' && readString(d['userId']).isNotEmpty)

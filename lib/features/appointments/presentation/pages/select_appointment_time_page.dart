@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/widgets/view_state_widgets.dart';
 import '../../../doctors/domain/entities/doctor.dart';
+import '../../domain/entities/appointment.dart';
 import '../../../doctors/domain/repositories/doctor_repository.dart';
 import '../../../doctors/presentation/controllers/schedule_controller.dart';
 import '../../../doctors/presentation/models/doctor_detail_demo_data.dart';
@@ -12,7 +13,9 @@ import '../../../home/presentation/widgets/patient_home_background.dart';
 import '../../../profile/domain/entities/patient.dart';
 import '../../../profile/presentation/controllers/patient_profile_controller.dart';
 import '../../../specialties/domain/entities/specialty.dart';
+import '../../../payments/presentation/pages/payos_checkout_page.dart';
 import '../controllers/appointment_controller.dart';
+import '../models/appointment_booking_window.dart';
 import '../models/appointment_time_ui_models.dart';
 import '../models/appointment_confirmation_ui_model.dart';
 import '../models/appointment_confirmation_demo_data.dart';
@@ -31,7 +34,8 @@ class SelectAppointmentTimePage extends StatefulWidget {
   final Specialty specialty;
   final DateTime initialDate;
 
-  /// When omitted, doctors and five days of availability load from Firebase.
+  /// When omitted, doctors and the current two-week booking window load from
+  /// Firebase.
   /// An explicit list is useful for previews and widget tests.
   final List<AppointmentDoctorOption>? doctors;
   final ValueChanged<AppointmentTimeSelection>? onContinue;
@@ -54,6 +58,10 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
   int _loadRequest = 0;
   final Map<String, Doctor> _loadedDoctors = {};
 
+  DateTime get _windowClock => widget.now ?? DateTime.now();
+  List<DateTime> get _bookingDates =>
+      appointmentBookingWindowDates(_windowClock);
+
   @override
   void initState() {
     super.initState();
@@ -62,12 +70,65 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
   }
 
   void _reset() {
-    _date = DateUtils.dateOnly(widget.initialDate);
-    _doctors = widget.doctors ?? [];
+    final requestedDate = DateUtils.dateOnly(widget.initialDate);
+    _date = isWithinAppointmentBookingWindow(requestedDate, _windowClock)
+        ? requestedDate
+        : _bookingDates.firstWhere(
+            (date) => !date.isBefore(DateUtils.dateOnly(_windowClock)),
+            orElse: () => _bookingDates.last,
+          );
+    _doctors = _prioritizeDoctors(
+      _withBookingWindowDates(widget.doctors ?? const []),
+    );
     _loadedDoctors.clear();
     _selection = null;
     _expanded.clear();
     if (_doctors.isNotEmpty) _expanded.add(_doctors.first.id);
+  }
+
+  List<AppointmentDoctorOption> _withBookingWindowDates(
+    List<AppointmentDoctorOption> doctors,
+  ) => [
+    for (final doctor in doctors)
+      AppointmentDoctorOption(
+        id: doctor.id,
+        name: doctor.name,
+        location: doctor.location,
+        session: doctor.session,
+        avatarUrl: doctor.avatarUrl,
+        schedule: {
+          for (final day in _bookingDates)
+            day:
+                doctor.schedule.entries
+                    .where((entry) => DateUtils.isSameDay(entry.key, day))
+                    .firstOrNull
+                    ?.value ??
+                const <AppointmentTimeOption>[],
+        },
+      ),
+  ];
+
+  List<AppointmentDoctorOption> _prioritizeDoctors(
+    List<AppointmentDoctorOption> doctors,
+  ) {
+    final sorted = [...doctors];
+    int rank(AppointmentDoctorOption doctor) {
+      final slots = doctor.schedule.entries
+          .where((entry) => DateUtils.isSameDay(entry.key, _date))
+          .expand((entry) => entry.value)
+          .toList(growable: false);
+      if (slots.any((slot) => slot.available)) return 0;
+      if (slots.isNotEmpty) return 1;
+      return 2;
+    }
+
+    sorted.sort((first, second) {
+      final bySchedule = rank(first).compareTo(rank(second));
+      return bySchedule != 0
+          ? bySchedule
+          : first.name.toLowerCase().compareTo(second.name.toLowerCase());
+    });
+    return sorted;
   }
 
   Future<void> _loadData({bool clearSelection = false}) async {
@@ -87,16 +148,12 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
       )).where((doctor) => doctor.acceptingBookings).toList(growable: false);
       final schedules = await schedCtrl.loadWeeklySchedulesForDoctors(
         doctors: realDoctors,
-        startDate: _date,
-        days: 5,
+        startDate: _bookingDates.first,
+        days: _bookingDates.length,
       );
       if (!mounted || request != _loadRequest) return;
 
-      final dates = List<DateTime>.generate(
-        5,
-        (index) => _date.add(Duration(days: index)),
-        growable: false,
-      );
+      final dates = _bookingDates;
       final mappedDoctors = <AppointmentDoctorOption>[];
       for (final doctor in realDoctors) {
         final docSchedules = schedules[doctor.id] ?? {};
@@ -135,7 +192,7 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
           ..addEntries(
             realDoctors.map((doctor) => MapEntry(doctor.id, doctor)),
           );
-        _doctors = mappedDoctors;
+        _doctors = _prioritizeDoctors(mappedDoctors);
         _expanded.clear();
         if (_doctors.isNotEmpty) _expanded.add(_doctors.first.id);
         _loading = false;
@@ -175,6 +232,7 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
     final patient = routePatient is Patient
         ? routePatient
         : context.read<PatientProfileController?>()?.patient;
+    Appointment? reservedAppointment;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ConfirmAppointmentPage(
@@ -185,23 +243,41 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
             patient: patient,
             fee: doctor.consultationFee.toInt(),
           ),
-          onSubmitBooking: (_) => _submitLiveBooking(
-            doctor: doctor,
-            selection: selection,
-            patient: patient,
-          ),
+          onSubmitBooking: (_) async {
+            final result = await _submitLiveBooking(
+              doctor: doctor,
+              selection: selection,
+              patient: patient,
+            );
+            reservedAppointment = result.$1;
+            return result.$2;
+          },
+          onBookingSubmitted: () async {
+            final appointment = reservedAppointment;
+            if (appointment == null || !mounted) return;
+            await Navigator.of(context).pushAndRemoveUntil<void>(
+              MaterialPageRoute(
+                builder: (_) => PayosCheckoutPage(
+                  appointmentId: appointment.id,
+                  doctorName: doctor.fullName,
+                  specialtyName: widget.specialty.name,
+                ),
+              ),
+              (route) => route.isFirst,
+            );
+          },
         ),
       ),
     );
   }
 
-  Future<String?> _submitLiveBooking({
+  Future<(Appointment?, String?)> _submitLiveBooking({
     required Doctor doctor,
     required AppointmentTimeSelection selection,
     required Patient? patient,
   }) async {
     if (patient == null) {
-      return 'Vui lòng cập nhật hồ sơ bệnh nhân trước.';
+      return (null, 'Vui lòng cập nhật hồ sơ bệnh nhân trước.');
     }
     final controller = context.read<AppointmentController>();
     final result = await controller.book(
@@ -213,12 +289,12 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
       startTime: selection.slot.startTime,
       endTime: selection.slot.endTime,
     );
-    if (result != null) return null;
+    if (result != null) return (result, null);
 
     final message =
         controller.errorMessage ?? 'Không thể đặt lịch. Vui lòng thử lại.';
     await _loadData(clearSelection: true);
-    return message;
+    return (null, message);
   }
 
   void _openPreviewConfirmation(AppointmentTimeSelection selection) {
@@ -356,6 +432,15 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                           ),
                           now: widget.now,
                           onDateSelected: (date) {
+                            if (date.isBefore(
+                                  DateUtils.dateOnly(_windowClock),
+                                ) ||
+                                !isWithinAppointmentBookingWindow(
+                                  date,
+                                  _windowClock,
+                                )) {
+                              return;
+                            }
                             if (!DateUtils.isSameDay(date, _date)) {
                               setState(() {
                                 _date = DateUtils.dateOnly(date);

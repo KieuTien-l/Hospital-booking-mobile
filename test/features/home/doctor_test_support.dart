@@ -86,6 +86,12 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
   }
 
   @override
+  Future<void> updatePersonalProfile({
+    required String userId,
+    required DoctorPersonalProfileDraft draft,
+  }) async {}
+
+  @override
   Future<List<DoctorReport>> loadReports({required String userId}) =>
       historyLoader?.call() ?? Future.value([]);
   @override

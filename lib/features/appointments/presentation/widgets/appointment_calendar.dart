@@ -25,7 +25,7 @@ class AppointmentCalendar extends StatelessWidget {
   final DateTime? selectedDate;
   final ValueChanged<DateTime> onDateSelected;
   final VoidCallback? onPreviousMonth;
-  final VoidCallback onNextMonth;
+  final VoidCallback? onNextMonth;
 
   @override
   Widget build(BuildContext context) {

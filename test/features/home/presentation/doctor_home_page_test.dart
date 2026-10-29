@@ -279,7 +279,7 @@ void main() {
         next,
       );
       final navigationBounds = tester.getRect(find.byType(NavigationBar));
-      await tester.ensureVisible(find.text('Trạng thái dữ liệu'));
+      await tester.ensureVisible(find.text('Các ca khám'));
       await tester.pumpAndSettle();
       expect(tester.getRect(find.byType(NavigationBar)), navigationBounds);
       expect(tester.takeException(), isNull);
@@ -323,66 +323,61 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Profile uses auth, keeps fields read-only and previews default avatar',
-    (tester) async {
-      await _pumpDashboard(
-        tester,
-        const UserEntity(
-          id: 'doctor-account',
-          email: 'test@example.com',
-          fullName: 'Nguyễn An',
-          phone: '0901234567',
-          role: UserRole.doctor,
-          isActive: true,
-        ),
-      );
-      await tester.tap(find.text('Cá nhân'));
-      await tester.pumpAndSettle();
-      expect(find.text('test@example.com'), findsNothing);
-      expect(find.text('0901234567'), findsNothing);
-      await tester.ensureVisible(find.text('Thông tin cá nhân'));
-      await tester.tap(find.text('Thông tin cá nhân'));
-      await tester.pumpAndSettle();
-      expect(find.text('test@example.com'), findsOneWidget);
-      expect(find.text('0901234567'), findsOneWidget);
-      for (final field in tester.widgetList<TextField>(
-        find.byType(TextField),
-      )) {
-        expect(field.readOnly, isTrue);
-      }
-      await tester.ensureVisible(find.text('Lưu thay đổi'));
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Lưu thay đổi'),
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.ensureVisible(find.text('Thông tin cá nhân'));
-      await tester.tap(find.text('Thông tin cá nhân'));
-      await tester.pumpAndSettle();
-      expect(find.text('0901234567'), findsNothing);
-      await tester.ensureVisible(find.text('Ảnh đại diện'));
-      await tester.tap(find.text('Ảnh đại diện'));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Chọn ảnh'),
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.tap(find.text('Xem ảnh'));
-      await tester.pumpAndSettle();
-      expect(find.text('Đang sử dụng ảnh đại diện mặc định.'), findsOneWidget);
-      await tester.tap(find.text('Đóng'));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('Profile uses auth and previews default avatar', (tester) async {
+    await _pumpDashboard(
+      tester,
+      const UserEntity(
+        id: 'doctor-account',
+        email: 'test@example.com',
+        fullName: 'Nguyễn An',
+        phone: '0901234567',
+        role: UserRole.doctor,
+        isActive: true,
+      ),
+    );
+    await tester.tap(find.text('Cá nhân'));
+    await tester.pumpAndSettle();
+    expect(find.text('test@example.com'), findsNothing);
+    expect(find.text('0901234567'), findsNothing);
+    await tester.ensureVisible(find.text('Thông tin cá nhân'));
+    await tester.tap(find.text('Thông tin cá nhân'));
+    await tester.pumpAndSettle();
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(find.text('0901234567'), findsOneWidget);
+    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
+      expect(field.enabled, isFalse);
+    }
+    await tester.ensureVisible(find.text('Lưu thay đổi'));
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Lưu thay đổi'),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.ensureVisible(find.text('Thông tin cá nhân'));
+    await tester.tap(find.text('Thông tin cá nhân'));
+    await tester.pumpAndSettle();
+    expect(find.text('0901234567'), findsNothing);
+    await tester.ensureVisible(find.text('Ảnh đại diện'));
+    await tester.tap(find.text('Ảnh đại diện'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Chọn ảnh'),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.text('Xem ảnh'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đang sử dụng ảnh đại diện mặc định.'), findsOneWidget);
+    await tester.tap(find.text('Đóng'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Professional accordion matches Patient doctor detail sections without demo values',
@@ -471,9 +466,9 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('Lịch schedule-test'));
+      await tester.tap(find.text('Lịch làm việc · 14/10/2026'));
       await tester.pumpAndSettle();
-      expect(find.text('Lịch other-day'), findsNothing);
+      expect(find.text('Lịch làm việc · 15/10/2026'), findsNothing);
       expect(find.text('Chi tiết lịch làm việc'), findsOneWidget);
       expect(find.text('3 / 1 / 2'), findsOneWidget);
       expect(find.text('Bệnh nhân đã khám: 1'), findsOneWidget);

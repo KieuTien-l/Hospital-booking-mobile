@@ -14,10 +14,16 @@ class ConfirmAppointmentPage extends StatefulWidget {
     required this.information,
     this.onContinue,
     this.onSubmitBooking,
+    this.onBookingSubmitted,
   });
   final AppointmentConfirmationUiModel information;
   final ValueChanged<AppointmentConfirmationResult>? onContinue;
   final BookingReviewSubmitter? onSubmitBooking;
+
+  /// Invoked after the server has reserved the selected slot. The production
+  /// flow uses this to open PayOS rather than treating the reservation as a
+  /// completed booking.
+  final Future<void> Function()? onBookingSubmitted;
 
   @override
   State<ConfirmAppointmentPage> createState() => _ConfirmAppointmentPageState();
@@ -96,6 +102,8 @@ class _ConfirmAppointmentPageState extends State<ConfirmAppointmentPage> {
                                   builder: (_) => BookingReviewPage(
                                     items: [result],
                                     onSubmitBooking: widget.onSubmitBooking,
+                                    onBookingSubmitted:
+                                        widget.onBookingSubmitted,
                                   ),
                                 ),
                               );

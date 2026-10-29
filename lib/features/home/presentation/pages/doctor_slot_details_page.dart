@@ -195,7 +195,7 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
     final canCompleteNow = _hasStarted(appointment);
     final (status, color) = switch (appointment.status) {
       AppointmentStatus.completed => ('Đã khám', const Color(0xFF318653)),
-      AppointmentStatus.pending => ('Chờ xác nhận', const Color(0xFFB87520)),
+      AppointmentStatus.pending => ('Chờ thanh toán', const Color(0xFFB87520)),
       AppointmentStatus.confirmed => ('Chờ khám', AppColors.textOnPrimary),
       AppointmentStatus.noShow => ('Vắng mặt', AppColors.textSecondary),
       _ => ('Chưa rõ trạng thái', AppColors.textSecondary),
@@ -271,14 +271,6 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
               ],
             ),
             const Divider(height: 26),
-            Text(
-              'Mã bệnh nhân: ${appointment.patientId}',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 10),
             const Text(
               'Lý do khám',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
@@ -560,7 +552,7 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                                 ('Chờ khám', Icons.schedule_rounded, waiting),
                                 if (totals.pending > 0)
                                   (
-                                    'Chờ xác nhận',
+                                    'Chờ thanh toán',
                                     Icons.pending_actions,
                                     totals.pending,
                                   ),
@@ -620,7 +612,7 @@ class _DoctorSlotDetailsPageState extends State<DoctorSlotDetailsPage> {
                               'Tất cả',
                               'Chờ khám',
                               'Đã khám',
-                              if (totals.pending > 0) 'Chờ xác nhận',
+                              if (totals.pending > 0) 'Chờ thanh toán',
                             ].indexed)
                               ChoiceChip(
                                 label: Text(title),

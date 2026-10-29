@@ -171,13 +171,6 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '(${patient.id})',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14),
-                    ),
                   ],
                 ),
         ),

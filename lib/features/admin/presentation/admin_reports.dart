@@ -155,7 +155,7 @@ extension _AdminReports on _AdminWorkspaceState {
       [
         'Bác sĩ',
         'Tổng lịch',
-        'Chờ xác nhận',
+        'Chờ thanh toán',
         'Đã xác nhận',
         'Hoàn thành',
         'Hủy',
@@ -247,7 +247,7 @@ extension _AdminReports on _AdminWorkspaceState {
                             ),
                             Text('Hủy: ${count(entry.value, 'CANCELLED')}'),
                             Text(
-                              'Chờ xác nhận: ${count(entry.value, 'PENDING')}',
+                              'Chờ thanh toán: ${count(entry.value, 'PENDING')}',
                             ),
                           ],
                         ),

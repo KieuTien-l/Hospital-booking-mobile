@@ -76,10 +76,6 @@ class PatientProfileCard extends StatelessWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              patient.id,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            Text(
                               _maskedPhone,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: AppColors.textSecondary),

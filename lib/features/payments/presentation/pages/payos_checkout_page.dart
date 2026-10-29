@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../appointments/presentation/models/appointment_confirmation_ui_model.dart';
+import '../../../appointments/presentation/pages/booking_success_page.dart';
 import '../../../appointments/presentation/widgets/payment_page_layout.dart';
 import '../../data/payos_payment_client.dart';
 
@@ -72,12 +73,21 @@ class _PayosCheckoutPageState extends State<PayosCheckoutPage> {
     setState(() => _working = true);
     try {
       final refreshed = await client.status(payment.id);
-      if (mounted) setState(() => _payment = refreshed);
+      if (!mounted) return;
+      setState(() => _payment = refreshed);
+      if (refreshed.isPaid) _showBookingSuccess();
     } on PayosPaymentException catch (error) {
       if (mounted) _message(error.message);
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  void _showBookingSuccess() {
+    Navigator.of(context).pushAndRemoveUntil<void>(
+      MaterialPageRoute(builder: (_) => const BookingSuccessPage()),
+      (route) => route.isFirst,
+    );
   }
 
   Future<void> _openPayos() async {

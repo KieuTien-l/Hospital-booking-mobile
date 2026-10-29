@@ -263,13 +263,8 @@ async function paymentForPatient(paymentId, uid, firestore, env) {
       actorId: 'payos-status-check', action: status === 'PAID' ? 'paymentPaid' : 'paymentFailed', targetCollection: 'THANH_TOAN', targetId: paymentId,
       reason: 'Đối soát trạng thái trực tiếp với PayOS.', before: { status: current.data.status }, after: changes, createdAt: serverTimestamp(),
     });
-    if (status === 'PAID') {
-      tx.create(`THONG_BAO/payment_paid_${paymentId}`, {
-        title: 'Thanh toán thành công', content: `PayOS đã xác nhận thanh toán cho lịch hẹn ${current.data.appointmentId}.`,
-        patientId: current.data.patientId, appointmentId: current.data.appointmentId, status: 'SENT', channel: 'in_app', isRead: false,
-        createdAt: serverTimestamp(), createdBy: 'payos-status-check',
-      });
-    }
+    if (status === 'PAID') await confirmPaidAppointment(tx, paymentId, current.data, 'payos-status-check');
+    else await releasePendingAppointment(tx, current.data, 'Thanh toán PayOS không hoàn tất.');
     return paymentJson(paymentId, { ...current.data, ...changes });
   });
 }
@@ -282,8 +277,8 @@ async function createPayOSPayment(body, uid, firestore, env, requestOrigin) {
     const patient = await activePatientForPayment(tx, uid);
     const appointment = await tx.get(`LICH_HEN/${appointmentId}`);
     if (!appointment || appointment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy lịch hẹn cần thanh toán.');
-    if (!['PENDING', 'CONFIRMED', 'COMPLETED'].includes(appointment.data.status)) {
-      throw new HttpError(409, 'Chỉ tạo thanh toán cho lịch hẹn đang chờ, đã xác nhận hoặc đã hoàn tất.');
+    if (appointment.data.status !== 'PENDING') {
+      throw new HttpError(409, 'Chỉ tạo thanh toán cho lịch hẹn đang chờ thanh toán.');
     }
     const alreadyPaid = await tx.query('THANH_TOAN', [{ field: 'appointmentId', op: 'EQUAL', value: appointmentId }], 20);
     if (alreadyPaid.some((row) => row.data.status === 'PAID')) {
@@ -371,7 +366,62 @@ async function cancelPayOSPayment(paymentId, body, uid, firestore, env) {
     if (latest.data.status === 'PAID') throw new HttpError(409, 'Giao dịch đã thanh toán, không thể hủy link.');
     const changes = { status: 'CANCELLED', cancellationReason: reason, cancelledAt: serverTimestamp(), updatedAt: serverTimestamp() };
     tx.update(`THANH_TOAN/${paymentId}`, changes);
+    await releasePendingAppointment(tx, latest.data, reason);
     return paymentJson(paymentId, { ...latest.data, ...changes });
+  });
+}
+
+/// A pending appointment is a short-lived, paid-only reservation. It becomes
+/// visible as a confirmed appointment only after PayOS has been independently
+/// verified, never merely because the user returned from a checkout URL.
+async function confirmPaidAppointment(tx, paymentId, payment, actor) {
+  const appointmentId = requiredId(payment.appointmentId, 'Mã lịch hẹn');
+  const appointment = await tx.get(`LICH_HEN/${appointmentId}`);
+  if (!appointment || appointment.data.patientId !== payment.patientId) {
+    throw new HttpError(409, 'Lịch hẹn của giao dịch thanh toán không hợp lệ.');
+  }
+  if (appointment.data.status === 'CONFIRMED') return;
+  if (appointment.data.status !== 'PENDING') {
+    throw new HttpError(409, 'Lịch hẹn không còn chờ thanh toán.');
+  }
+  tx.update(`LICH_HEN/${appointmentId}`, {
+    status: 'CONFIRMED', updatedAt: serverTimestamp(),
+  });
+  tx.create(`THONG_BAO/booking_paid_${paymentId}`, {
+    title: 'Đặt lịch thành công',
+    content: `Thanh toán PayOS đã được xác nhận. Lịch khám ngày ${dayKey(appointment.data.appointmentDate)}, lúc ${textOrEmpty(appointment.data.startTime)} đã được ghi nhận.`,
+    patientId: payment.patientId, appointmentId, status: 'SENT', channel: 'in_app',
+    isRead: false, createdAt: serverTimestamp(), createdBy: actor,
+  });
+}
+
+/// A cancelled, expired, or failed payment must return its temporary slot so
+/// another patient can book it. Confirmed appointments are deliberately left
+/// untouched to make this idempotent against late provider callbacks.
+async function releasePendingAppointment(tx, payment, reason) {
+  const appointmentId = requiredId(payment.appointmentId, 'Mã lịch hẹn');
+  const appointment = await tx.get(`LICH_HEN/${appointmentId}`);
+  if (!appointment || appointment.data.patientId !== payment.patientId) {
+    throw new HttpError(409, 'Lịch hẹn của giao dịch thanh toán không hợp lệ.');
+  }
+  if (appointment.data.status !== 'PENDING') return;
+  const slotId = requiredId(appointment.data.timeSlotId, 'Ca khám');
+  const slot = await tx.get(`CA_KHAM/${slotId}`);
+  if (!slot) throw new HttpError(409, 'Ca khám giữ chỗ không còn tồn tại.');
+  const peopleCount = boundedNumber(appointment.data.peopleCount ?? 1, 'Số người', 1, 100, true);
+  const appointments = await tx.query('LICH_HEN', [{ field: 'timeSlotId', op: 'EQUAL', value: slotId }], 301);
+  const reservations = exactReservationCounts(slot.data, appointments);
+  if (reservations[appointmentId] !== peopleCount) {
+    throw new HttpError(409, 'Dữ liệu giữ chỗ không nhất quán; không thể hoàn chỗ.');
+  }
+  delete reservations[appointmentId];
+  const pointer = appointments.find((row) => row.id !== appointmentId && heldStatus(row.data.status));
+  tx.update(`LICH_HEN/${appointmentId}`, {
+    status: 'CANCELLED', cancellationReason: reason, updatedAt: serverTimestamp(),
+  });
+  tx.update(`CA_KHAM/${slotId}`, {
+    ...capacityChange(slot.data, -peopleCount), appointmentId: pointer?.id ?? deleteField(),
+    reservationCounts: reservations, updatedAt: serverTimestamp(),
   });
 }
 
@@ -486,13 +536,8 @@ async function payosWebhook(request, env) {
       actorId: 'payos-webhook', action: paid ? 'paymentPaid' : 'paymentFailed', targetCollection: 'THANH_TOAN', targetId: payment.id,
       reason: paid ? 'PayOS xác nhận thanh toán.' : 'PayOS báo giao dịch không thành công.', before: { status: payment.data.status }, after: changes, createdAt: serverTimestamp(),
     });
-    if (paid) {
-      tx.create(`THONG_BAO/payment_paid_${payment.id}`, {
-        title: 'Thanh toán thành công', content: `PayOS đã xác nhận thanh toán cho lịch hẹn ${payment.data.appointmentId}.`,
-        patientId: payment.data.patientId, appointmentId: payment.data.appointmentId, status: 'SENT', channel: 'in_app', isRead: false,
-        createdAt: serverTimestamp(), createdBy: 'payos-webhook',
-      });
-    }
+    if (paid) await confirmPaidAppointment(tx, payment.id, payment.data, 'payos-webhook');
+    else await releasePendingAppointment(tx, payment.data, 'Thanh toán PayOS thất bại.');
     return { acknowledged: true, paymentId: payment.id, status: changes.status };
   });
 }
@@ -554,6 +599,9 @@ async function doctorWorkspaceRequest(request, url, uid, firestore) {
       return doctorDay(tx, doctor, date);
     });
   }
+  if (url.pathname === '/doctor/profile' && request.method === 'POST') {
+    return firestore.runTransaction(async (tx) => updateDoctorPersonalProfile(request, uid, tx));
+  }
   if (url.pathname === '/doctor/reports' && request.method === 'GET') {
     return firestore.readTransaction(async (tx) => {
       const doctor = await activeDoctor(tx, uid);
@@ -607,6 +655,13 @@ async function activeDoctor(tx, uid) {
 }
 
 async function doctorDay(tx, doctor, date) {
+  const specialty = doctor.specialtyId
+    ? await tx.get(`CHUYEN_KHOA/${doctor.specialtyId}`)
+    : null;
+  const doctorProfile = {
+    ...doctor,
+    specialtyName: textOrEmpty(doctor.specialtyName) || textOrEmpty(specialty?.data?.name),
+  };
   // Query the selected day on Firestore instead of reading an arbitrary first
   // 301 historical records and filtering in memory. A busy doctor must still
   // see today's work after accumulating a long schedule history.
@@ -641,7 +696,22 @@ async function doctorDay(tx, doctor, date) {
       ...(typeof patient.gender === 'string' && patient.gender.trim() ? { gender: patient.gender.trim() } : {}),
     };
   });
-  return { doctor: doctorJson(doctor), schedules, slots, bookings };
+  return { doctor: doctorJson(doctorProfile), schedules, slots, bookings };
+}
+
+async function updateDoctorPersonalProfile(request, uid, tx) {
+  let body;
+  try { body = await request.json(); } catch (_) { throw new HttpError(400, 'Thông tin hồ sơ không hợp lệ.'); }
+  const doctor = await activeDoctor(tx, uid);
+  const fullName = requiredText(body?.fullName, 'Họ và tên', 120);
+  const email = requiredText(body?.email, 'Email liên hệ', 160);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Email liên hệ không hợp lệ.');
+  const phone = requiredText(body?.phone, 'Số điện thoại', 16);
+  if (!/^0\d{9,10}$/.test(phone)) throw new HttpError(400, 'Số điện thoại không hợp lệ.');
+  const dateOfBirth = parseWorkDate(body?.dateOfBirth);
+  if (dateOfBirth >= new Date()) throw new HttpError(400, 'Ngày sinh không hợp lệ.');
+  tx.update(`BAC_SI/${doctor.id}`, { fullName, email, phone, dateOfBirth, updatedAt: serverTimestamp() });
+  return { doctor: doctorJson({ ...doctor, fullName, email, phone, dateOfBirth }) };
 }
 
 async function submitDoctorReport(request, uid, firestore) {
@@ -1004,9 +1074,6 @@ class AdminCommandContext {
   async execute() {
     switch (this.command.operation) {
       case 'healthCheck': return { message: 'Admin backend đã xác thực quyền thành công.' };
-      case 'book': return this.book();
-      case 'appointmentStatus': return this.appointmentStatus();
-      case 'reschedule': return this.reschedule();
       case 'setAvailability': return this.setAvailability();
       case 'createSchedule': return this.createSchedule();
       case 'editSchedule': return this.editSchedule();
@@ -1085,9 +1152,8 @@ class AdminCommandContext {
       ...target.counts, appointmentId: id, reservationCounts: reservations,
       updatedAt: serverTimestamp(),
     });
-    this.notification('book', patient, patientId, 'Đã tiếp nhận lịch khám', `Mã lịch ${id}. Lịch đang chờ xác nhận.`, id);
     this.audit('LICH_HEN', id, null, fields);
-    return { id, collection: 'LICH_HEN', message: 'Đã tạo lịch hẹn và giữ chỗ.' };
+    return { id, collection: 'LICH_HEN', message: 'Đã giữ chỗ, chờ thanh toán PayOS.' };
   }
 
   async assertOwnActivePatient(patient, patientId) {

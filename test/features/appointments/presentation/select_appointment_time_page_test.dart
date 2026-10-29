@@ -171,7 +171,7 @@ void main() {
       final strip = find.byType(AppointmentDateStrip).last;
       await tapVisible(
         tester,
-        find.descendant(of: strip, matching: find.text('23/10')),
+        find.descendant(of: strip, matching: find.text('19/10')),
       );
       expect(
         tester
@@ -186,7 +186,7 @@ void main() {
       expect(
         tester
             .widgetList<AppointmentDateStrip>(find.byType(AppointmentDateStrip))
-            .every((strip) => strip.selected == DateTime(2026, 10, 23)),
+            .every((strip) => strip.selected == DateTime(2026, 10, 19)),
         isTrue,
       );
       await tapVisible(
@@ -295,7 +295,7 @@ void main() {
   });
 
   testWidgets(
-    'Loads five-day availability for all specialty doctors in batch',
+    'Loads the two-week booking window for all specialty doctors in batch',
     (tester) async {
       final startDate = DateTime(2026, 10, 9);
       final doctors = _LiveDoctors();
@@ -326,11 +326,8 @@ void main() {
 
       expect(doctors.requestedSpecialtyId, specialty.id);
       expect(schedules.rangeRequest?.$1, ['doctor-1', 'doctor-2']);
-      expect(schedules.rangeRequest?.$2, startDate);
-      expect(
-        schedules.rangeRequest?.$3,
-        startDate.add(const Duration(days: 4)),
-      );
+      expect(schedules.rangeRequest?.$2, DateTime(2026, 10, 8));
+      expect(schedules.rangeRequest?.$3, DateTime(2026, 10, 22));
       expect(schedules.requestedWorkScheduleIds, ['schedule-1']);
       expect(find.byType(AppointmentDoctorCard), findsNWidgets(2));
       expect(find.byKey(const ValueKey('slot-live-1')), findsOneWidget);
@@ -338,7 +335,7 @@ void main() {
         tester
             .widget<AppointmentDateStrip>(find.byType(AppointmentDateStrip))
             .dates,
-        List.generate(5, (index) => startDate.add(Duration(days: index))),
+        List.generate(15, (index) => DateTime(2026, 10, 8 + index)),
       );
     },
   );
