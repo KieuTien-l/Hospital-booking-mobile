@@ -112,9 +112,41 @@ class DoctorHealthRecordDraft {
     this.id,
     this.notes = '',
     this.prescription = '',
+    this.medicines = const [],
   });
   final String requestId, appointmentId, diagnosis, recordType;
   final String? id, notes, prescription;
+  final List<DoctorPrescriptionMedicine> medicines;
+}
+
+class DoctorPrescriptionMedicine {
+  const DoctorPrescriptionMedicine({
+    required this.name,
+    this.strength = '',
+    this.quantity = '',
+    this.dose = '',
+    this.frequency = '',
+    this.duration = '',
+    this.instructions = '',
+  });
+
+  final String name,
+      strength,
+      quantity,
+      dose,
+      frequency,
+      duration,
+      instructions;
+
+  Map<String, String> toJson() => {
+    'name': name,
+    'strength': strength,
+    'quantity': quantity,
+    'dose': dose,
+    'frequency': frequency,
+    'duration': duration,
+    'instructions': instructions,
+  };
 }
 
 class DoctorTestResultDraft {
@@ -179,8 +211,12 @@ class DoctorHealthRecordSummary {
     required this.notes,
     required this.prescription,
     required this.recordType,
+    this.appointmentId = '',
+    this.medicines = const [],
   });
   final String id, diagnosis, notes, prescription, recordType;
+  final String appointmentId;
+  final List<DoctorPrescriptionMedicine> medicines;
 }
 
 class DoctorTestResultSummary {
@@ -191,6 +227,7 @@ class DoctorTestResultSummary {
     required this.resultType,
     required this.conclusion,
     required this.referenceRange,
+    this.appointmentId = '',
     this.orderId,
   });
   final String id,
@@ -199,6 +236,7 @@ class DoctorTestResultSummary {
       resultType,
       conclusion,
       referenceRange;
+  final String appointmentId;
   final String? orderId;
 }
 
@@ -223,9 +261,11 @@ class DoctorPatientVisit {
     required this.id,
     required this.date,
     required this.status,
+    this.startTime = '',
   });
 
   final String id;
   final DateTime date;
   final String status;
+  final String startTime;
 }

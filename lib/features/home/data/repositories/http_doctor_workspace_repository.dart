@@ -118,6 +118,28 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     return value.cast<Map<String, dynamic>>();
   }
 
+  List<DoctorPrescriptionMedicine> _medicines(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map((item) {
+          String text(String key) => item[key]?.toString().trim() ?? '';
+          final name = text('name');
+          if (name.isEmpty) return null;
+          return DoctorPrescriptionMedicine(
+            name: name,
+            strength: text('strength'),
+            quantity: text('quantity'),
+            dose: text('dose'),
+            frequency: text('frequency'),
+            duration: text('duration'),
+            instructions: text('instructions'),
+          );
+        })
+        .whereType<DoctorPrescriptionMedicine>()
+        .toList(growable: false);
+  }
+
   @override
   Future<DoctorDayData> loadDay({
     required String userId,
@@ -323,6 +345,9 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
         'diagnosis': draft.diagnosis,
         'notes': draft.notes,
         'prescription': draft.prescription,
+        'medicines': draft.medicines
+            .map((medicine) => medicine.toJson())
+            .toList(),
         'recordType': draft.recordType,
       },
     ),
@@ -410,6 +435,8 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
               notes: item['notes'] as String,
               prescription: item['prescription'] as String,
               recordType: item['recordType'] as String,
+              appointmentId: item['appointmentId'] as String? ?? appointmentId,
+              medicines: _medicines(item['medicines']),
             ),
           )
           .toList(growable: false);
@@ -434,6 +461,7 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
               resultType: item['resultType'] as String,
               conclusion: item['conclusion'] as String,
               referenceRange: item['referenceRange'] as String,
+              appointmentId: item['appointmentId'] as String? ?? appointmentId,
               orderId: item['orderId'] as String?,
             ),
           )
@@ -454,6 +482,7 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
             id: item['id'] as String,
             date: DateTime.parse(item['date'] as String),
             status: item['status'] as String,
+            startTime: item['startTime'] as String? ?? '',
           ),
         )
         .toList(growable: false);
@@ -465,6 +494,8 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
             notes: item['notes'] as String,
             prescription: item['prescription'] as String,
             recordType: item['recordType'] as String,
+            appointmentId: item['appointmentId'] as String? ?? '',
+            medicines: _medicines(item['medicines']),
           ),
         )
         .toList(growable: false);
@@ -477,6 +508,7 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
             resultType: item['resultType'] as String,
             conclusion: item['conclusion'] as String,
             referenceRange: item['referenceRange'] as String,
+            appointmentId: item['appointmentId'] as String? ?? '',
           ),
         )
         .toList(growable: false);

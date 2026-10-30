@@ -427,8 +427,17 @@ class _HealthRecordCard extends StatelessWidget {
           ),
           if (record.prescription?.trim().isNotEmpty ?? false) ...[
             const SizedBox(height: 6),
+            const Text(
+              'Đơn thuốc',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
             Text(
-              'Đơn thuốc: ${record.prescription}',
+              record.prescription!,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,

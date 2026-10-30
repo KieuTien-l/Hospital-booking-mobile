@@ -105,7 +105,6 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
           padding: const EdgeInsets.all(16),
           children: [
             _section('Thông tin lịch hẹn', [
-              ('Mã lịch hẹn', _appointment.id),
               ('Bệnh nhân', widget.item.patientName),
               ('Chuyên khoa', widget.item.specialtyName),
               ('Bác sĩ', widget.item.doctorName),

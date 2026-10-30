@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { safetyReplyFor } from '../src/index.js';
+import { guidanceReplyFor, safetyReplyFor } from '../src/index.js';
 
 test('declines requests outside HealWay and general health', () => {
   assert.match(safetyReplyFor('Viết code Flutter đăng nhập Firebase'), /chỉ hỗ trợ sử dụng HealWay/i);
@@ -29,6 +29,25 @@ test('allows ordinary health and HealWay questions to be answered by the assista
   assert.equal(safetyReplyFor('Tôi bị nôn mửa, cần làm gì?'), null);
   assert.equal(safetyReplyFor('Tôi bị ói mửa từ sáng nay'), null);
   assert.equal(safetyReplyFor('Hướng dẫn tôi đổi lịch khám'), null);
+  assert.equal(
+    safetyReplyFor('Tôi cần chuẩn bị những gì trước khi đi khám?'),
+    null,
+  );
+  assert.equal(
+    safetyReplyFor('Đi khám cần mang theo giấy tờ gì?'),
+    null,
+  );
+});
+
+test('provides dependable guidance for booking and preparing for a visit', () => {
+  assert.match(
+    guidanceReplyFor('Tôi muốn được hướng dẫn đặt khám.'),
+    /chọn Đặt khám/i,
+  );
+  assert.match(
+    guidanceReplyFor('Tôi cần chuẩn bị những gì trước khi đi khám?'),
+    /CCCD/i,
+  );
 });
 
 test('allows a narrowly defined health follow-up when its user context is medical', () => {

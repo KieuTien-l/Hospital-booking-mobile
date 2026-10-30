@@ -26,8 +26,10 @@ const sensitiveInfoPatterns = /\b(mat khau|password|ma otp|otp|ma xac thuc|so th
 // Default-deny scope gate: a question must clearly concern either HealWay or
 // general health before it can be sent to the model. This intentionally keeps
 // unrelated topics out even when a keyword list does not recognize them.
-const healthOrHealwayPatterns = /\b(healway|dat lich|lich hen|doi lich|huy lich|lich su kham|thong bao|ho so (benh nhan|suc khoe)|benh vien|phong kham|co so y te|bac si|chuyen khoa|kham (benh|tong quat)?|suc khoe|benh|trieu chung|chan thuong|dau|sot|ho|kho tho|chong mat|buon non|non mua|non oi|oi mua|tieu chay|tao bon|di ung|phat ban|ngat|chay mau|thuoc|tiem (chung|ngua)?|vac xin|dinh duong|an uong|van dong|the duc|giac ngu|ngu|stress|tam ly|tinh than|thai|mang thai|kinh nguyet|tre em|em be|so sinh|nguoi gia|health|hospital|doctor|appointment|symptom|fever|cough|medicine|vaccine|nutrition|sleep)\b/;
+const healthOrHealwayPatterns = /\b(healway|dat lich|lich hen|doi lich|huy lich|lich su kham|thong bao|ho so (benh nhan|suc khoe)|benh vien|phong kham|co so y te|bac si|chuyen khoa|kham (benh|tong quat)?|chuan bi.*kham|truoc khi.*kham|giay to.*kham|suc khoe|benh|trieu chung|chan thuong|dau|sot|ho|kho tho|chong mat|buon non|non mua|non oi|oi mua|tieu chay|tao bon|di ung|phat ban|ngat|chay mau|thuoc|tiem (chung|ngua)?|vac xin|dinh duong|an uong|van dong|the duc|giac ngu|ngu|stress|tam ly|tinh than|thai|mang thai|kinh nguyet|tre em|em be|so sinh|nguoi gia|health|hospital|doctor|appointment|symptom|fever|cough|medicine|vaccine|nutrition|sleep)\b/;
 const healthFollowUpPatterns = /\b(co nguy hiem khong|nen lam gi|lam sao|co can di kham khong|khi nao can di kham|co sao khong)\b/;
+const bookingGuidePatterns = /\b(huong dan.*(dat lich|dat kham)|cach.*(dat lich|dat kham)|(dat lich|dat kham).*(the nao|lam sao))\b/;
+const beforeVisitPatterns = /\b(chuan bi.*(di )?kham|truoc khi.*(di )?kham|giay to.*(di )?kham)\b/;
 
 const localLimits = new Map();
 let signingKeyCache = { expiresAt: 0, values: [] };
@@ -67,6 +69,10 @@ export default {
         }
         return json({ reply: protectedReply }, 200, headers);
       }
+      // Common HealWay guidance must remain available even if the AI service
+      // is temporarily restrictive or changes its interpretation of scope.
+      const guidedReply = guidanceReplyFor(input.message);
+      if (guidedReply) return json({ reply: guidedReply }, 200, headers);
       const reply = await askOpenAi(input.history, env.OPENAI_API_KEY);
       return json({ reply }, 200, headers);
     } catch (error) {
@@ -205,6 +211,17 @@ export function safetyReplyFor(message, history = []) {
   if (medicineOrDiagnosisPatterns.test(normalized)) return medicineOrDiagnosisReply;
   if (!healthOrHealwayPatterns.test(normalized) && !isHealthFollowUp(normalized, history)) {
     return outOfScopeReply;
+  }
+  return null;
+}
+
+export function guidanceReplyFor(message) {
+  const normalized = normalizeForSafetyCheck(message);
+  if (bookingGuidePatterns.test(normalized)) {
+    return 'Bạn có thể đặt khám theo các bước: chọn Đặt khám → chọn hồ sơ bệnh nhân → chọn chuyên khoa và bác sĩ → chọn ngày, khung giờ còn trống → kiểm tra thông tin và thanh toán. Sau khi thanh toán thành công, lịch hẹn sẽ xuất hiện trong Lịch sử đặt khám.';
+  }
+  if (beforeVisitPatterns.test(normalized)) {
+    return 'Trước khi đi khám, bạn nên mang CCCD hoặc giấy tờ tùy thân, thẻ BHYT (nếu có), giấy chuyển tuyến/giấy hẹn (nếu có), kết quả xét nghiệm hoặc đơn thuốc cũ. Hãy đến sớm khoảng 15–30 phút và chuẩn bị thông tin về triệu chứng, thuốc đang dùng để trao đổi với bác sĩ.';
   }
   return null;
 }

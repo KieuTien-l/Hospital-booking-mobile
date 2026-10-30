@@ -13,11 +13,13 @@ class PatientAppointmentsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profile = context.watch<PatientProfileController?>();
-    final patient = profile?.patient;
-    if (patient != null) {
+    final patients = profile?.patients ?? const [];
+    if (patients.isNotEmpty) {
       return AppointmentHistoryPage(
-        patientId: patient.id,
-        patientName: patient.fullName,
+        patientIds: patients.map((patient) => patient.id).toList(),
+        patientNames: {
+          for (final patient in patients) patient.id: patient.fullName,
+        },
       );
     }
 

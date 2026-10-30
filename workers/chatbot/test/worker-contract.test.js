@@ -65,14 +65,9 @@ test('accepts a valid chatbot request and returns the response contract', async 
   }), env());
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), {
-    reply: 'Bạn có thể vào mục Đặt khám để chọn chuyên khoa.',
-  });
+  assert.match((await response.json()).reply, /chọn Đặt khám/i);
   const openAiCall = calls.find((call) => call.address === 'https://api.openai.com/v1/responses');
-  assert.ok(openAiCall);
-  const payload = JSON.parse(openAiCall.options.body);
-  assert.equal(payload.input.at(-1).role, 'user');
-  assert.equal(payload.input.at(-1).content, 'Hướng dẫn tôi đặt lịch khám');
+  assert.equal(openAiCall, undefined);
 });
 
 test('returns a safe local reply for out-of-scope requests without calling AI', async () => {

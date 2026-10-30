@@ -73,7 +73,7 @@ class HealthRecordModel extends HealthRecord {
       patientCode: readOptionalString(data['patientCode']),
       appointmentId: readOptionalString(data['appointmentId']),
       examinationId: readOptionalString(data['examinationId']),
-      prescription: readOptionalString(data['instructions']),
+      prescription: _prescriptionText(data),
       recordType: HealthRecordType.outpatient,
       documentCategory: HealthRecordDocumentCategory.prescription,
       createdAt: readDateTime(data['createdAt']),
@@ -87,6 +87,48 @@ class HealthRecordModel extends HealthRecord {
         .map(readOptionalString)
         .whereType<String>()
         .toList(growable: false);
+  }
+
+  static String? _prescriptionText(Map<String, dynamic> data) {
+    final medicines = data['medicines'];
+    if (medicines is List) {
+      final formatted = medicines
+          .whereType<Map>()
+          .map((item) {
+            String text(String key) => readOptionalString(item[key]) ?? '';
+            final name = text('name');
+            if (name.isEmpty) return '';
+            final strength = text('strength');
+            final details = [
+              if (text('quantity').isNotEmpty) 'SL: ${text('quantity')}',
+              if (text('dose').isNotEmpty) 'Liều: ${text('dose')}',
+              if (text('frequency').isNotEmpty) text('frequency'),
+              if (text('duration').isNotEmpty) text('duration'),
+            ];
+            return [
+              '$name${strength.isEmpty ? '' : ' ($strength)'}',
+              if (details.isNotEmpty) details.join(' • '),
+              if (text('instructions').isNotEmpty)
+                'Lưu ý: ${text('instructions')}',
+            ].join('\n');
+          })
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+      if (formatted.isNotEmpty) return formatted.join('\n\n');
+    }
+    final instructions = readOptionalString(data['instructions']);
+    if (instructions == null || instructions.isEmpty) return instructions;
+    final parts = instructions.split(RegExp(r'\s+—\s+'));
+    if (parts.length < 2) return instructions;
+    final details = <String>[
+      if (parts.length > 1) 'Hàm lượng: ${parts[1]}',
+      if (parts.length > 2) parts[2],
+      if (parts.length > 3) 'Liều: ${parts[3]}',
+      if (parts.length > 4) parts[4],
+      if (parts.length > 5) parts[5],
+      if (parts.length > 6) 'Lưu ý: ${parts.skip(6).join(' — ')}',
+    ];
+    return '${parts.first}\n${details.join(' • ')}';
   }
 
   static String _recordType(String? value) {

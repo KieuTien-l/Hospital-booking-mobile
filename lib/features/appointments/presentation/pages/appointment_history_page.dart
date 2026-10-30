@@ -22,6 +22,8 @@ class AppointmentHistoryPage extends StatefulWidget {
     this.items = const [],
     this.patientId,
     this.patientName,
+    this.patientIds,
+    this.patientNames = const {},
     this.isDemo = false,
     this.viewState = ViewState.success,
     this.errorMessage,
@@ -33,6 +35,11 @@ class AppointmentHistoryPage extends StatefulWidget {
   final List<AppointmentHistoryUiModel> items;
   final String? patientId;
   final String? patientName;
+
+  /// When opened from the account home, history includes every profile owned
+  /// by the account. Profile-specific screens continue to supply [patientId].
+  final List<String>? patientIds;
+  final Map<String, String> patientNames;
   final bool isDemo;
   final ViewState viewState;
   final String? errorMessage;
@@ -49,7 +56,7 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
   DateTimeRange? _range;
   String? _specialty;
   bool _filterOpen = false;
-  String? _loadedPatientId;
+  String? _loadedPatientKey;
   final Map<String, Doctor> _doctors = {};
   final Map<String, String> _specialtyNames = {};
   final Set<String> _requestedDoctorIds = {};
@@ -61,8 +68,15 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
   bool get _usesLiveData =>
       widget.items.isEmpty &&
       !widget.isDemo &&
-      widget.patientId?.trim().isNotEmpty == true &&
+      _patientIds.isNotEmpty &&
       widget.viewState == ViewState.success;
+
+  List<String> get _patientIds =>
+      (widget.patientIds ?? [widget.patientId ?? ''])
+          .map((id) => id.trim())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
 
   List<AppointmentHistoryUiModel> get _items =>
       _usesLiveData ? _liveItems : widget.items;
@@ -70,8 +84,8 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
   List<AppointmentHistoryUiModel> get _scoped => _items
       .where(
         (item) =>
-            widget.patientId == null ||
-            item.appointment.patientId == widget.patientId,
+            _patientIds.isEmpty ||
+            _patientIds.contains(item.appointment.patientId),
       )
       .toList();
 
@@ -102,19 +116,22 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
 
   void _loadLiveAppointments({bool force = false}) {
     final controller = context.read<AppointmentController?>();
-    final patientId = widget.patientId?.trim();
+    final patientIds = _patientIds;
+    final patientKey = [...patientIds]..sort();
+    final normalizedKey = patientKey.join('|');
     if (!_usesLiveData ||
         controller == null ||
-        patientId == null ||
-        patientId.isEmpty ||
-        (!force && patientId == _loadedPatientId)) {
+        patientIds.isEmpty ||
+        (!force && normalizedKey == _loadedPatientKey)) {
       return;
     }
-    _loadedPatientId = patientId;
-    controller.loadAppointments(patientId);
+    _loadedPatientKey = normalizedKey;
+    controller.loadAppointmentsForPatients(patientIds);
     // Payment records are stored separately from appointments. Load them for
     // the same profile so the paid tab is based on actual transaction state.
-    context.read<PatientPaymentController?>()?.loadPayments(patientId);
+    context.read<PatientPaymentController?>()?.loadPaymentsForPatients(
+      patientIds,
+    );
   }
 
   void _syncLiveItems(
@@ -123,7 +140,8 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
   ) {
     if (!_usesLiveData || controller == null) return;
     final appointments = controller.appointments;
-    final paidAppointmentIds = payments?.payments
+    final paidAppointmentIds =
+        payments?.payments
             .where(
               (payment) =>
                   payment.appointmentId?.trim().isNotEmpty == true &&
@@ -159,7 +177,10 @@ class _AppointmentHistoryPageState extends State<AppointmentHistoryPage> {
         : _specialtyNames[specialtyId] ?? 'Chuyên khoa chưa cập nhật';
     return AppointmentHistoryUiModel(
       appointment: appointment,
-      patientName: widget.patientName?.trim().isNotEmpty == true
+      patientName:
+          widget.patientNames[appointment.patientId]?.trim().isNotEmpty == true
+          ? widget.patientNames[appointment.patientId]!.trim()
+          : widget.patientName?.trim().isNotEmpty == true
           ? widget.patientName!.trim()
           : 'Bệnh nhân',
       specialtyName: specialtyName,

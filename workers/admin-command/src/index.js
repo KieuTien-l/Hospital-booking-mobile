@@ -707,6 +707,26 @@ async function doctorDay(tx, doctor, date) {
     { field: 'appointmentDate', op: 'EQUAL', value: date },
   ], 301);
   const appointments = appointmentRows.filter((row) => scheduleIds.has(row.data.workScheduleId));
+  // A schedule edit in an older app version could remove a CA_KHAM document
+  // after an appointment had already been made. The appointment itself still
+  // has a valid, immutable time snapshot, so expose it as a booked slot to
+  // the doctor instead of making that patient disappear from the queue.
+  const knownSlotIds = new Set(slots.map((slot) => slot.id));
+  for (const row of appointments) {
+    const slotId = textOrEmpty(row.data.timeSlotId);
+    if (!slotId || knownSlotIds.has(slotId)) continue;
+    slots.push({
+      id: slotId,
+      workScheduleId: textOrEmpty(row.data.workScheduleId),
+      doctorId: doctor.id,
+      startTime: textOrEmpty(row.data.startTime),
+      endTime: textOrEmpty(row.data.endTime),
+      status: 'BOOKED',
+      capacity: Math.max(1, numberOrZero(row.data.peopleCount)),
+      bookedCount: Math.max(1, numberOrZero(row.data.peopleCount)),
+    });
+    knownSlotIds.add(slotId);
+  }
   const examinations = new Map();
   for (const row of appointments) {
     examinations.set(row.id, await tx.get(`PHIEU_KHAM/${row.id}`));
@@ -931,11 +951,14 @@ async function saveClinicalRecord(request, uid, firestore, kind) {
   const appointmentId = requiredId(body.appointmentId, 'Mã lịch hẹn');
   const id = body.id == null || body.id === '' ? null : requiredId(body.id, 'Mã hồ sơ');
   const orderId = kind === 'result' ? requiredId(body.orderId, 'Chỉ định CLS') : null;
-  const prescription = kind === 'health' ? optionalText(body.prescription, 4000) : '';
+  const medicines = kind === 'health' ? prescriptionMedicines(body.medicines) : [];
+  const prescription = kind === 'health'
+    ? (medicines.length ? medicineSummary(medicines) : optionalText(body.prescription, 4000))
+    : '';
   const shouldIssuePrescription = kind === 'health' && hasActualPrescription(prescription);
   const values = kind === 'health' ? {
     diagnosis: requiredText(body.diagnosis, 'Chẩn đoán', 1000),
-    notes: optionalText(body.notes, 4000), prescription,
+    notes: optionalText(body.notes, 4000), prescription, medicines,
     recordType: choice(body.recordType || 'OUTPATIENT', ['OUTPATIENT', 'INPATIENT', 'CHECKUP'], 'Loại hồ sơ'),
     // A prescription must always be discoverable in the patient's
     // “Đơn thuốc” tab.  The document category therefore follows the actual
@@ -1032,6 +1055,15 @@ async function saveClinicalRecord(request, uid, firestore, kind) {
     };
     if (existing) tx.update(path, fields);
     else tx.create(path, { ...fields, createdAt: serverTimestamp() });
+    // Once every CLS result is ready, saving the health record is the
+    // doctor's documented conclusion. Resume the examination automatically
+    // so the visit can be completed without a redundant “open again” step.
+    if (kind === 'health' && examination?.data.status === 'RESULTS_READY') {
+      tx.update(`PHIEU_KHAM/${appointmentId}`, {
+        status: 'IN_PROGRESS',
+        updatedAt: serverTimestamp(),
+      });
+    }
     if (kind === 'health') {
       // A prescription is its own clinical document.  Keeping it separate
       // from the health-record narrative lets the patient open the
@@ -1049,6 +1081,7 @@ async function saveClinicalRecord(request, uid, firestore, kind) {
           specialtyId: textOrEmpty(appointment.specialtyId),
           diagnosis: values.diagnosis,
           instructions: prescription,
+          medicines,
           status: 'ISSUED',
           issuedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -1150,8 +1183,8 @@ async function clinicalRecordsForAppointment(url, uid, firestore, kind) {
     const sourceRows = kind === 'health' ? appointmentRows.slice(0, 1) : appointmentRows;
     const records = sourceRows
       .map((row) => kind === 'health'
-        ? { id: row.id, diagnosis: textOrEmpty(row.data.diagnosis), notes: textOrEmpty(row.data.notes), prescription: textOrEmpty(row.data.prescription), recordType: textOrEmpty(row.data.recordType) || 'OUTPATIENT' }
-        : { id: row.id, testName: textOrEmpty(row.data.testName), resultDescription: textOrEmpty(row.data.resultDescription), resultType: textOrEmpty(row.data.resultType) || 'Khác', conclusion: textOrEmpty(row.data.conclusion), referenceRange: textOrEmpty(row.data.referenceRange), orderId: textOrEmpty(row.data.orderId) || null })
+        ? { id: row.id, appointmentId: textOrEmpty(row.data.appointmentId), diagnosis: textOrEmpty(row.data.diagnosis), notes: textOrEmpty(row.data.notes), prescription: textOrEmpty(row.data.prescription), recordType: textOrEmpty(row.data.recordType) || 'OUTPATIENT', medicines: Array.isArray(row.data.medicines) ? row.data.medicines : [] }
+        : { id: row.id, appointmentId: textOrEmpty(row.data.appointmentId), testName: textOrEmpty(row.data.testName), resultDescription: textOrEmpty(row.data.resultDescription), resultType: textOrEmpty(row.data.resultType) || 'Khác', conclusion: textOrEmpty(row.data.conclusion), referenceRange: textOrEmpty(row.data.referenceRange), orderId: textOrEmpty(row.data.orderId) || null })
       .sort((left, right) => left.id.localeCompare(right.id));
     return { records };
   });
@@ -1169,7 +1202,7 @@ async function doctorPatientHistory(uid, firestore, patientId) {
       { field: 'doctorId', op: 'EQUAL', value: doctor.id },
     ], 301))
       .filter((row) => row.data.patientId === patientId && ['CONFIRMED', 'COMPLETED'].includes(row.data.status))
-      .map((row) => ({ id: row.id, date: dayKey(row.data.appointmentDate), status: textOrEmpty(row.data.status) }))
+      .map((row) => ({ id: row.id, date: dayKey(row.data.appointmentDate), status: textOrEmpty(row.data.status), startTime: textOrEmpty(row.data.startTime) }))
       .filter((visit) => visit.date)
       .sort((left, right) => right.date.localeCompare(left.date) || right.id.localeCompare(left.id));
     if (!visits.length) {
@@ -1189,15 +1222,24 @@ async function doctorPatientHistory(uid, firestore, patientId) {
         return true;
       })
       .map((row) => ({
-        id: row.id, diagnosis: textOrEmpty(row.data.diagnosis), notes: textOrEmpty(row.data.notes),
+        id: row.id, appointmentId: textOrEmpty(row.data.appointmentId), diagnosis: textOrEmpty(row.data.diagnosis), notes: textOrEmpty(row.data.notes),
         prescription: textOrEmpty(row.data.prescription), recordType: textOrEmpty(row.data.recordType) || 'OUTPATIENT',
+        medicines: Array.isArray(row.data.medicines) ? row.data.medicines : [],
       }));
+    const seenResultOrders = new Set();
     const testResults = (await tx.query('KET_QUA_CLS', [
       { field: 'doctorId', op: 'EQUAL', value: doctor.id },
     ], 301))
       .filter((row) => row.data.patientId === patientId && visitIds.has(row.data.appointmentId))
+      .sort((left, right) => right.id.localeCompare(left.id))
+      .filter((row) => {
+        const key = `${textOrEmpty(row.data.appointmentId)}:${textOrEmpty(row.data.orderId) || textOrEmpty(row.data.testName)}`;
+        if (seenResultOrders.has(key)) return false;
+        seenResultOrders.add(key);
+        return true;
+      })
       .map((row) => ({
-        id: row.id, testName: textOrEmpty(row.data.testName), resultDescription: textOrEmpty(row.data.resultDescription),
+        id: row.id, appointmentId: textOrEmpty(row.data.appointmentId), testName: textOrEmpty(row.data.testName), resultDescription: textOrEmpty(row.data.resultDescription),
         resultType: textOrEmpty(row.data.resultType) || 'Khác', conclusion: textOrEmpty(row.data.conclusion),
         referenceRange: textOrEmpty(row.data.referenceRange),
       }));
@@ -2369,6 +2411,38 @@ function optionalText(value, max = 1000) {
   if (value == null) return '';
   if (typeof value !== 'string' || value.trim().length > max) throw new HttpError(400, 'Nội dung không hợp lệ.');
   return value.trim();
+}
+function prescriptionMedicines(value) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > 30) {
+    throw new HttpError(400, 'Danh sách thuốc không hợp lệ.');
+  }
+  return value.map((item) => {
+    const medicine = objectValue(item);
+    const name = requiredText(medicine.name, 'Tên thuốc', 200);
+    return {
+      name,
+      strength: optionalText(medicine.strength, 100),
+      quantity: optionalText(medicine.quantity, 100),
+      dose: optionalText(medicine.dose, 200),
+      frequency: optionalText(medicine.frequency, 200),
+      duration: optionalText(medicine.duration, 100),
+      instructions: optionalText(medicine.instructions, 500),
+    };
+  });
+}
+function medicineSummary(medicines) {
+  return medicines.map((medicine) => {
+    const details = [
+      medicine.strength && `Hàm lượng: ${medicine.strength}`,
+      medicine.quantity && `SL: ${medicine.quantity}`,
+      medicine.dose && `Liều: ${medicine.dose}`,
+      medicine.frequency,
+      medicine.duration,
+      medicine.instructions && `Lưu ý: ${medicine.instructions}`,
+    ].filter(Boolean);
+    return [medicine.name, details.join(' • ')].filter(Boolean).join('\n');
+  }).join('\n');
 }
 function boundedNumber(value, label, min, max, integer = false) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) {

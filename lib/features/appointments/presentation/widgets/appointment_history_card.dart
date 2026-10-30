@@ -42,11 +42,6 @@ class AppointmentHistoryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                appointment.id,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
                 item.specialtyName,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppColors.textOnPrimary,

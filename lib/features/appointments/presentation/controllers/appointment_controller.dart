@@ -28,6 +28,8 @@ class AppointmentController extends ChangeNotifier {
 
   StreamSubscription<Patient?>? _profileSubscription;
   StreamSubscription<List<Appointment>>? _appointmentsSubscription;
+  final List<StreamSubscription<List<Appointment>>>
+  _familyAppointmentSubscriptions = [];
 
   ViewState _status = ViewState.initial;
   ViewState _appointmentsStatus = ViewState.initial;
@@ -184,7 +186,7 @@ class AppointmentController extends ChangeNotifier {
     final version = ++_profileVersion;
     _listVersion++;
     _profileSubscription?.cancel();
-    _appointmentsSubscription?.cancel();
+    _cancelAppointmentSubscriptions();
     _appointmentsStatus = ViewState.initial;
     _appointmentsErrorMessage = null;
     _patient = null;
@@ -401,6 +403,63 @@ class AppointmentController extends ChangeNotifier {
       getAppointmentDetails(id);
   void loadAppointments(String patientId) => _watchAppointments(patientId);
 
+  /// The account holder can manage appointments for themself and relatives.
+  /// Each permitted profile is queried independently, which keeps Firestore
+  /// Rules ownership-safe while presenting one combined history in the UI.
+  void loadAppointmentsForPatients(Iterable<String> patientIds) {
+    final ids = patientIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (ids.length <= 1) {
+      _watchAppointments(ids.isEmpty ? null : ids.single);
+      return;
+    }
+    final version = ++_listVersion;
+    _cancelAppointmentSubscriptions();
+    _appointments = const [];
+    _appointmentsErrorMessage = null;
+    _appointmentsStatus = ViewState.loading;
+    notifyListeners();
+
+    final valuesByPatient = <String, List<Appointment>>{};
+    void publish() {
+      if (_disposed || version != _listVersion) return;
+      final merged = valuesByPatient.values.expand((items) => items).toList()
+        ..sort((left, right) {
+          final leftDate =
+              left.appointmentDate ?? left.bookedAt ?? left.createdAt;
+          final rightDate =
+              right.appointmentDate ?? right.bookedAt ?? right.createdAt;
+          return (rightDate ?? DateTime(0)).compareTo(leftDate ?? DateTime(0));
+        });
+      _appointments = List.unmodifiable(merged);
+      _appointmentsStatus =
+          valuesByPatient.length == ids.length && merged.isEmpty
+          ? ViewState.empty
+          : ViewState.success;
+      _appointmentsErrorMessage = null;
+      notifyListeners();
+    }
+
+    void fail(Object error) {
+      if (_disposed || version != _listVersion) return;
+      _appointmentsStatus = ViewState.error;
+      _appointmentsErrorMessage = error.toString();
+      notifyListeners();
+    }
+
+    for (final patientId in ids) {
+      _familyAppointmentSubscriptions.add(
+        _repository.watchAppointmentsByPatient(patientId).listen((values) {
+          valuesByPatient[patientId] = values;
+          publish();
+        }, onError: fail),
+      );
+    }
+  }
+
   void clearError() {
     if (_errorMessage == null) return;
     _errorMessage = null;
@@ -410,7 +469,7 @@ class AppointmentController extends ChangeNotifier {
 
   void _watchAppointments(String? patientId) {
     final version = ++_listVersion;
-    _appointmentsSubscription?.cancel();
+    _cancelAppointmentSubscriptions();
     _appointments = const [];
     _appointmentsErrorMessage = null;
     if (patientId == null || patientId.isEmpty) {
@@ -444,6 +503,15 @@ class AppointmentController extends ChangeNotifier {
     }
   }
 
+  void _cancelAppointmentSubscriptions() {
+    _appointmentsSubscription?.cancel();
+    _appointmentsSubscription = null;
+    for (final subscription in _familyAppointmentSubscriptions) {
+      subscription.cancel();
+    }
+    _familyAppointmentSubscriptions.clear();
+  }
+
   void _setError(Object error) {
     if (_disposed) return;
     _status = AppointmentControllerStatus.error;
@@ -475,7 +543,7 @@ class AppointmentController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _profileSubscription?.cancel();
-    _appointmentsSubscription?.cancel();
+    _cancelAppointmentSubscriptions();
     super.dispose();
   }
 }

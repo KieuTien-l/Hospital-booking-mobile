@@ -84,9 +84,12 @@ class DoctorTodayAppointmentsSection extends StatelessWidget {
     WorkSchedule schedule,
     _ScheduleAppointmentCounts counts,
   ) {
-    final slots = timeSlots
-        .where((slot) => slot.workScheduleId == schedule.id)
-        .toList(growable: false);
+    final slots =
+        timeSlots.where((slot) => slot.workScheduleId == schedule.id).toList()
+          ..sort(
+            (left, right) =>
+                (left.startTime ?? '').compareTo(right.startTime ?? ''),
+          );
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
