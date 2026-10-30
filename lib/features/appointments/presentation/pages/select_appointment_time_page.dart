@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,6 +7,7 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../../core/widgets/view_state_widgets.dart';
 import '../../../doctors/domain/entities/doctor.dart';
 import '../../domain/entities/appointment.dart';
+import '../../domain/repositories/appointment_repository.dart';
 import '../../../doctors/domain/repositories/doctor_repository.dart';
 import '../../../doctors/presentation/controllers/schedule_controller.dart';
 import '../../../doctors/presentation/models/doctor_detail_demo_data.dart';
@@ -57,6 +60,9 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
   String? _error;
   int _loadRequest = 0;
   final Map<String, Doctor> _loadedDoctors = {};
+  StreamSubscription<List<Appointment>>? _patientAppointmentsSubscription;
+  String? _observedPatientId;
+  List<Appointment> _patientAppointments = const [];
 
   DateTime get _windowClock => widget.now ?? DateTime.now();
   List<DateTime> get _bookingDates =>
@@ -67,6 +73,85 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
     super.initState();
     _reset();
     _loadData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _watchPatientAppointments();
+  }
+
+  Patient? _bookingPatient() {
+    final routePatient = ModalRoute.of(context)?.settings.arguments;
+    return routePatient is Patient
+        ? routePatient
+        : context.read<PatientProfileController?>()?.patient;
+  }
+
+  void _watchPatientAppointments() {
+    Patient? patient;
+    try {
+      patient = _bookingPatient();
+    } catch (_) {
+      // Lightweight previews do not always provide the profile controller.
+      return;
+    }
+    final patientId = patient?.id;
+    if (patientId == null ||
+        patientId.isEmpty ||
+        patientId == _observedPatientId) {
+      return;
+    }
+    _observedPatientId = patientId;
+    _patientAppointmentsSubscription?.cancel();
+    try {
+      _patientAppointmentsSubscription = context
+          .read<AppointmentRepository>()
+          .watchAppointmentsByPatient(patientId)
+          .listen(
+            (appointments) {
+              if (!mounted) return;
+              setState(() {
+                _patientAppointments = appointments;
+                if (_hasAppointmentForCurrentSpecialtyOn(_date)) {
+                  _selection = null;
+                }
+              });
+            },
+            // The booking command remains the source of truth.  A stream
+            // error should not prevent this page from loading its schedules.
+            onError: (error, stackTrace) {},
+          );
+    } catch (_) {
+      // Preview and widget-test entry points intentionally may not install
+      // the production appointment repository.
+    }
+  }
+
+  bool _hasAppointmentForCurrentSpecialtyOn(DateTime date) =>
+      _patientAppointments.any(
+        (appointment) =>
+            (appointment.status == AppointmentStatus.pending ||
+                appointment.status == AppointmentStatus.confirmed) &&
+            appointment.appointmentDate != null &&
+            appointment.specialtyId == widget.specialty.id &&
+            DateUtils.isSameDay(appointment.appointmentDate!, date),
+      );
+
+  void _showOneAppointmentPerSpecialtyPerDay() => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(
+          'Bạn đã đặt lịch khoa ${widget.specialty.name} ngày ${appointmentDateLabel(_date)}. Mỗi hồ sơ chỉ được đặt một ca cho mỗi khoa trong ngày.',
+        ),
+      ),
+    );
+
+  @override
+  void dispose() {
+    _patientAppointmentsSubscription?.cancel();
+    super.dispose();
   }
 
   void _reset() {
@@ -210,6 +295,11 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
   Future<void> _continueBooking() async {
     final selection = _selection;
     if (selection == null) return;
+    if (_hasAppointmentForCurrentSpecialtyOn(selection.date)) {
+      setState(() => _selection = null);
+      _showOneAppointmentPerSpecialtyPerDay();
+      return;
+    }
     if (widget.onContinue != null) {
       widget.onContinue!(selection);
       return;
@@ -228,10 +318,7 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
       return;
     }
 
-    final routePatient = ModalRoute.of(context)?.settings.arguments;
-    final patient = routePatient is Patient
-        ? routePatient
-        : context.read<PatientProfileController?>()?.patient;
+    final patient = _bookingPatient();
     Appointment? reservedAppointment;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -285,6 +372,7 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
       doctorId: doctor.id,
       workScheduleId: selection.slot.workScheduleId,
       timeSlotId: selection.slot.id,
+      patientCode: patient.patientCode,
       appointmentDate: selection.date,
       startTime: selection.slot.startTime,
       endTime: selection.slot.endTime,
@@ -387,6 +475,20 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  if (_hasAppointmentForCurrentSpecialtyOn(_date)) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Bạn đã đặt lịch khoa này trong ngày này. Bạn vẫn có thể đặt lịch khoa khác hoặc chọn ngày khác.',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   if (_loading)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 48),
@@ -408,6 +510,8 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                           doctor: doctor,
                           expanded: _expanded.contains(doctor.id),
                           date: _date,
+                          isBookingBlocked:
+                              _hasAppointmentForCurrentSpecialtyOn(_date),
                           selectedSlotId: _selection?.doctor.id == doctor.id
                               ? _selection?.slot.id
                               : null,
@@ -446,9 +550,16 @@ class _SelectAppointmentTimePageState extends State<SelectAppointmentTimePage> {
                                 _date = DateUtils.dateOnly(date);
                                 _selection = null;
                               });
+                              if (_hasAppointmentForCurrentSpecialtyOn(date)) {
+                                _showOneAppointmentPerSpecialtyPerDay();
+                              }
                             }
                           },
                           onSlotSelected: (slot) {
+                            if (_hasAppointmentForCurrentSpecialtyOn(_date)) {
+                              _showOneAppointmentPerSpecialtyPerDay();
+                              return;
+                            }
                             final liveDoctor = _loadedDoctors[doctor.id];
                             if (slot.available &&
                                 (liveDoctor == null ||

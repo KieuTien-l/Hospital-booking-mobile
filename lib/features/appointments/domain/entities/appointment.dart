@@ -36,12 +36,14 @@ class Appointment {
     required this.doctorId,
     required this.workScheduleId,
     required this.timeSlotId,
+    this.patientCode,
     this.specialtyId,
     this.appointmentDate,
     this.startTime,
     this.endTime,
     this.bookedAt,
     this.status = AppointmentStatus.unknown,
+    this.clinicalStatus,
     this.reason,
     this.note,
     this.cancellationReason,
@@ -59,12 +61,20 @@ class Appointment {
   final String doctorId;
   final String workScheduleId;
   final String timeSlotId;
+
+  /// Denormalized printable profile code. [patientId] remains the relation.
+  final String? patientCode;
   final String? specialtyId;
   final DateTime? appointmentDate;
   final String? startTime;
   final String? endTime;
   final DateTime? bookedAt;
   final AppointmentStatus status;
+
+  /// Workflow state owned by the linked examination sheet. It is present in
+  /// the doctor-only day projection; appointment status remains the booking
+  /// and payment state.
+  final String? clinicalStatus;
   final String? reason;
   final String? note;
   final String? cancellationReason;

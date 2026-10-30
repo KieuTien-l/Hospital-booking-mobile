@@ -249,6 +249,56 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     );
   }
 
+  @override
+  Future<DoctorAppointmentCompletion> startExamination({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) async {
+    final data = await _request(
+      userId,
+      'doctor/examinations',
+      requestId: requestId,
+      body: {'appointmentId': appointmentId},
+    );
+    final id = data['id']?.toString().trim() ?? '';
+    final status = data['status']?.toString().trim() ?? '';
+    final message = data['message']?.toString().trim() ?? '';
+    if (id.isEmpty || status != 'IN_PROGRESS' || message.isEmpty) {
+      throw const FormatException('Phản hồi tạo phiếu khám không hợp lệ.');
+    }
+    return DoctorAppointmentCompletion(
+      id: id,
+      status: status,
+      message: message,
+    );
+  }
+
+  @override
+  Future<DoctorAppointmentCompletion> markExaminationAwaitingResults({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) async {
+    final data = await _request(
+      userId,
+      'doctor/examinations/${Uri.encodeComponent(appointmentId)}/awaiting-results',
+      requestId: requestId,
+      body: const <String, dynamic>{},
+    );
+    final id = data['id']?.toString().trim() ?? '';
+    final status = data['status']?.toString().trim() ?? '';
+    final message = data['message']?.toString().trim() ?? '';
+    if (id.isEmpty || status != 'WAITING_RESULTS' || message.isEmpty) {
+      throw const FormatException('Phản hồi chờ kết quả CLS không hợp lệ.');
+    }
+    return DoctorAppointmentCompletion(
+      id: id,
+      status: status,
+      message: message,
+    );
+  }
+
   DoctorClinicalSaveResult _clinicalResult(Map<String, dynamic> data) {
     final id = data['id']?.toString().trim() ?? '';
     final message = data['message']?.toString().trim() ?? '';
@@ -279,6 +329,47 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
   );
 
   @override
+  Future<DoctorClinicalSaveResult> createClinicalOrder({
+    required String userId,
+    required DoctorClinicalOrderDraft draft,
+  }) async => _clinicalResult(
+    await _request(
+      userId,
+      'doctor/clinical-orders',
+      requestId: draft.requestId,
+      body: {
+        'appointmentId': draft.appointmentId,
+        'testName': draft.testName,
+        'resultType': draft.resultType,
+        'notes': draft.notes,
+      },
+    ),
+  );
+
+  @override
+  Future<List<DoctorClinicalOrderSummary>> loadClinicalOrders({
+    required String userId,
+    required String appointmentId,
+  }) async =>
+      _list(
+            await _request(
+              userId,
+              'doctor/clinical-orders?appointmentId=$appointmentId',
+            ),
+            'orders',
+          )
+          .map(
+            (item) => DoctorClinicalOrderSummary(
+              id: item['id'] as String,
+              testName: item['testName'] as String,
+              resultType: item['resultType'] as String,
+              status: item['status'] as String,
+              notes: item['notes'] as String,
+            ),
+          )
+          .toList(growable: false);
+
+  @override
   Future<DoctorClinicalSaveResult> saveTestResult({
     required String userId,
     required DoctorTestResultDraft draft,
@@ -290,6 +381,7 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
       body: {
         if (draft.id?.isNotEmpty ?? false) 'id': draft.id,
         'appointmentId': draft.appointmentId,
+        'orderId': draft.orderId,
         'testName': draft.testName,
         'resultDescription': draft.resultDescription,
         'resultType': draft.resultType,
@@ -342,6 +434,7 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
               resultType: item['resultType'] as String,
               conclusion: item['conclusion'] as String,
               referenceRange: item['referenceRange'] as String,
+              orderId: item['orderId'] as String?,
             ),
           )
           .toList(growable: false);

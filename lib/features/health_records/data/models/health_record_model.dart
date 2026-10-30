@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../../core/utils/model_value_parser.dart';
 import '../../domain/entities/health_record.dart';
 
@@ -10,6 +11,9 @@ class HealthRecordModel extends HealthRecord {
     required super.recordDate,
     required super.diagnosis,
     super.notes,
+    super.patientCode,
+    super.appointmentId,
+    super.examinationId,
     super.prescription,
     super.attachments,
     super.recordType,
@@ -20,12 +24,12 @@ class HealthRecordModel extends HealthRecord {
 
   factory HealthRecordModel.fromFirestore(DocumentSnapshot doc) {
     final raw = doc.data();
-    final data = raw is Map<String, dynamic>
-        ? raw
-        : <String, dynamic>{};
+    final data = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
     final recordDate = readDateTime(data['recordDate']);
     if (recordDate == null) {
-      throw const FormatException('Hồ sơ sức khỏe thiếu hoặc có ngày khám không hợp lệ.');
+      throw const FormatException(
+        'Hồ sơ sức khỏe thiếu hoặc có ngày khám không hợp lệ.',
+      );
     }
     return HealthRecordModel(
       id: doc.id,
@@ -34,12 +38,44 @@ class HealthRecordModel extends HealthRecord {
       recordDate: recordDate,
       diagnosis: readString(data['diagnosis']),
       notes: readOptionalString(data['notes']),
+      patientCode: readOptionalString(data['patientCode']),
+      appointmentId: readOptionalString(data['appointmentId']),
+      examinationId: readOptionalString(data['examinationId']),
       prescription: readOptionalString(data['prescription']),
       attachments: _readAttachments(data['attachments']),
       recordType: _recordType(readOptionalString(data['recordType'])),
       documentCategory: _documentCategory(
         readOptionalString(data['documentCategory']),
       ),
+      createdAt: readDateTime(data['createdAt']),
+      updatedAt: readDateTime(data['updatedAt']),
+    );
+  }
+
+  /// Maps a real prescription document into the patient history list.  This
+  /// retains the existing screen/controller while prescriptions now live in
+  /// their own `DON_THUOC` collection.
+  factory HealthRecordModel.fromPrescriptionFirestore(DocumentSnapshot doc) {
+    final raw = doc.data();
+    final data = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
+    final recordDate =
+        readDateTime(data['issuedAt']) ?? readDateTime(data['createdAt']);
+    if (recordDate == null) {
+      throw const FormatException('Đơn thuốc thiếu ngày kê đơn hợp lệ.');
+    }
+    return HealthRecordModel(
+      id: 'prescription_${doc.id}',
+      patientId: readReferenceId(data['patientId']),
+      doctorId: readReferenceId(data['doctorId']),
+      recordDate: recordDate,
+      diagnosis: readOptionalString(data['diagnosis']) ?? 'Đơn thuốc',
+      notes: readOptionalString(data['notes']),
+      patientCode: readOptionalString(data['patientCode']),
+      appointmentId: readOptionalString(data['appointmentId']),
+      examinationId: readOptionalString(data['examinationId']),
+      prescription: readOptionalString(data['instructions']),
+      recordType: HealthRecordType.outpatient,
+      documentCategory: HealthRecordDocumentCategory.prescription,
       createdAt: readDateTime(data['createdAt']),
       updatedAt: readDateTime(data['updatedAt']),
     );
@@ -80,4 +116,3 @@ class HealthRecordModel extends HealthRecord {
     }
   }
 }
-

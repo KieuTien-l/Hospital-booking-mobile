@@ -3,9 +3,11 @@ import test from 'node:test';
 
 import worker, {
   appointmentHasStarted,
+  activePatientForPayment,
   canDoctorComplete,
   doctorJson,
   executeCommand,
+  hasActiveAppointmentForSpecialtyOnDay,
   linkedAccountState,
   payosSignature,
 } from '../src/index.js';
@@ -59,6 +61,24 @@ test('unlocking an account restores all linked operational profiles', () => {
   });
 });
 
+test('PayOS authorizes the exact family profile tied to the appointment', async () => {
+  const accountId = 'account-1';
+  const patientId = 'parent-profile';
+  const firestore = {
+    get: async (path) => {
+      if (path === `TAI_KHOAN/${accountId}`) {
+        return {id: accountId, data: {role: 'patient', isActive: true, status: 'ACTIVE'}};
+      }
+      if (path === `BENH_NHAN/${patientId}`) {
+        return {id: patientId, data: {ownerUserId: accountId, isActive: true, status: 'ACTIVE'}};
+      }
+      return null;
+    },
+  };
+  const patient = await activePatientForPayment(firestore, accountId, patientId);
+  assert.equal(patient.id, patientId);
+});
+
 test('patients cannot cancel or reschedule an appointment once its start time has passed', () => {
   const now = new Date('2026-10-28T03:00:00.000Z');
   assert.equal(appointmentHasStarted({
@@ -69,6 +89,18 @@ test('patients cannot cancel or reschedule an appointment once its start time ha
     appointmentDate: new Date('2026-10-28T00:00:00.000Z'),
     startTime: '11:00',
   }, now), false);
+});
+
+test('a profile cannot hold two active appointments for one specialty on one day', () => {
+  const rows = [
+    {id: 'first', data: {status: 'PENDING', specialtyId: 'general', appointmentDate: '2026-10-30'}},
+    {id: 'cancelled', data: {status: 'CANCELLED', specialtyId: 'general', appointmentDate: '2026-10-30'}},
+    {id: 'another-day', data: {status: 'CONFIRMED', specialtyId: 'general', appointmentDate: '2026-10-31'}},
+  ];
+  assert.equal(hasActiveAppointmentForSpecialtyOnDay(rows, '2026-10-30', 'general'), true);
+  assert.equal(hasActiveAppointmentForSpecialtyOnDay(rows, '2026-10-30', 'general', 'first'), false);
+  assert.equal(hasActiveAppointmentForSpecialtyOnDay(rows, '2026-10-30', 'cardiology'), false);
+  assert.equal(hasActiveAppointmentForSpecialtyOnDay(rows, '2026-10-31', 'general'), true);
 });
 
 test('only an already-started confirmed appointment can be completed by its doctor', () => {

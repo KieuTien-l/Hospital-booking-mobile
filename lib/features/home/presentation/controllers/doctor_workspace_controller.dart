@@ -102,41 +102,6 @@ class DoctorWorkspaceController extends ViewStateController {
         )) {
       throw StateError('Lịch làm việc không hợp lệ.');
     }
-    int minutes(String? value) {
-      final parts = value?.split(':');
-      if (parts == null || parts.length != 2) return -1;
-      final hour = int.tryParse(parts[0]), minute = int.tryParse(parts[1]);
-      if (hour == null ||
-          minute == null ||
-          hour < 0 ||
-          hour > 23 ||
-          minute < 0 ||
-          minute > 59) {
-        return -1;
-      }
-      return hour * 60 + minute;
-    }
-
-    if ((day.weekday == DateTime.sunday && result.schedules.isNotEmpty) ||
-        (day.weekday == DateTime.saturday &&
-            (result.schedules.any(
-                  (schedule) =>
-                      minutes(schedule.startTime) < 0 ||
-                      minutes(schedule.startTime) >= 720 ||
-                      minutes(schedule.endTime) > 720 ||
-                      minutes(schedule.endTime) < 0,
-                ) ||
-                result.slots.any(
-                  (slot) =>
-                      minutes(slot.startTime) < 0 ||
-                      minutes(slot.startTime) >= 720 ||
-                      minutes(slot.endTime) > 720 ||
-                      minutes(slot.endTime) < 0,
-                )))) {
-      throw StateError(
-        'Lịch không hợp lệ: thứ bảy chỉ có buổi sáng, Chủ nhật nghỉ khám.',
-      );
-    }
     final slots = {for (final slot in result.slots) slot.id: slot};
     if (slots.length != result.slots.length ||
         result.slots.any(

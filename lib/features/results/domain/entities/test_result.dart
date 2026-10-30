@@ -6,6 +6,9 @@ class TestResult {
     required this.resultDescription,
     required this.testDate,
     this.resultType = 'Khác',
+    this.patientCode,
+    this.appointmentId,
+    this.examinationId,
     this.conclusion,
     this.referenceRange,
     this.doctorName,
@@ -18,6 +21,9 @@ class TestResult {
   final String resultDescription;
   final DateTime testDate;
   final String resultType;
+  final String? patientCode;
+  final String? appointmentId;
+  final String? examinationId;
   final String? conclusion;
   final String? referenceRange;
   final String? doctorName;

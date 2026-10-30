@@ -64,6 +64,8 @@ class PaymentUiModel {
     required this.method,
     required this.status,
     this.transactionId,
+    this.checkoutUrl,
+    this.qrCode,
     this.timestamp,
     this.amount,
     this.appointmentId,
@@ -74,6 +76,8 @@ class PaymentUiModel {
   final PaymentMethod method;
   final PaymentStatus status;
   final String? transactionId;
+  final String? checkoutUrl;
+  final String? qrCode;
   final DateTime? timestamp;
   final int? amount;
   final String? appointmentId;

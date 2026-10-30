@@ -41,6 +41,22 @@ abstract interface class DoctorWorkspaceRepository {
     required String appointmentId,
     required String requestId,
   });
+  Future<DoctorAppointmentCompletion> startExamination({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) => Future.error(
+    const DoctorWorkspaceAccessException('Chưa hỗ trợ tạo phiếu khám.'),
+  );
+  Future<DoctorAppointmentCompletion> markExaminationAwaitingResults({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) => Future.error(
+    const DoctorWorkspaceAccessException(
+      'Chưa hỗ trợ chuyển phiếu khám sang chờ kết quả CLS.',
+    ),
+  );
   Future<DoctorClinicalSaveResult> saveHealthRecord({
     required String userId,
     required DoctorHealthRecordDraft draft,
@@ -48,6 +64,14 @@ abstract interface class DoctorWorkspaceRepository {
   Future<DoctorClinicalSaveResult> saveTestResult({
     required String userId,
     required DoctorTestResultDraft draft,
+  });
+  Future<DoctorClinicalSaveResult> createClinicalOrder({
+    required String userId,
+    required DoctorClinicalOrderDraft draft,
+  });
+  Future<List<DoctorClinicalOrderSummary>> loadClinicalOrders({
+    required String userId,
+    required String appointmentId,
   });
   Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
     required String userId,

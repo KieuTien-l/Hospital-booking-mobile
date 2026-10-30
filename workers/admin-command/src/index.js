@@ -187,17 +187,21 @@ async function paymentInput(request) {
   return body;
 }
 
-async function activePatientForPayment(tx, uid) {
+export async function activePatientForPayment(tx, uid, patientId) {
   const account = await tx.get(`TAI_KHOAN/${uid}`);
   if (!account || account.data.role !== 'patient' || account.data.isActive !== true ||
       !['ACTIVE', 'APPROVED'].includes(account.data.status)) {
     throw new HttpError(403, 'Tài khoản bệnh nhân không còn hoạt động.');
   }
-  const profiles = await tx.query('BENH_NHAN', [{ field: 'authUserId', op: 'EQUAL', value: uid }], 2);
-  if (profiles.length !== 1 || profiles[0].data.isActive === false || profiles[0].data.status === 'ARCHIVED') {
+  // An account may manage several profiles. Authorize the exact patient tied
+  // to the appointment/payment rather than requiring a single profile whose
+  // authUserId happens to equal the account UID.
+  const patient = await tx.get(`BENH_NHAN/${requiredId(patientId, 'Mã hồ sơ')}`);
+  const ownerId = textOrEmpty(patient?.data?.ownerUserId) || textOrEmpty(patient?.data?.authUserId);
+  if (!patient || ownerId !== uid || patient.data.isActive === false || patient.data.status === 'ARCHIVED') {
     throw new HttpError(403, 'Không tìm thấy hồ sơ bệnh nhân đang hoạt động.');
   }
-  return { id: profiles[0].id, ...profiles[0].data };
+  return { id: patient.id, ...patient.data };
 }
 
 function payableAmount(appointment, doctor) {
@@ -232,9 +236,10 @@ function paymentJson(id, data) {
 
 async function paymentForPatient(paymentId, uid, firestore, env) {
   const snapshot = await firestore.readTransaction(async (tx) => {
-    const patient = await activePatientForPayment(tx, uid);
     const payment = await tx.get(`THANH_TOAN/${paymentId}`);
-    if (!payment || payment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    if (!payment) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    const patient = await activePatientForPayment(tx, uid, payment.data.patientId);
+    if (payment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
     return { patientId: patient.id, payment: payment.data };
   });
   // Webhooks are the primary confirmation channel. This provider lookup is a
@@ -274,9 +279,10 @@ async function createPayOSPayment(body, uid, firestore, env, requestOrigin) {
   const requestId = requiredId(body.requestId, 'Mã yêu cầu');
   const paymentId = `pay_${requestId}`;
   const prepared = await firestore.runTransaction(async (tx) => {
-    const patient = await activePatientForPayment(tx, uid);
     const appointment = await tx.get(`LICH_HEN/${appointmentId}`);
-    if (!appointment || appointment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy lịch hẹn cần thanh toán.');
+    if (!appointment) throw new HttpError(404, 'Không tìm thấy lịch hẹn cần thanh toán.');
+    const patient = await activePatientForPayment(tx, uid, appointment.data.patientId);
+    if (appointment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy lịch hẹn cần thanh toán.');
     if (appointment.data.status !== 'PENDING') {
       throw new HttpError(409, 'Chỉ tạo thanh toán cho lịch hẹn đang chờ thanh toán.');
     }
@@ -351,9 +357,10 @@ async function createPayOSPayment(body, uid, firestore, env, requestOrigin) {
 async function cancelPayOSPayment(paymentId, body, uid, firestore, env) {
   const reason = optionalText(body.reason, 250) || 'Bệnh nhân hủy thanh toán.';
   const current = await firestore.readTransaction(async (tx) => {
-    const patient = await activePatientForPayment(tx, uid);
     const payment = await tx.get(`THANH_TOAN/${paymentId}`);
-    if (!payment || payment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    if (!payment) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
+    const patient = await activePatientForPayment(tx, uid, payment.data.patientId);
+    if (payment.data.patientId !== patient.id) throw new HttpError(404, 'Không tìm thấy giao dịch thanh toán.');
     if (!['CREATING', 'PENDING', 'CREATE_FAILED'].includes(payment.data.status)) {
       throw new HttpError(409, 'Giao dịch này không thể hủy.');
     }
@@ -616,6 +623,18 @@ async function doctorWorkspaceRequest(request, url, uid, firestore) {
   if (completion && request.method === 'POST') {
     return completeDoctorAppointment(request, uid, firestore, requiredId(decodeURIComponent(completion[1]), 'Mã lịch hẹn'));
   }
+  if (url.pathname === '/doctor/examinations' && request.method === 'POST') {
+    return startDoctorExamination(request, uid, firestore);
+  }
+  const awaitingResults = url.pathname.match(/^\/doctor\/examinations\/([^/]+)\/awaiting-results$/);
+  if (awaitingResults && request.method === 'POST') {
+    return markDoctorExaminationAwaitingResults(
+      request,
+      uid,
+      firestore,
+      requiredId(decodeURIComponent(awaitingResults[1]), 'Mã lịch hẹn'),
+    );
+  }
   const patientHistory = url.pathname.match(/^\/doctor\/patients\/([^/]+)\/history$/);
   if (patientHistory && request.method === 'GET') {
     return doctorPatientHistory(
@@ -629,6 +648,12 @@ async function doctorWorkspaceRequest(request, url, uid, firestore) {
   }
   if (url.pathname === '/doctor/health-records' && request.method === 'GET') {
     return clinicalRecordsForAppointment(url, uid, firestore, 'health');
+  }
+  if (url.pathname === '/doctor/clinical-orders' && request.method === 'POST') {
+    return saveClinicalOrder(request, uid, firestore);
+  }
+  if (url.pathname === '/doctor/clinical-orders' && request.method === 'GET') {
+    return clinicalOrdersForAppointment(url, uid, firestore);
   }
   if (url.pathname === '/doctor/test-results' && request.method === 'POST') {
     return saveClinicalRecord(request, uid, firestore, 'result');
@@ -682,6 +707,10 @@ async function doctorDay(tx, doctor, date) {
     { field: 'appointmentDate', op: 'EQUAL', value: date },
   ], 301);
   const appointments = appointmentRows.filter((row) => scheduleIds.has(row.data.workScheduleId));
+  const examinations = new Map();
+  for (const row of appointments) {
+    examinations.set(row.id, await tx.get(`PHIEU_KHAM/${row.id}`));
+  }
   const patients = new Map();
   for (const row of appointments) {
     const patientId = requiredId(row.data.patientId, 'Hồ sơ bệnh nhân');
@@ -690,7 +719,7 @@ async function doctorDay(tx, doctor, date) {
   const bookings = appointments.map((row) => {
     const patient = patients.get(row.data.patientId)?.data || {};
     return {
-      appointment: appointmentJson(row.id, row.data),
+      appointment: appointmentJson(row.id, row.data, examinations.get(row.id)?.data),
       patientName: typeof patient.fullName === 'string' && patient.fullName.trim() ? patient.fullName.trim() : 'Bệnh nhân',
       ...(birthYear(patient.dateOfBirth) == null ? {} : { birthYear: birthYear(patient.dateOfBirth) }),
       ...(typeof patient.gender === 'string' && patient.gender.trim() ? { gender: patient.gender.trim() } : {}),
@@ -778,9 +807,23 @@ async function completeDoctorAppointment(request, uid, firestore, appointmentId)
     if (!canDoctorComplete(appointment.data)) {
       throw new HttpError(409, 'Chỉ hoàn tất được lịch đã xác nhận sau khi giờ khám bắt đầu.');
     }
+    const examination = await tx.get(`PHIEU_KHAM/${appointmentId}`);
+    if (!examination || examination.data.doctorId !== doctor.id || examination.data.patientId !== appointment.data.patientId) {
+      throw new HttpError(409, 'Hãy mở và ghi phiếu khám trước khi hoàn thành khám.');
+    }
+    if (examination.data.status !== 'IN_PROGRESS') {
+      throw new HttpError(409, 'Phiếu khám đang chờ kết quả CLS. Hãy xem kết quả và kết luận trước khi hoàn thành.');
+    }
+    const healthRecords = await tx.query('HO_SO_SUC_KHOE', [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
+    if (!healthRecords.some((row) => row.data.appointmentId === appointmentId && row.data.patientId === appointment.data.patientId)) {
+      throw new HttpError(409, 'Hãy ghi chẩn đoán hoặc kết luận trên phiếu khám trước khi hoàn thành.');
+    }
     const changes = { status: 'COMPLETED', completedAt: serverTimestamp(), updatedAt: serverTimestamp() };
     const result = { id: appointmentId, status: 'COMPLETED', message: 'Đã hoàn tất khám và lưu lịch sử.' };
     tx.update(`LICH_HEN/${appointmentId}`, changes);
+    tx.update(`PHIEU_KHAM/${appointmentId}`, {
+      status: 'COMPLETED', completedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    });
     tx.create(receiptPath, { fingerprint, result, createdAt: serverTimestamp() });
     tx.create(`NHAT_KY_Y_TE/${doctor.id}_complete_${requestId}`, {
       actorId: uid, doctorId: doctor.id, action: 'complete_appointment', collection: 'LICH_HEN',
@@ -797,6 +840,88 @@ async function completeDoctorAppointment(request, uid, firestore, appointmentId)
   });
 }
 
+// The initial clinical note and the laboratory/imaging work are different
+// stages. Keeping this transition server-side prevents an APK from marking a
+// visit as waiting for tests without a real examination sheet.
+async function markDoctorExaminationAwaitingResults(request, uid, firestore, appointmentId) {
+  const body = await doctorJsonBody(request);
+  if (Object.keys(body).length !== 0) throw new HttpError(400, 'Nội dung chuyển chờ kết quả không hợp lệ.');
+  const requestId = requiredId(request.headers.get('Idempotency-Key'), 'Mã chống trùng');
+  const fingerprint = await commandDigest({ action: 'awaitingResults', appointmentId });
+  return firestore.runTransaction(async (tx) => {
+    const doctor = await activeDoctor(tx, uid);
+    const receiptPath = `DOCTOR_EXAMINATION_COMMANDS/${doctor.id}_${requestId}`;
+    const receipt = await tx.get(receiptPath);
+    if (receipt) {
+      if (receipt.data.fingerprint !== fingerprint) throw new HttpError(409, 'Mã chống trùng đã được dùng cho thao tác khác.');
+      return receipt.data.result;
+    }
+    const appointment = await doctorAppointment(tx, doctor.id, appointmentId);
+    const examination = await tx.get(`PHIEU_KHAM/${appointmentId}`);
+    if (!examination || examination.data.doctorId !== doctor.id || examination.data.patientId !== appointment.patientId || examination.data.status !== 'IN_PROGRESS') {
+      throw new HttpError(409, 'Phiếu khám phải đang được bác sĩ xử lý trước khi chờ kết quả CLS.');
+    }
+    const orders = await tx.query('CHI_DINH_CLS', [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
+    if (!orders.some((row) => row.data.appointmentId === appointmentId && row.data.patientId === appointment.patientId)) {
+      throw new HttpError(409, 'Hãy lưu khám ban đầu và chỉ định CLS trước.');
+    }
+    const result = { id: appointmentId, status: 'WAITING_RESULTS', message: 'Đã chuyển phiếu khám sang chờ kết quả CLS.' };
+    tx.update(`PHIEU_KHAM/${appointmentId}`, { status: result.status, updatedAt: serverTimestamp() });
+    tx.create(receiptPath, { fingerprint, result, createdAt: serverTimestamp() });
+    tx.create(`NHAT_KY_Y_TE/${doctor.id}_awaiting_results_${requestId}`, {
+      actorId: uid, doctorId: doctor.id, action: 'awaiting_clinical_results', collection: 'PHIEU_KHAM',
+      targetId: appointmentId, appointmentId, patientId: appointment.patientId, createdAt: serverTimestamp(),
+    });
+    return result;
+  });
+}
+
+// A single appointment owns one examination sheet. Using appointmentId as the
+// document id makes this relationship immutable and idempotent.
+async function startDoctorExamination(request, uid, firestore) {
+  const body = await doctorJsonBody(request);
+  if (Object.keys(body).length !== 1 || typeof body.appointmentId !== 'string') {
+    throw new HttpError(400, 'Nội dung bắt đầu khám không hợp lệ.');
+  }
+  const appointmentId = requiredId(body.appointmentId, 'Mã lịch hẹn');
+  const requestId = requiredId(request.headers.get('Idempotency-Key'), 'Mã chống trùng');
+  const fingerprint = await commandDigest({ action: 'startExamination', appointmentId });
+  return firestore.runTransaction(async (tx) => {
+    const doctor = await activeDoctor(tx, uid);
+    const receiptPath = `DOCTOR_EXAMINATION_COMMANDS/${doctor.id}_${requestId}`;
+    const receipt = await tx.get(receiptPath);
+    if (receipt) {
+      if (receipt.data.fingerprint !== fingerprint) throw new HttpError(409, 'Mã chống trùng đã được dùng cho thao tác khác.');
+      return receipt.data.result;
+    }
+    const appointment = await doctorAppointment(tx, doctor.id, appointmentId);
+    const patient = await tx.get(`BENH_NHAN/${appointment.patientId}`);
+    if (!patient) throw new HttpError(409, 'Không tìm thấy hồ sơ bệnh nhân.');
+    const path = `PHIEU_KHAM/${appointmentId}`;
+    const existing = await tx.get(path);
+    if (existing && (existing.data.doctorId !== doctor.id || existing.data.patientId !== appointment.patientId)) {
+      throw new HttpError(403, 'Phiếu khám không thuộc lịch khám này.');
+    }
+    const patientCode = textOrEmpty(patient.data.patientCode) || textOrEmpty(appointment.patientCode);
+    const fields = {
+      patientId: appointment.patientId, patientCode, appointmentId, visitCode: `LK-${appointmentId}`,
+      doctorId: doctor.id, specialtyId: textOrEmpty(appointment.specialtyId),
+      status: 'IN_PROGRESS', reasonForVisit: textOrEmpty(appointment.reason),
+      createdByDoctorId: doctor.id, updatedAt: serverTimestamp(),
+    };
+    if (existing) tx.update(path, fields);
+    else tx.create(path, { ...fields, createdAt: serverTimestamp() });
+    const result = { id: appointmentId, status: 'IN_PROGRESS', message: existing ? 'Đã mở lại phiếu khám.' : 'Đã tạo phiếu khám.' };
+    tx.create(receiptPath, { fingerprint, result, createdAt: serverTimestamp() });
+    tx.create(`NHAT_KY_Y_TE/${doctor.id}_start_${requestId}`, {
+      actorId: uid, doctorId: doctor.id, action: existing ? 'resume_examination' : 'create_examination',
+      collection: 'PHIEU_KHAM', targetId: appointmentId, appointmentId, patientId: appointment.patientId,
+      createdAt: serverTimestamp(),
+    });
+    return result;
+  });
+}
+
 // Clinical documents are server commands, not generic Firestore writes. This
 // keeps the appointment/patient/doctor linkage immutable and takes the date
 // from Firestore's server clock rather than the doctor's device.
@@ -805,11 +930,17 @@ async function saveClinicalRecord(request, uid, firestore, kind) {
   const requestId = requiredId(request.headers.get('Idempotency-Key'), 'Mã chống trùng');
   const appointmentId = requiredId(body.appointmentId, 'Mã lịch hẹn');
   const id = body.id == null || body.id === '' ? null : requiredId(body.id, 'Mã hồ sơ');
+  const orderId = kind === 'result' ? requiredId(body.orderId, 'Chỉ định CLS') : null;
+  const prescription = kind === 'health' ? optionalText(body.prescription, 4000) : '';
+  const shouldIssuePrescription = kind === 'health' && hasActualPrescription(prescription);
   const values = kind === 'health' ? {
     diagnosis: requiredText(body.diagnosis, 'Chẩn đoán', 1000),
-    notes: optionalText(body.notes, 4000), prescription: optionalText(body.prescription, 4000),
+    notes: optionalText(body.notes, 4000), prescription,
     recordType: choice(body.recordType || 'OUTPATIENT', ['OUTPATIENT', 'INPATIENT', 'CHECKUP'], 'Loại hồ sơ'),
-    documentCategory: body.documentCategory == null || body.documentCategory === '' ? null : choice(body.documentCategory, ['PRESCRIPTION', 'ORDER', 'CERTIFICATE'], 'Loại giấy tờ'),
+    // A prescription must always be discoverable in the patient's
+    // “Đơn thuốc” tab.  The document category therefore follows the actual
+    // saved prescription instead of relying on the client to send a flag.
+    documentCategory: shouldIssuePrescription ? 'PRESCRIPTION' : null,
   } : {
     testName: requiredText(body.testName, 'Tên xét nghiệm', 300),
     resultDescription: requiredText(body.resultDescription, 'Kết quả', 4000),
@@ -826,15 +957,73 @@ async function saveClinicalRecord(request, uid, firestore, kind) {
       return receipt.data.result;
     }
     const appointment = await doctorAppointment(tx, doctor.id, appointmentId);
+    const order = orderId ? await tx.get(`CHI_DINH_CLS/${orderId}`) : null;
+    if (orderId && (!order || order.data.doctorId !== doctor.id || order.data.appointmentId !== appointmentId || order.data.patientId !== appointment.patientId)) {
+      throw new HttpError(403, 'Chỉ định CLS không thuộc phiếu khám này.');
+    }
+    const patient = await tx.get(`BENH_NHAN/${appointment.patientId}`);
+    if (!patient) throw new HttpError(409, 'Không tìm thấy hồ sơ bệnh nhân.');
+    const examination = await tx.get(`PHIEU_KHAM/${appointmentId}`);
+    if (!examination) {
+      // Saving clinical content is a safe fallback for an older client which
+      // does not yet expose the explicit “Bắt đầu khám” action.
+      tx.create(`PHIEU_KHAM/${appointmentId}`, {
+        patientId: appointment.patientId,
+        patientCode: textOrEmpty(patient.data.patientCode) || textOrEmpty(appointment.patientCode),
+        appointmentId, visitCode: `LK-${appointmentId}`, doctorId: doctor.id,
+        specialtyId: textOrEmpty(appointment.specialtyId), status: 'IN_PROGRESS',
+        reasonForVisit: textOrEmpty(appointment.reason), createdByDoctorId: doctor.id,
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
+    } else if (examination.data.doctorId !== doctor.id || examination.data.patientId !== appointment.patientId) {
+      throw new HttpError(403, 'Phiếu khám không thuộc lịch khám này.');
+    }
     const collection = kind === 'health' ? 'HO_SO_SUC_KHOE' : 'KET_QUA_CLS';
-    const documentId = id || `${doctor.id}_${requestId}`;
-    const path = `${collection}/${documentId}`;
-    const existing = await tx.get(path);
+    let documentId = id || `${doctor.id}_${requestId}`;
+    let path = `${collection}/${documentId}`;
+    let existing = await tx.get(path);
+    if (kind === 'health' && !id) {
+      const priorRecords = await tx.query(
+        'HO_SO_SUC_KHOE',
+        [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }],
+        301,
+      );
+      const matches = priorRecords
+        .filter((row) => row.data.appointmentId === appointmentId)
+        .sort((left, right) => right.id.localeCompare(left.id));
+      if (matches.length > 0) {
+        documentId = matches[0].id;
+        path = `${collection}/${documentId}`;
+        existing = matches[0];
+        for (const duplicate of matches.slice(1)) tx.delete(`${collection}/${duplicate.id}`);
+      }
+    }
+    if (kind === 'result' && !id) {
+      const priorResults = await tx.query(
+        'KET_QUA_CLS',
+        [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }],
+        301,
+      );
+      const matches = priorResults
+        .filter((row) => row.data.orderId === orderId)
+        .sort((left, right) => right.id.localeCompare(left.id));
+      if (matches.length > 0) {
+        // Saving again means correcting the same clinical result, not making
+        // a second result. Keep the newest document and remove legacy twins.
+        documentId = matches[0].id;
+        path = `${collection}/${documentId}`;
+        existing = matches[0];
+        for (const duplicate of matches.slice(1)) tx.delete(`${collection}/${duplicate.id}`);
+      }
+    }
     if (existing && (existing.data.doctorId !== doctor.id || existing.data.patientId !== appointment.patientId || existing.data.appointmentId !== appointmentId)) {
       throw new HttpError(403, 'Không được sửa hồ sơ của lịch khám khác.');
     }
     const fields = {
-      patientId: appointment.patientId, doctorId: doctor.id, appointmentId,
+      patientId: appointment.patientId,
+      patientCode: textOrEmpty(patient.data.patientCode) || textOrEmpty(appointment.patientCode),
+      doctorId: doctor.id, appointmentId, examinationId: appointmentId,
+      ...(orderId ? { orderId } : {}),
       ...values,
       ...(kind === 'health'
         ? (existing ? {} : { recordDate: serverTimestamp() })
@@ -843,6 +1032,46 @@ async function saveClinicalRecord(request, uid, firestore, kind) {
     };
     if (existing) tx.update(path, fields);
     else tx.create(path, { ...fields, createdAt: serverTimestamp() });
+    if (kind === 'health') {
+      // A prescription is its own clinical document.  Keeping it separate
+      // from the health-record narrative lets the patient open the
+      // “Đơn thuốc” tab without relying on a note field, while this stable
+      // per-appointment id makes subsequent corrections an update.
+      const prescriptionPath = `DON_THUOC/DT_${appointmentId}`;
+      if (shouldIssuePrescription) {
+        const prescriptionFields = {
+          patientId: appointment.patientId,
+          patientCode: textOrEmpty(patient.data.patientCode) || textOrEmpty(appointment.patientCode),
+          appointmentId,
+          examinationId: appointmentId,
+          healthRecordId: documentId,
+          doctorId: doctor.id,
+          specialtyId: textOrEmpty(appointment.specialtyId),
+          diagnosis: values.diagnosis,
+          instructions: prescription,
+          status: 'ISSUED',
+          issuedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        const existingPrescription = await tx.get(prescriptionPath);
+        if (existingPrescription) tx.update(prescriptionPath, prescriptionFields);
+        else tx.create(prescriptionPath, { ...prescriptionFields, createdAt: serverTimestamp() });
+      } else {
+        const existingPrescription = await tx.get(prescriptionPath);
+        if (existingPrescription && existingPrescription.data.status === 'ISSUED') {
+          tx.update(prescriptionPath, { status: 'CANCELLED', updatedAt: serverTimestamp() });
+        }
+      }
+    }
+    if (kind === 'result') {
+      // A result returned for this appointment brings the sheet back to the
+      // doctor for a second clinical review. The doctor must explicitly
+      // resume the sheet before they can complete the visit.
+      tx.update(`PHIEU_KHAM/${appointmentId}`, {
+        status: 'RESULTS_READY', updatedAt: serverTimestamp(),
+      });
+      tx.update(`CHI_DINH_CLS/${orderId}`, { status: 'RESULT_READY', resultId: documentId, updatedAt: serverTimestamp() });
+    }
     const result = { id: documentId, collection, appointmentId, message: existing ? 'Đã cập nhật hồ sơ y tế.' : 'Đã tạo hồ sơ y tế.' };
     tx.create(receiptPath, { fingerprint, result, createdAt: serverTimestamp() });
     tx.create(`NHAT_KY_Y_TE/${doctor.id}_${requestId}`, {
@@ -851,6 +1080,37 @@ async function saveClinicalRecord(request, uid, firestore, kind) {
       createdAt: serverTimestamp(),
     });
     return result;
+  });
+}
+
+async function saveClinicalOrder(request, uid, firestore) {
+  const body = await doctorJsonBody(request);
+  const requestId = requiredId(request.headers.get('Idempotency-Key'), 'Mã chống trùng');
+  const appointmentId = requiredId(body.appointmentId, 'Mã lịch hẹn');
+  const testName = requiredText(body.testName, 'Tên chỉ định CLS', 300);
+  const resultType = optionalText(body.resultType, 120) || 'Xét nghiệm';
+  const notes = optionalText(body.notes, 1000);
+  return firestore.runTransaction(async (tx) => {
+    const doctor = await activeDoctor(tx, uid);
+    const appointment = await doctorAppointment(tx, doctor.id, appointmentId);
+    const patient = await tx.get(`BENH_NHAN/${appointment.patientId}`);
+    if (!patient) throw new HttpError(409, 'Không tìm thấy hồ sơ bệnh nhân.');
+    const id = `${doctor.id}_${requestId}`;
+    const result = { id, appointmentId, message: 'Đã thêm chỉ định CLS.' };
+    tx.create(`CHI_DINH_CLS/${id}`, { patientId: appointment.patientId, doctorId: doctor.id, appointmentId,
+      examinationId: appointmentId, testName, resultType, notes, status: 'PENDING', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    tx.create(`NHAT_KY_Y_TE/${doctor.id}_order_${requestId}`, { actorId: uid, doctorId: doctor.id, action: 'create_clinical_order', collection: 'CHI_DINH_CLS', targetId: id, appointmentId, patientId: appointment.patientId, createdAt: serverTimestamp() });
+    return result;
+  });
+}
+
+async function clinicalOrdersForAppointment(url, uid, firestore) {
+  const appointmentId = requiredId(url.searchParams.get('appointmentId'), 'Mã lịch hẹn');
+  return firestore.readTransaction(async (tx) => {
+    const doctor = await activeDoctor(tx, uid);
+    await doctorAppointment(tx, doctor.id, appointmentId, { allowCompleted: true });
+    const rows = await tx.query('CHI_DINH_CLS', [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
+    return { orders: rows.filter((row) => row.data.appointmentId === appointmentId).map((row) => ({ id: row.id, testName: textOrEmpty(row.data.testName), resultType: textOrEmpty(row.data.resultType) || 'Xét nghiệm', status: textOrEmpty(row.data.status) || 'PENDING', notes: textOrEmpty(row.data.notes) })) };
   });
 }
 
@@ -865,12 +1125,12 @@ async function doctorJsonBody(request) {
   return body;
 }
 
-async function doctorAppointment(tx, doctorId, appointmentId) {
+async function doctorAppointment(tx, doctorId, appointmentId, { allowCompleted = false } = {}) {
   const appointment = await tx.get(`LICH_HEN/${appointmentId}`);
   if (!appointment || appointment.data.doctorId !== doctorId ||
-      !['CONFIRMED', 'COMPLETED'].includes(appointment.data.status) ||
+      !(allowCompleted ? ['CONFIRMED', 'COMPLETED'] : ['CONFIRMED']).includes(appointment.data.status) ||
       typeof appointment.data.patientId !== 'string') {
-    throw new HttpError(403, 'Chỉ được ghi hồ sơ cho lịch khám đã xác nhận hoặc hoàn tất của chính bác sĩ.');
+    throw new HttpError(403, 'Chỉ được ghi phiếu cho lịch khám đã xác nhận của chính bác sĩ.');
   }
   return appointment.data;
 }
@@ -879,14 +1139,19 @@ async function clinicalRecordsForAppointment(url, uid, firestore, kind) {
   const appointmentId = requiredId(url.searchParams.get('appointmentId'), 'Mã lịch hẹn');
   return firestore.readTransaction(async (tx) => {
     const doctor = await activeDoctor(tx, uid);
-    await doctorAppointment(tx, doctor.id, appointmentId);
+    await doctorAppointment(tx, doctor.id, appointmentId, { allowCompleted: true });
     const collection = kind === 'health' ? 'HO_SO_SUC_KHOE' : 'KET_QUA_CLS';
     const rows = await tx.query(collection, [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
-    const records = rows
+    const appointmentRows = rows
       .filter((row) => row.data.appointmentId === appointmentId)
+      .sort((left, right) => right.id.localeCompare(left.id));
+    // One appointment has one clinical note. Legacy duplicates are retained
+    // in storage until migration, but the doctor sees only the newest note.
+    const sourceRows = kind === 'health' ? appointmentRows.slice(0, 1) : appointmentRows;
+    const records = sourceRows
       .map((row) => kind === 'health'
         ? { id: row.id, diagnosis: textOrEmpty(row.data.diagnosis), notes: textOrEmpty(row.data.notes), prescription: textOrEmpty(row.data.prescription), recordType: textOrEmpty(row.data.recordType) || 'OUTPATIENT' }
-        : { id: row.id, testName: textOrEmpty(row.data.testName), resultDescription: textOrEmpty(row.data.resultDescription), resultType: textOrEmpty(row.data.resultType) || 'Khác', conclusion: textOrEmpty(row.data.conclusion), referenceRange: textOrEmpty(row.data.referenceRange) })
+        : { id: row.id, testName: textOrEmpty(row.data.testName), resultDescription: textOrEmpty(row.data.resultDescription), resultType: textOrEmpty(row.data.resultType) || 'Khác', conclusion: textOrEmpty(row.data.conclusion), referenceRange: textOrEmpty(row.data.referenceRange), orderId: textOrEmpty(row.data.orderId) || null })
       .sort((left, right) => left.id.localeCompare(right.id));
     return { records };
   });
@@ -911,10 +1176,18 @@ async function doctorPatientHistory(uid, firestore, patientId) {
       throw new HttpError(403, 'Bác sĩ chỉ xem lịch sử của bệnh nhân có lịch khám hợp lệ.');
     }
     const visitIds = new Set(visits.map((visit) => visit.id));
-    const healthRecords = (await tx.query('HO_SO_SUC_KHOE', [
+    const healthRows = (await tx.query('HO_SO_SUC_KHOE', [
       { field: 'doctorId', op: 'EQUAL', value: doctor.id },
     ], 301))
       .filter((row) => row.data.patientId === patientId && visitIds.has(row.data.appointmentId))
+      .sort((left, right) => right.id.localeCompare(left.id));
+    const seenHealthAppointments = new Set();
+    const healthRecords = healthRows
+      .filter((row) => {
+        if (seenHealthAppointments.has(row.data.appointmentId)) return false;
+        seenHealthAppointments.add(row.data.appointmentId);
+        return true;
+      })
       .map((row) => ({
         id: row.id, diagnosis: textOrEmpty(row.data.diagnosis), notes: textOrEmpty(row.data.notes),
         prescription: textOrEmpty(row.data.prescription), recordType: textOrEmpty(row.data.recordType) || 'OUTPATIENT',
@@ -943,9 +1216,19 @@ export function doctorJson(data) {
 }
 function scheduleJson(id, data) { return { id, doctorId: textOrEmpty(data.doctorId), workDate: dayKey(data.workDate), startTime: textOrEmpty(data.startTime), endTime: textOrEmpty(data.endTime), status: textOrEmpty(data.status) || 'ACTIVE' }; }
 function slotJson(id, data) { return { id, workScheduleId: textOrEmpty(data.workScheduleId), doctorId: textOrEmpty(data.doctorId), startTime: textOrEmpty(data.startTime), endTime: textOrEmpty(data.endTime), status: textOrEmpty(data.status), capacity: numberOrZero(data.capacity), bookedCount: numberOrZero(data.bookedCount) }; }
-function appointmentJson(id, data) { return { id, patientId: textOrEmpty(data.patientId), doctorId: textOrEmpty(data.doctorId), workScheduleId: textOrEmpty(data.workScheduleId), timeSlotId: textOrEmpty(data.timeSlotId), specialtyId: textOrEmpty(data.specialtyId), appointmentDate: dayKey(data.appointmentDate), startTime: textOrEmpty(data.startTime), endTime: textOrEmpty(data.endTime), status: textOrEmpty(data.status), peopleCount: numberOrZero(data.peopleCount) || 1, ...(typeof data.queueNumber === 'number' ? { queueNumber: data.queueNumber } : {}), ...(typeof data.reason === 'string' ? { reason: data.reason } : {}) }; }
+function appointmentJson(id, data, examination = null) { return { id, patientId: textOrEmpty(data.patientId), doctorId: textOrEmpty(data.doctorId), workScheduleId: textOrEmpty(data.workScheduleId), timeSlotId: textOrEmpty(data.timeSlotId), specialtyId: textOrEmpty(data.specialtyId), appointmentDate: dayKey(data.appointmentDate), startTime: textOrEmpty(data.startTime), endTime: textOrEmpty(data.endTime), status: textOrEmpty(data.status), ...(textOrEmpty(examination?.status) ? { clinicalStatus: textOrEmpty(examination.status) } : {}), peopleCount: numberOrZero(data.peopleCount) || 1, ...(typeof data.queueNumber === 'number' ? { queueNumber: data.queueNumber } : {}), ...(typeof data.reason === 'string' ? { reason: data.reason } : {}) }; }
 function doctorReportJson(id, data) { return { id, type: textOrEmpty(data.type), date: dayKey(data.date), reason: textOrEmpty(data.reason), status: textOrEmpty(data.status) || 'PENDING', adminResponse: typeof data.adminResponse === 'string' ? data.adminResponse : null }; }
 function textOrEmpty(value) { return typeof value === 'string' ? value : ''; }
+
+function hasActualPrescription(value) {
+  const normalized = textOrEmpty(value)
+    .trim()
+    .toLocaleLowerCase('vi-VN')
+    .replaceAll('đ', 'd')
+    .replace(/\s+/g, ' ');
+  return normalized.length > 0 &&
+      !/^(k|hk|khong|ko|chua) co don thuoc[.!]?$/.test(normalized);
+}
 function numberOrZero(value) { return typeof value === 'number' && Number.isFinite(value) ? value : 0; }
 function birthYear(value) { const date = value instanceof Date ? value : new Date(value); return Number.isFinite(date.getTime()) ? Number(dayKey(date).slice(0, 4)) : null; }
 
@@ -1128,10 +1411,16 @@ class AdminCommandContext {
     const peopleCount = boundedNumber(values.peopleCount ?? 1, 'Số người', 1, 100, true);
     const slotId = requiredId(values.timeSlotId);
     const target = await this.destination(slotId, peopleCount);
+    const existingPatientAppointments = await this.rows('LICH_HEN', 'patientId', patientId);
+    if (hasActiveAppointmentForSpecialtyOnDay(existingPatientAppointments, target.schedule.workDate, target.doctor.specialtyId)) {
+      throw new HttpError(409, `Bạn đã đặt lịch khoa này cho ngày ${dayKey(target.schedule.workDate)}. Mỗi hồ sơ chỉ được đặt một ca cho mỗi khoa trong ngày.`);
+    }
     const id = this.command.requestId;
     const reason = optionalText(values.reason, 1000);
     const fields = {
-      patientId, doctorId: target.slot.doctorId, workScheduleId: target.slot.workScheduleId,
+      patientId,
+      ...(textOrEmpty(patient.patientCode) ? { patientCode: textOrEmpty(patient.patientCode) } : {}),
+      doctorId: target.slot.doctorId, workScheduleId: target.slot.workScheduleId,
       timeSlotId: slotId, specialtyId: target.doctor.specialtyId, appointmentDate: target.schedule.workDate,
       startTime: target.slot.startTime, endTime: target.slot.endTime, status: 'PENDING', peopleCount,
       reason, symptoms: reason,
@@ -1162,7 +1451,8 @@ class AdminCommandContext {
         !['ACTIVE', 'APPROVED'].includes(account.status)) {
       throw new HttpError(403, 'Tài khoản bệnh nhân không còn hoạt động.');
     }
-    if (patient.authUserId !== this.uid || patientId !== requiredId(patientId, 'Hồ sơ bệnh nhân')) {
+    const ownerUserId = textOrEmpty(patient.ownerUserId) || textOrEmpty(patient.authUserId);
+    if (ownerUserId !== this.uid || patientId !== requiredId(patientId, 'Hồ sơ bệnh nhân')) {
       throw new HttpError(403, 'Bạn chỉ được thao tác với hồ sơ của chính mình.');
     }
     if (patient.isActive === false || patient.status === 'ARCHIVED') {
@@ -1219,6 +1509,10 @@ class AdminCommandContext {
     }
     const peopleCount = boundedNumber(appointment.peopleCount ?? 1, 'Số người', 1, 100, true);
     const target = await this.destination(slotId, peopleCount);
+    const patientAppointments = await this.rows('LICH_HEN', 'patientId', appointment.patientId);
+    if (hasActiveAppointmentForSpecialtyOnDay(patientAppointments, target.schedule.workDate, target.doctor.specialtyId, id)) {
+      throw new HttpError(409, `Bạn đã đặt lịch khoa này cho ngày ${dayKey(target.schedule.workDate)}. Mỗi hồ sơ chỉ được đặt một ca cho mỗi khoa trong ngày.`);
+    }
     if (target.slot.doctorId !== appointment.doctorId || target.doctor.specialtyId !== appointment.specialtyId) {
       throw new HttpError(409, 'Ca khám mới phải thuộc cùng bác sĩ và chuyên khoa.');
     }
@@ -1295,6 +1589,10 @@ class AdminCommandContext {
     const oldSlot = await this.get('CA_KHAM', before.timeSlotId);
     const peopleCount = boundedNumber(before.peopleCount ?? 1, 'Số người', 1, 100, true);
     const target = await this.destination(slotId, peopleCount);
+    const patientAppointments = await this.rows('LICH_HEN', 'patientId', before.patientId);
+    if (hasActiveAppointmentForSpecialtyOnDay(patientAppointments, target.schedule.workDate, target.doctor.specialtyId, id)) {
+      throw new HttpError(409, `Hồ sơ đã có lịch hẹn khoa này ngày ${dayKey(target.schedule.workDate)}. Mỗi hồ sơ chỉ được đặt một ca cho mỗi khoa trong ngày.`);
+    }
     const patient = await this.get('BENH_NHAN', before.patientId);
     const others = await this.rows('LICH_HEN', 'timeSlotId', before.timeSlotId);
     this.reason();
@@ -2218,11 +2516,19 @@ function dayKey(value) {
   if (!Number.isFinite(date.getTime())) throw new HttpError(400, 'Ngày dữ liệu chưa hợp lệ.');
   return new Date(date.getTime() + 7 * 3600000).toISOString().slice(0, 10);
 }
+export function hasActiveAppointmentForSpecialtyOnDay(rows, workDate, specialtyId, exceptId = null) {
+  const targetDay = dayKey(workDate);
+  return rows.some((row) =>
+    row.id !== exceptId &&
+    ['PENDING', 'CONFIRMED'].includes(row.data.status) &&
+    row.data.appointmentDate &&
+    row.data.specialtyId === specialtyId &&
+    dayKey(row.data.appointmentDate) === targetDay,
+  );
+}
 function workPeriod(workDate, startTime, endTime) {
   const date = parseWorkDate(workDate), start = timeMinutes(startTime), end = timeMinutes(endTime);
   if (start >= end) throw new HttpError(400, 'Giờ kết thúc phải sau giờ bắt đầu.');
-  const weekday = new Date(date.getTime() + 7 * 3600000).getUTCDay();
-  if (weekday === 0 || (weekday === 6 && end > 720)) throw new HttpError(400, 'Chủ nhật không có lịch; thứ bảy chỉ khám trước 12:00.');
   return { date, start, end };
 }
 function slotStart(workDate, startTime) {

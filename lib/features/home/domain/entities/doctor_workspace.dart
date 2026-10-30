@@ -123,13 +123,36 @@ class DoctorTestResultDraft {
     required this.appointmentId,
     required this.testName,
     required this.resultDescription,
+    required this.orderId,
     this.id,
     this.resultType = 'Khác',
     this.conclusion = '',
     this.referenceRange = '',
   });
-  final String requestId, appointmentId, testName, resultDescription;
+  final String requestId, appointmentId, orderId, testName, resultDescription;
   final String? id, resultType, conclusion, referenceRange;
+}
+
+class DoctorClinicalOrderDraft {
+  const DoctorClinicalOrderDraft({
+    required this.requestId,
+    required this.appointmentId,
+    required this.testName,
+    this.resultType = 'Xét nghiệm',
+    this.notes = '',
+  });
+  final String requestId, appointmentId, testName, resultType, notes;
+}
+
+class DoctorClinicalOrderSummary {
+  const DoctorClinicalOrderSummary({
+    required this.id,
+    required this.testName,
+    required this.resultType,
+    required this.status,
+    required this.notes,
+  });
+  final String id, testName, resultType, status, notes;
 }
 
 class DoctorClinicalSaveResult {
@@ -168,6 +191,7 @@ class DoctorTestResultSummary {
     required this.resultType,
     required this.conclusion,
     required this.referenceRange,
+    this.orderId,
   });
   final String id,
       testName,
@@ -175,6 +199,7 @@ class DoctorTestResultSummary {
       resultType,
       conclusion,
       referenceRange;
+  final String? orderId;
 }
 
 /// Read-only history returned only after the Worker verifies that this doctor

@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../domain/entities/user_entity.dart';
-import '../../../profile/data/models/patient_model.dart';
 import '../models/user_model.dart';
 import '../../domain/exceptions/auth_exception.dart';
 
@@ -86,24 +85,13 @@ class AuthFirebaseDatasource {
         permission: 'PATIENT',
         status: 'ACTIVE',
       );
-      final patient = PatientModel(
-        id: firebaseUser.uid,
-        authUserId: firebaseUser.uid,
-        fullName: fullName,
-        phone: phone,
-        email: email,
-        isActive: true,
-      );
-      final batch = _firestore.batch();
-      batch.set(
-        _firestore.collection('TAI_KHOAN').doc(firebaseUser.uid),
-        user.toFirestoreCreate(),
-      );
-      batch.set(
-        _firestore.collection(PatientModel.collectionName).doc(patient.id),
-        patient.toFirestoreCreate(),
-      );
-      await batch.commit();
+      // A patient profile is intentionally created from the booking flow.
+      // That supports a single account managing its own and relatives'
+      // profiles instead of silently binding one profile to the UID.
+      await _firestore
+          .collection('TAI_KHOAN')
+          .doc(firebaseUser.uid)
+          .set(user.toFirestoreCreate());
       return user;
     } on AuthException {
       rethrow;

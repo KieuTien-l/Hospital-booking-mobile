@@ -128,6 +128,32 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
       );
 
   @override
+  Future<DoctorAppointmentCompletion> startExamination({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) => Future.value(
+    DoctorAppointmentCompletion(
+      id: appointmentId,
+      status: 'IN_PROGRESS',
+      message: 'Đã tạo phiếu khám.',
+    ),
+  );
+
+  @override
+  Future<DoctorAppointmentCompletion> markExaminationAwaitingResults({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) => Future.value(
+    DoctorAppointmentCompletion(
+      id: appointmentId,
+      status: 'WAITING_RESULTS',
+      message: 'Đã chuyển phiếu khám sang chờ kết quả CLS.',
+    ),
+  );
+
+  @override
   Future<DoctorClinicalSaveResult> saveHealthRecord({
     required String userId,
     required DoctorHealthRecordDraft draft,
@@ -144,6 +170,21 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
     id: draft.id ?? draft.requestId,
     message: 'Đã tạo kết quả CLS.',
   );
+
+  @override
+  Future<DoctorClinicalSaveResult> createClinicalOrder({
+    required String userId,
+    required DoctorClinicalOrderDraft draft,
+  }) async => DoctorClinicalSaveResult(
+    id: draft.requestId,
+    message: 'Đã thêm chỉ định CLS.',
+  );
+
+  @override
+  Future<List<DoctorClinicalOrderSummary>> loadClinicalOrders({
+    required String userId,
+    required String appointmentId,
+  }) async => const [];
 
   @override
   Future<List<DoctorHealthRecordSummary>> loadHealthRecords({

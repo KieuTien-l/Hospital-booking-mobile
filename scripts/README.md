@@ -164,6 +164,19 @@ skipped. It also fills only empty patient identity fields (`fullName`, `email`,
 populated profile data or alter duplicate profiles. Review the duplicate count
 from the dry run manually before applying.
 
+## Migrate family-profile ownership and printable patient codes
+
+Before deploying the family-profile Rules, add `ownerUserId` and a unique
+`patientCode` (`HS-XXXX-XXXX`) to legacy patient documents. The migration also
+creates the `MA_HO_SO` registry used to reserve the code. It is idempotent;
+always review the dry run first.
+
+```powershell
+$env:FIREBASE_SERVICE_ACCOUNT_PATH = 'C:\secure\bookinghospitalapp-admin.json'
+npm run migrate:patient-codes:dry-run --prefix scripts
+npm run migrate:patient-codes:apply --prefix scripts
+```
+
 ## Add Health Record samples
 
 This resolves the patient profile from its account email, then writes an

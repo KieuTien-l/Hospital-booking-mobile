@@ -261,6 +261,9 @@ class AppointmentFirebaseDatasource {
       final savedAppointment = AppointmentModel(
         id: appointmentDocument.id,
         patientId: appointment.patientId,
+        patientCode: appointment.patientCode?.trim().isNotEmpty == true
+            ? appointment.patientCode
+            : (patient.patientCode.trim().isEmpty ? null : patient.patientCode),
         doctorId: appointment.doctorId,
         workScheduleId: appointment.workScheduleId,
         timeSlotId: appointment.timeSlotId,
@@ -427,6 +430,7 @@ class AppointmentFirebaseDatasource {
       return AppointmentModel(
         id: appointment.id,
         patientId: appointment.patientId,
+        patientCode: appointment.patientCode,
         doctorId: appointment.doctorId,
         workScheduleId: appointment.workScheduleId,
         timeSlotId: appointment.timeSlotId,
@@ -716,6 +720,7 @@ class AppointmentFirebaseDatasource {
       return AppointmentModel(
         id: appointment.id,
         patientId: appointment.patientId,
+        patientCode: appointment.patientCode,
         doctorId: appointment.doctorId,
         workScheduleId: newWorkScheduleId,
         timeSlotId: newTimeSlotId,

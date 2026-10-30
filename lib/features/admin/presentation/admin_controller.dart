@@ -82,6 +82,7 @@ class AdminController extends ChangeNotifier {
       'doctorId' => 'BAC_SI',
       'specialtyId' => 'CHUYEN_KHOA',
       'appointmentId' => 'LICH_HEN',
+      'examinationId' => 'PHIEU_KHAM',
       'workScheduleId' => 'LICH_LAM_VIEC',
       'timeSlotId' => 'CA_KHAM',
       'paymentId' => 'THANH_TOAN',

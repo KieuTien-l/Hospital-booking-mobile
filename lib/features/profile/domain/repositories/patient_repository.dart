@@ -4,6 +4,12 @@ import '../entities/patient.dart';
 abstract class PatientRepository {
   Stream<Patient?> watchPatientByAuthUser(String authUserId);
 
+  /// All profiles managed by one authenticated account, including relatives.
+  Stream<List<Patient>> watchPatientsByOwner(String ownerUserId) =>
+      watchPatientByAuthUser(ownerUserId).map(
+        (patient) => patient == null ? const <Patient>[] : [patient],
+      );
+
   Future<Patient?> getPatientById(String patientId);
 
   Future<Patient> createPatient(Patient patient);

@@ -30,11 +30,7 @@ class SelectPatientProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final profileController = context.watch<PatientProfileController?>();
     final isLive = !isDemo && profileController != null;
-    final currentProfiles = isLive
-        ? profileController.patient == null
-              ? const <Patient>[]
-              : <Patient>[profileController.patient!]
-        : profiles;
+    final currentProfiles = isLive ? profileController.patients : profiles;
 
     return Theme(
       data: Theme.of(context).copyWith(
@@ -121,9 +117,7 @@ class SelectPatientProfilePage extends StatelessWidget {
                                   ),
                                 ),
                                 icon: const Icon(Icons.person_add_alt_1),
-                                label: Text(
-                                  isDemo ? 'Thêm mới hồ sơ' : 'Cập nhật hồ sơ',
-                                ),
+                                label: Text('Thêm mới hồ sơ'),
                               ),
                             ],
                           ),
@@ -139,7 +133,10 @@ class SelectPatientProfilePage extends StatelessWidget {
                               padding: const EdgeInsets.only(bottom: 14),
                               child: PatientProfileCard(
                                 patient: patient,
-                                onTap: () => onProfileSelected(patient),
+                                onTap: () {
+                                  profileController?.selectPatient(patient);
+                                  onProfileSelected(patient);
+                                },
                               ),
                             ),
                         ],

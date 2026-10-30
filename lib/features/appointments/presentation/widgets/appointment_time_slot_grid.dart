@@ -9,10 +9,12 @@ class AppointmentTimeSlotGrid extends StatelessWidget {
     required this.slots,
     required this.selectedId,
     required this.onSelected,
+    this.bookingBlocked = false,
   });
   final List<AppointmentTimeOption> slots;
   final String? selectedId;
   final ValueChanged<AppointmentTimeOption> onSelected;
+  final bool bookingBlocked;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +39,9 @@ class AppointmentTimeSlotGrid extends StatelessWidget {
                 selected: selectedId == slot.id,
                 child: OutlinedButton(
                   key: ValueKey('slot-${slot.id}'),
+                  // Keep available slots tappable so the page can explain why
+                  // this patient's whole day is locked rather than looking as
+                  // if every doctor suddenly has no availability.
                   onPressed: slot.available ? () => onSelected(slot) : null,
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 64),
@@ -71,6 +76,11 @@ class AppointmentTimeSlotGrid extends StatelessWidget {
                       ),
                       if (!slot.available)
                         const Text('Hết số', style: TextStyle(fontSize: 12)),
+                      if (slot.available && bookingBlocked)
+                        const Text(
+                          'Đã đặt lịch',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       if (selectedId == slot.id)
                         const Text('Đã chọn ✓', style: TextStyle(fontSize: 12)),
                     ],

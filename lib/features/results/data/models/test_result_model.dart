@@ -11,6 +11,9 @@ class TestResultModel extends TestResult {
     required super.resultDescription,
     required super.testDate,
     super.resultType,
+    super.patientCode,
+    super.appointmentId,
+    super.examinationId,
     super.conclusion,
     super.referenceRange,
     super.doctorName,
@@ -23,14 +26,12 @@ class TestResultModel extends TestResult {
     final raw = doc.data();
     final data = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
     final testDate = readDateTime(
-      readFirstValue(data, const [
-        'testDate',
-        'resultDate',
-        'NgayTraKetQua',
-      ]),
+      readFirstValue(data, const ['testDate', 'resultDate', 'NgayTraKetQua']),
     );
     if (testDate == null) {
-      throw const FormatException('Kết quả cận lâm sàng thiếu hoặc có ngày trả kết quả không hợp lệ.');
+      throw const FormatException(
+        'Kết quả cận lâm sàng thiếu hoặc có ngày trả kết quả không hợp lệ.',
+      );
     }
     return TestResultModel(
       id: doc.id,
@@ -47,6 +48,9 @@ class TestResultModel extends TestResult {
         'testType',
         'LoaiKetQua',
       ], fallback: 'Khác'),
+      patientCode: readOptionalString(data['patientCode']),
+      appointmentId: readOptionalString(data['appointmentId']),
+      examinationId: readOptionalString(data['examinationId']),
       conclusion: readOptionalStringForKeys(data, const [
         'conclusion',
         'KetLuan',

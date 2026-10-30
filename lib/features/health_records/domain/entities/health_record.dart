@@ -18,6 +18,9 @@ class HealthRecord {
     required this.recordDate,
     required this.diagnosis,
     this.notes,
+    this.patientCode,
+    this.appointmentId,
+    this.examinationId,
     this.prescription,
     this.attachments = const [],
     this.recordType = HealthRecordType.outpatient,
@@ -32,6 +35,9 @@ class HealthRecord {
   final DateTime recordDate;
   final String diagnosis;
   final String? notes;
+  final String? patientCode;
+  final String? appointmentId;
+  final String? examinationId;
   final String? prescription;
   final List<String> attachments;
   final String recordType;

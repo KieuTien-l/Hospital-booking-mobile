@@ -5,6 +5,12 @@
   "scripts": {
     "migrate:dry-run": "node migrate-firestore.mjs",
     "migrate:apply": "node migrate-firestore.mjs --apply",
+    "migrate:patient-codes:dry-run": "node migrate-patient-codes.mjs",
+    "migrate:patient-codes:apply": "node migrate-patient-codes.mjs --apply",
+    "dedupe:clinical-results:dry-run": "node dedupe-clinical-results.mjs",
+    "dedupe:clinical-results:apply": "node dedupe-clinical-results.mjs --apply",
+    "migrate:prescriptions:dry-run": "node migrate-prescriptions.mjs",
+    "migrate:prescriptions:apply": "node migrate-prescriptions.mjs --apply",
     "cleanup:dry-run": "node migrate-firestore.mjs --cleanup",
     "cleanup:apply": "node migrate-firestore.mjs --cleanup --apply",
     "repair-auth:dry-run": "node repair-auth-profiles.mjs",

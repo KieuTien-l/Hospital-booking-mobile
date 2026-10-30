@@ -64,6 +64,18 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     required String requestId,
   }) => Future.error(StateError('Chế độ mẫu không hoàn tất lịch khám.'));
   @override
+  Future<DoctorAppointmentCompletion> startExamination({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) => Future.error(StateError('Chế độ mẫu không tạo phiếu khám.'));
+  @override
+  Future<DoctorAppointmentCompletion> markExaminationAwaitingResults({
+    required String userId,
+    required String appointmentId,
+    required String requestId,
+  }) => Future.error(StateError('Chế độ mẫu không chuyển kết quả CLS.'));
+  @override
   Future<DoctorClinicalSaveResult> saveHealthRecord({
     required String userId,
     required DoctorHealthRecordDraft draft,
@@ -73,6 +85,16 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     required String userId,
     required DoctorTestResultDraft draft,
   }) => Future.error(StateError('Chế độ mẫu không lưu kết quả CLS.'));
+  @override
+  Future<DoctorClinicalSaveResult> createClinicalOrder({
+    required String userId,
+    required DoctorClinicalOrderDraft draft,
+  }) => Future.error(StateError('Chế độ mẫu không tạo chỉ định CLS.'));
+  @override
+  Future<List<DoctorClinicalOrderSummary>> loadClinicalOrders({
+    required String userId,
+    required String appointmentId,
+  }) async => const [];
   @override
   Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
     required String userId,

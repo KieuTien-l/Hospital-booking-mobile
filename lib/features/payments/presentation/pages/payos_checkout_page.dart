@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,8 +11,8 @@ import '../../../appointments/presentation/widgets/payment_page_layout.dart';
 import '../../data/payos_payment_client.dart';
 
 /// Patient checkout screen. PayOS hosts the actual banking/QR interaction;
-/// this page creates the link, presents its QR payload and lets the patient
-/// refresh the server-confirmed result after returning from PayOS.
+/// this page creates the link, presents its QR payload and listens for the
+/// server-confirmed result after PayOS sends its signed webhook.
 class PayosCheckoutPage extends StatefulWidget {
   const PayosCheckoutPage({
     super.key,
@@ -31,6 +34,9 @@ class _PayosCheckoutPageState extends State<PayosCheckoutPage> {
   PayosPaymentSession? _payment;
   String? _error;
   bool _working = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _paymentSubscription;
+  bool _navigatedToSuccess = false;
 
   @override
   void initState() {
@@ -45,6 +51,7 @@ class _PayosCheckoutPageState extends State<PayosCheckoutPage> {
 
   @override
   void dispose() {
+    _paymentSubscription?.cancel();
     _client?.dispose();
     super.dispose();
   }
@@ -58,7 +65,10 @@ class _PayosCheckoutPageState extends State<PayosCheckoutPage> {
     });
     try {
       final payment = await client.create(appointmentId: widget.appointmentId);
-      if (mounted) setState(() => _payment = payment);
+      if (!mounted) return;
+      setState(() => _payment = payment);
+      _watchPayment(payment.id);
+      if (payment.isPaid) _showBookingSuccess();
     } on PayosPaymentException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
@@ -84,10 +94,31 @@ class _PayosCheckoutPageState extends State<PayosCheckoutPage> {
   }
 
   void _showBookingSuccess() {
+    if (!mounted || _navigatedToSuccess) return;
+    _navigatedToSuccess = true;
+    _paymentSubscription?.cancel();
     Navigator.of(context).pushAndRemoveUntil<void>(
       MaterialPageRoute(builder: (_) => const BookingSuccessPage()),
       (route) => route.isFirst,
     );
+  }
+
+  void _watchPayment(String paymentId) {
+    _paymentSubscription?.cancel();
+    _paymentSubscription = FirebaseFirestore.instance
+        .collection('THANH_TOAN')
+        .doc(paymentId)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            final status = snapshot.data()?['status']?.toString().toUpperCase();
+            if (status == 'PAID') _showBookingSuccess();
+          },
+          // The manual refresh remains available if the device is temporarily
+          // offline, but a valid webhook normally moves the patient forward
+          // without any extra tap.
+          onError: (error, stackTrace) {},
+        );
   }
 
   Future<void> _openPayos() async {
@@ -161,11 +192,6 @@ class _PayosCheckoutPageState extends State<PayosCheckoutPage> {
                 const SizedBox(height: 10),
                 Text('Chuyên khoa: ${widget.specialtyName}'),
                 Text('Bác sĩ: ${widget.doctorName}'),
-                const SizedBox(height: 10),
-                const Text(
-                  'Chỉ khi PayOS gửi webhook có chữ ký hợp lệ thì giao dịch mới được xác nhận thành công.',
-                  style: TextStyle(height: 1.45),
-                ),
               ],
             ),
           ),

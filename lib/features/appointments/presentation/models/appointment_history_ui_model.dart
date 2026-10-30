@@ -31,10 +31,8 @@ class AppointmentHistoryUiModel {
   final bool isPaid;
 
   AppointmentHistoryTab? get tab {
-    // Payment is independent of the visit lifecycle. A completed appointment
-    // with a successful transaction must still be discoverable in the paid
-    // tab rather than disappearing into only the clinical-status tab.
-    if (isPaid) return AppointmentHistoryTab.paid;
+    // Clinical completion is the final visit state, so it must never be
+    // hidden from the “Đã khám” tab just because its payment also succeeded.
     return switch (appointment.status) {
       AppointmentStatus.pending => AppointmentHistoryTab.pending,
       AppointmentStatus.completed => AppointmentHistoryTab.completed,

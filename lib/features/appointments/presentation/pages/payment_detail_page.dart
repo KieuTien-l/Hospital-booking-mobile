@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/payment_ui_model.dart';
 import '../widgets/payment_page_layout.dart';
@@ -17,12 +19,50 @@ class PaymentDetailPage extends StatefulWidget {
 class _PaymentDetailPageState extends State<PaymentDetailPage> {
   bool _expanded = true;
   PaymentUiModel get payment => widget.payment;
+
+  Future<void> _openPayos() async {
+    final uri = Uri.tryParse(payment.checkoutUrl ?? '');
+    if (uri == null || uri.scheme != 'https') return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) => PaymentPageLayout(
     title: 'Chi tiết thanh toán',
     isDemo: payment.isDemo,
     children: [
       PaymentSummaryCard(payment: payment),
+      if (payment.status == PaymentStatus.pending &&
+          payment.qrCode?.trim().isNotEmpty == true) ...[
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text(
+                  'Quét QR bằng ứng dụng ngân hàng',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 16),
+                QrImageView(
+                  data: payment.qrCode!,
+                  size: 220,
+                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                ),
+                if (payment.checkoutUrl?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: _openPayos,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Mở trang thanh toán PayOS'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
       if (payment.items.isNotEmpty)
         BookingReviewPatientCard(
           information: payment.items.first.information,

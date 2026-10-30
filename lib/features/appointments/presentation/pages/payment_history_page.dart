@@ -53,6 +53,8 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
     transactionId: payment.transactionCode?.trim().isNotEmpty == true
         ? payment.transactionCode
         : payment.id,
+    checkoutUrl: payment.checkoutUrl,
+    qrCode: payment.qrCode,
     timestamp: payment.paidAt ?? payment.createdAt,
     amount: payment.amount,
     appointmentId: payment.appointmentId,

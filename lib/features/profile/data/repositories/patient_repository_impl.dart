@@ -13,6 +13,10 @@ class PatientRepositoryImpl implements PatientRepository {
       _datasource.watchPatientByAuthUser(authUserId);
 
   @override
+  Stream<List<Patient>> watchPatientsByOwner(String ownerUserId) =>
+      _datasource.watchPatientsByOwner(ownerUserId);
+
+  @override
   Future<Patient?> getPatientById(String patientId) =>
       _datasource.getPatientById(patientId);
 

@@ -16,11 +16,16 @@ class CreatePatientProfilePage extends StatefulWidget {
     this.ethnicities = PatientProfileDemoData.ethnicities,
     this.occupations = PatientProfileDemoData.occupations,
     this.relationships = PatientProfileDemoData.relationships,
+    this.initialPatient,
   });
 
   final List<String> ethnicities;
   final List<String> occupations;
   final List<String> relationships;
+
+  /// Supplying this value edits an existing profile; omitting it always makes
+  /// a new profile for the account (for example, a parent or dependant).
+  final Patient? initialPatient;
 
   @override
   State<CreatePatientProfilePage> createState() =>
@@ -45,7 +50,7 @@ class _CreatePatientProfilePageState extends State<CreatePatientProfilePage> {
       return;
     }
 
-    final current = controller.patient;
+    final current = widget.initialPatient;
     final patient = Patient(
       id: current?.id ?? '',
       authUserId: user.id,
@@ -53,6 +58,8 @@ class _CreatePatientProfilePageState extends State<CreatePatientProfilePage> {
       phone: _draft.phone.isEmpty ? user.phone : _draft.phone,
       email: _draft.email.isEmpty ? user.email : _draft.email,
       isActive: current?.isActive ?? true,
+      patientCode: current?.patientCode ?? '',
+      ownerUserId: user.id,
       dateOfBirth: _draft.dateOfBirth,
       gender: _draft.gender,
       address: _draft.address,

@@ -250,32 +250,54 @@ test('locked patients cannot read, create, or update a patient profile', async (
   );
 });
 
-test('active patient can create only a valid canonical first profile', async () => {
+async function createFamilyProfile(database, id, code, relationship = 'Tôi') {
+  const patient = doc(database, 'BENH_NHAN', id);
+  const codeReservation = doc(database, 'MA_HO_SO', code);
+  return runTransaction(database, async (transaction) => {
+    // This mirrors the mobile app: check one candidate code, then reserve it
+    // atomically with the patient profile.
+    assert.equal((await transaction.get(codeReservation)).exists(), false);
+    transaction.set(patient, {
+      authUserId: 'patient-user',
+      ownerUserId: 'patient-user',
+      patientCode: code,
+      fullName: 'Nguyễn Minh Anh',
+      phone: '0912345678',
+      email: 'anh@example.com',
+      isActive: true,
+      status: 'ACTIVE',
+      relationshipToAccountHolder: relationship,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    transaction.set(codeReservation, {
+      patientId: id,
+      ownerUserId: 'patient-user',
+      createdAt: serverTimestamp(),
+    });
+  });
+}
+
+test('active patient can create multiple valid family profiles with reserved codes', async () => {
   const database = databaseFor('patient-user');
   await assertSucceeds(
-    setDoc(doc(database, 'BENH_NHAN', 'patient-user'), {
-      authUserId: 'patient-user',
-      fullName: 'Nguyễn Minh Anh',
-      phone: '0912345678',
-      email: 'anh@example.com',
-      isActive: true,
-      status: 'ACTIVE',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }),
+    createFamilyProfile(database, 'profile-self', 'HS-ABCD-2345'),
   );
-  await assertFails(
-    setDoc(doc(database, 'BENH_NHAN', 'another-profile'), {
-      authUserId: 'patient-user',
-      fullName: 'Nguyễn Minh Anh',
-      phone: '0912345678',
-      email: 'anh@example.com',
-      isActive: true,
-      status: 'ACTIVE',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }),
+  await assertSucceeds(
+    createFamilyProfile(database, 'profile-mother', 'HS-EFGH-6789', 'Cha / Mẹ'),
   );
+  await assertSucceeds(
+    getDocs(
+      query(
+        collection(database, 'BENH_NHAN'),
+        where('ownerUserId', '==', 'patient-user'),
+      ),
+    ),
+  );
+  await assertFails(setDoc(doc(database, 'MA_HO_SO', 'HS-ABCD-2345'), {
+    patientId: 'profile-other', ownerUserId: 'patient-user', createdAt: serverTimestamp(),
+  }));
+  await assertFails(getDocs(collection(database, 'MA_HO_SO')));
 });
 
 test('a disabled doctor cannot read or mutate appointment data directly', async () => {

@@ -8,10 +8,12 @@ class PatientProfileController extends ViewStateController {
   PatientProfileController(this._repository);
   final PatientRepository _repository;
   Patient? _patient;
+  List<Patient> _patients = const [];
   String? _patientId;
   String? _authUserId;
-  StreamSubscription<Patient?>? _subscription;
+  StreamSubscription<List<Patient>>? _subscription;
   Patient? get patient => _patient;
+  List<Patient> get patients => _patients;
   Future<void> loadPatient(String patientId) async {
     _patientId = patientId;
     _authUserId = null;
@@ -23,6 +25,7 @@ class PatientProfileController extends ViewStateController {
       final value = await _repository.getPatientById(patientId);
       if (!isCurrent(token)) return;
       _patient = value;
+      _patients = value == null ? const [] : [value];
       setState(value == null ? ViewState.empty : ViewState.success);
     } catch (error) {
       if (isCurrent(token)) setState(ViewState.error, error);
@@ -45,12 +48,17 @@ class PatientProfileController extends ViewStateController {
 
   void _subscribe(String authUserId, int token) {
     _subscription = _repository
-        .watchPatientByAuthUser(authUserId)
+        .watchPatientsByOwner(authUserId)
         .listen(
-          (value) {
+          (values) {
             if (!isCurrent(token)) return;
-            _patient = value;
-            setState(value == null ? ViewState.empty : ViewState.success);
+            _patients = List.unmodifiable(values);
+            final selectedId = _patient?.id;
+            _patient = selectedId == null
+                ? (values.isEmpty ? null : values.first)
+                : values.where((item) => item.id == selectedId).firstOrNull ??
+                      (values.isEmpty ? null : values.first);
+            setState(values.isEmpty ? ViewState.empty : ViewState.success);
           },
           onError: (Object error) {
             if (isCurrent(token)) setState(ViewState.error, error);
@@ -79,6 +87,13 @@ class PatientProfileController extends ViewStateController {
           : await _repository.updatePatient(patient);
       if (!isCurrent(token)) return null;
       _patient = saved;
+      final index = _patients.indexWhere((item) => item.id == saved.id);
+      _patients = index < 0
+          ? List.unmodifiable([..._patients, saved])
+          : List.unmodifiable([
+              for (var i = 0; i < _patients.length; i++)
+                if (i == index) saved else _patients[i],
+            ]);
       _patientId = saved.id;
       setState(ViewState.success);
       if (_authUserId != null) _subscribe(_authUserId!, token);
@@ -89,9 +104,17 @@ class PatientProfileController extends ViewStateController {
     }
   }
 
+  void selectPatient(Patient patient) {
+    if (_patients.any((item) => item.id == patient.id)) {
+      _patient = patient;
+      notifyListeners();
+    }
+  }
+
   String? validateProfile(Patient patient) {
     final fullName = patient.fullName.trim();
-    if (fullName.length < 2 || fullName.length > 120 ||
+    if (fullName.length < 2 ||
+        fullName.length > 120 ||
         RegExp(r'^\d+$').hasMatch(fullName)) {
       return 'Họ tên phải có từ 2 đến 120 ký tự và không chỉ gồm chữ số';
     }

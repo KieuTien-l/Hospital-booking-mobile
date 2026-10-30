@@ -122,16 +122,13 @@ class _PatientHealthRecordsPageState extends State<PatientHealthRecordsPage> {
       record.recordDate.day,
     );
     if (date.isBefore(_from) || date.isAfter(_to)) return false;
-    if (record.recordType.trim().toUpperCase() != _tabs[_tab].recordType) {
-      return false;
-    }
-
-    // The original KieuTien layout exposes document categories for outpatient
-    // visits only. Inpatient and checkup records are filtered by their type
-    // and date, without being hidden by a document-category selection.
+    // Document categories, especially prescriptions, span all visit types.
+    // The ordinary visit-type tabs still filter only when “Tất cả” is chosen.
     if (_tab != 0) return true;
     final category = _categories[_category].value;
-    if (category == null) return true;
+    if (category == null) {
+      return record.recordType.trim().toUpperCase() == _tabs[_tab].recordType;
+    }
     final recordCategory = record.documentCategory?.trim().toUpperCase();
     if (category == HealthRecordDocumentCategory.prescription) {
       return recordCategory == category ||

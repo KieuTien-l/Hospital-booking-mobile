@@ -39,8 +39,14 @@ service cloud.firestore {
 
     function ownsPatient(patientId) {
       return hasActiveAccount() &&
-          get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
-              .data.authUserId == request.auth.uid;
+          ((get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
+                  .data.keys().hasAll(['ownerUserId']) &&
+              get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
+                  .data.ownerUserId == request.auth.uid) ||
+           (!get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
+                  .data.keys().hasAll(['ownerUserId']) &&
+              get(/databases/$(database)/documents/BENH_NHAN/$(patientId))
+                  .data.authUserId == request.auth.uid));
     }
 
     // A locked account must not be able to keep changing its profile with an
@@ -56,15 +62,19 @@ service cloud.firestore {
     }
 
     function canCreateOwnPatientProfile(patientId) {
-      return patientId == request.auth.uid &&
-          hasActivePatientAccountAfter() &&
+      return hasActivePatientAccountAfter() &&
           request.resource.data.authUserId == request.auth.uid &&
+          request.resource.data.ownerUserId == request.auth.uid &&
+          request.resource.data.patientCode is string &&
+          request.resource.data.patientCode.matches('^HS-[A-Z0-9]{4}-[A-Z0-9]{4}$') &&
+          getAfter(/databases/$(database)/documents/MA_HO_SO/$(request.resource.data.patientCode))
+              .data.patientId == patientId &&
           request.resource.data.isActive == true &&
           request.resource.data.status == 'ACTIVE' &&
           request.resource.data.createdAt == request.time &&
           request.resource.data.updatedAt == request.time &&
           request.resource.data.keys().hasOnly([
-            'authUserId', 'fullName', 'phone', 'email', 'isActive', 'status',
+            'authUserId', 'ownerUserId', 'patientCode', 'fullName', 'phone', 'email', 'isActive', 'status',
             'dateOfBirth', 'gender', 'address', 'avatarUrl',
             'insuranceNumber', 'ethnicity', 'occupation', 'ward', 'district',
             'province', 'country', 'nationalId',
@@ -146,6 +156,7 @@ service cloud.firestore {
             'doctorId',
             'workScheduleId',
             'timeSlotId',
+            'patientCode',
             'specialtyId',
             'appointmentDate',
             'startTime',
@@ -163,6 +174,10 @@ service cloud.firestore {
           request.resource.data.doctorId is string &&
           request.resource.data.workScheduleId is string &&
           request.resource.data.timeSlotId is string &&
+          (!request.resource.data.keys().hasAll(['patientCode']) ||
+              (request.resource.data.patientCode is string &&
+               get(/databases/$(database)/documents/BENH_NHAN/$(request.resource.data.patientId))
+                   .data.patientCode == request.resource.data.patientCode)) &&
           request.resource.data.specialtyId is string &&
           request.resource.data.appointmentDate is timestamp &&
           request.resource.data.startTime is string &&
@@ -548,13 +563,30 @@ service cloud.firestore {
     }
 
     match /BENH_NHAN/{patientId} {
-      // A profile is read and edited only by an active owner. The app uses
-      // the canonical UID document id, not an unrestricted profile query.
-      allow read: if isAdmin() || ownsPatient(patientId);
+      // An account can own multiple profiles (self and relatives). Legacy
+      // documents without ownerUserId remain readable by authUserId.
+      // Use `resource` here instead of a nested get() so Firestore can prove
+      // an ownerUserId-filtered collection query is safe. That query powers
+      // the family-profile picker in the patient app.
+      allow read: if isAdmin() ||
+          (hasActiveAccount() &&
+            ((resource.data.keys().hasAll(['ownerUserId']) &&
+              resource.data.ownerUserId == request.auth.uid) ||
+             (!resource.data.keys().hasAll(['ownerUserId']) &&
+              resource.data.authUserId == request.auth.uid)));
       allow create: if canCreateOwnPatientProfile(patientId);
       allow update: if ownsPatient(patientId) &&
               request.resource.data.authUserId == resource.data.authUserId &&
+              ((resource.data.keys().hasAll(['ownerUserId']) &&
+                request.resource.data.ownerUserId == resource.data.ownerUserId) ||
+               (!resource.data.keys().hasAll(['ownerUserId']) &&
+                request.resource.data.ownerUserId == resource.data.authUserId)) &&
+              ((resource.data.keys().hasAll(['patientCode']) &&
+                request.resource.data.patientCode == resource.data.patientCode) ||
+               (!resource.data.keys().hasAll(['patientCode']) &&
+                !request.resource.data.keys().hasAll(['patientCode']))) &&
               request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'ownerUserId',
                 'fullName',
                 'phone',
                 'email',
@@ -574,6 +606,26 @@ service cloud.firestore {
                 'updatedAt'
                ]) && isValidPatientProfile();
       allow delete: if false;
+    }
+
+    // Registry used only to reserve unique human-readable profile codes in
+    // the same transaction that creates BENH_NHAN.
+    match /MA_HO_SO/{patientCode} {
+      // The client transaction reads exactly one random code before reserving
+      // it.  Do not allow queries: that would expose the registry as a list
+      // of patient profile identifiers.
+      allow get: if hasActiveAccount();
+      allow list: if false;
+      allow create: if hasActiveAccount() &&
+          request.resource.data.keys().hasOnly(['patientId', 'ownerUserId', 'createdAt']) &&
+          request.resource.data.patientId is string &&
+          request.resource.data.ownerUserId == request.auth.uid &&
+          request.resource.data.createdAt == request.time &&
+          getAfter(/databases/$(database)/documents/BENH_NHAN/$(request.resource.data.patientId))
+              .data.ownerUserId == request.auth.uid &&
+          getAfter(/databases/$(database)/documents/BENH_NHAN/$(request.resource.data.patientId))
+              .data.patientCode == patientCode;
+      allow update, delete: if false;
     }
 
     match /LICH_LAM_VIEC/{scheduleId} {
@@ -623,7 +675,28 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /DON_THUOC/{prescriptionId} {
+      allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
+          isDoctor(resource.data.doctorId);
+      // Prescriptions are issued, corrected or cancelled by the trusted
+      // doctor Worker only; no mobile client may forge a prescription.
+      allow create, update, delete: if false;
+    }
+
+    match /PHIEU_KHAM/{examinationId} {
+      allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
+          isDoctor(resource.data.doctorId);
+      // Created and completed only by the trusted doctor Worker.
+      allow create, update, delete: if false;
+    }
+
     match /KET_QUA_CLS/{resultId} {
+      allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
+          (resource.data.doctorId is string && isDoctor(resource.data.doctorId));
+      allow create, update, delete: if false;
+    }
+
+    match /CHI_DINH_CLS/{orderId} {
       allow read: if isAdmin() || ownsPatient(resource.data.patientId) ||
           (resource.data.doctorId is string && isDoctor(resource.data.doctorId));
       allow create, update, delete: if false;

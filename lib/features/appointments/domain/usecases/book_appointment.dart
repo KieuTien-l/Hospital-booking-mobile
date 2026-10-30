@@ -14,6 +14,7 @@ class BookAppointment {
     required String doctorId,
     required String workScheduleId,
     required String timeSlotId,
+    String? patientCode,
     DateTime? appointmentDate,
     String? startTime,
     String? endTime,
@@ -41,6 +42,9 @@ class BookAppointment {
         doctorId: doctorId.trim(),
         workScheduleId: workScheduleId.trim(),
         timeSlotId: timeSlotId.trim(),
+        patientCode: patientCode?.trim().isEmpty ?? true
+            ? null
+            : patientCode!.trim(),
         appointmentDate: appointmentDate,
         startTime: startTime,
         endTime: endTime,

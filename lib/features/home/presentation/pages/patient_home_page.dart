@@ -65,9 +65,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
     if (title == 'Lắng nghe khách hàng') {
       FocusScope.of(context).unfocus();
       Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => const CustomerFeedbackPage(),
-        ),
+        MaterialPageRoute(builder: (_) => const CustomerFeedbackPage()),
       );
       return;
     }
@@ -204,15 +202,71 @@ class _PatientHomePageState extends State<PatientHomePage> {
       final profileController = context.read<PatientProfileController?>();
       final List<Patient> profiles = profileController == null
           ? PatientProfileDemoData.profiles
-          : profileController.patient == null
-          ? const <Patient>[]
-          : <Patient>[profileController.patient!];
+          : profileController.patients;
       void returnHome() {
         navigator.popUntil((route) => route == homeRoute);
         setState(() {
           _tab = 0;
           _query = '';
         });
+      }
+
+      if (profileController != null && profiles.isEmpty) {
+        showModalBottomSheet<void>(
+          context: context,
+          showDragHandle: true,
+          builder: (sheetContext) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Bạn đã từng khám tại bệnh viện?',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 22),
+                  _ProfileEntryOption(
+                    icon: Icons.badge_outlined,
+                    title: 'ĐÃ TỪNG KHÁM, NHẬP MÃ NGƯỜI BỆNH',
+                    subtitle: 'Tìm và liên kết hồ sơ đã có trong hệ thống',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Tra cứu hồ sơ bệnh viện sẽ khả dụng khi kết nối API bệnh viện.',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  _ProfileEntryOption(
+                    icon: Icons.person_add_alt_1_outlined,
+                    title: 'CHƯA TỪNG KHÁM, TẠO HỒ SƠ MỚI',
+                    subtitle: 'Đăng ký hồ sơ cho lần khám đầu tiên',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      navigator.push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => const CreatePatientProfilePage(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    child: const Text('Đóng'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        return;
       }
 
       navigator.push<void>(
@@ -363,14 +417,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
     if (_tab == 0) return _home();
     if (_tab == 2) return FunctionsPage(onOpen: _open);
     final user = auth.currentUser;
-    final candidate = context.watch<PatientProfileController?>()?.patient;
-    final patient = user != null && candidate?.authUserId == user.id
-        ? candidate
-        : null;
-    String value(String? profileValue, String? authValue) =>
-        profileValue != null && profileValue.trim().isNotEmpty
-        ? profileValue
-        : authValue ?? '';
     if (user == null) {
       return ProfilePage(
         onOpen: _open,
@@ -379,9 +425,11 @@ class _PatientHomePageState extends State<PatientHomePage> {
       );
     }
     return ProfilePage(
-      fullName: value(patient?.fullName, user.fullName),
-      email: value(patient?.email, user.email),
-      phone: value(patient?.phone, user.phone),
+      // This tab represents the signed-in app account. The selected patient
+      // can be a parent or child, and must not replace the account identity.
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
       onOpen: _open,
       onLogout: () => auth.logout(),
       isLoggingOut: auth.isLoading,
@@ -412,8 +460,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
                       if (_tab != 1) _body(auth),
                       Offstage(
                         offstage: _tab != 1,
-                        child:
-                            const NotificationsPage(),
+                        child: const NotificationsPage(),
                       ),
                     ],
                   ),
@@ -483,4 +530,40 @@ class _PatientHomePageState extends State<PatientHomePage> {
       ),
     );
   }
+}
+
+class _ProfileEntryOption extends StatelessWidget {
+  const _ProfileEntryOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    child: ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      leading: CircleAvatar(
+        backgroundColor: const Color(0xFFEAF2FF),
+        child: Icon(icon, color: _blue),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(color: _blue, fontWeight: FontWeight.w700),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(subtitle),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: _blue),
+    ),
+  );
 }

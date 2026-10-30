@@ -16,6 +16,7 @@ class AppointmentDoctorCard extends StatelessWidget {
     required this.onDateSelected,
     required this.onSlotSelected,
     required this.onInfo,
+    this.isBookingBlocked = false,
     this.now,
   });
   final AppointmentDoctorOption doctor;
@@ -26,6 +27,7 @@ class AppointmentDoctorCard extends StatelessWidget {
   final VoidCallback onInfo;
   final ValueChanged<DateTime> onDateSelected;
   final ValueChanged<AppointmentTimeOption> onSlotSelected;
+  final bool isBookingBlocked;
   final DateTime? now;
 
   @override
@@ -159,9 +161,20 @@ class AppointmentDoctorCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              if (isBookingBlocked) ...[
+                const Text(
+                  'Bạn đã đặt lịch khoa này trong ngày. Chọn ngày khác để tiếp tục.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               AppointmentTimeSlotGrid(
                 slots: slots,
                 selectedId: selectedSlotId,
+                bookingBlocked: isBookingBlocked,
                 onSelected: onSlotSelected,
               ),
             ],

@@ -12,6 +12,8 @@ class PatientPaymentModel extends PatientPayment {
     required super.status,
     super.appointmentId,
     super.transactionCode,
+    super.checkoutUrl,
+    super.qrCode,
     super.createdAt,
     super.paidAt,
     super.isTestData,
@@ -38,6 +40,8 @@ class PatientPaymentModel extends PatientPayment {
     paymentMethod: readString(data['paymentMethod'], fallback: 'BANK_TRANSFER'),
     status: readString(data['status'], fallback: 'PENDING'),
     transactionCode: readOptionalString(data['transactionCode']),
+    checkoutUrl: readOptionalString(data['checkoutUrl']),
+    qrCode: readOptionalString(data['qrCode']),
     createdAt: readDateTime(data['createdAt']),
     paidAt: readDateTime(data['paidAt']),
     isTestData: readBool(data['isTestData']),
@@ -45,7 +49,10 @@ class PatientPaymentModel extends PatientPayment {
 
   static int? _readAmount(Object? value) {
     if (value is int && value >= 0) return value;
-    if (value is double && value.isFinite && value >= 0 && value == value.roundToDouble()) {
+    if (value is double &&
+        value.isFinite &&
+        value >= 0 &&
+        value == value.roundToDouble()) {
       return value.toInt();
     }
     return null;

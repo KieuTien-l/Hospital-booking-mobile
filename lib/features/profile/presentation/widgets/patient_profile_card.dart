@@ -75,6 +75,15 @@ class PatientProfileCard extends StatelessWidget {
                           runSpacing: 4,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            if (patient.patientCode.trim().isNotEmpty)
+                              Text(
+                                patient.patientCode,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textOnPrimary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
                             Text(
                               _maskedPhone,
                               style: Theme.of(context).textTheme.bodySmall

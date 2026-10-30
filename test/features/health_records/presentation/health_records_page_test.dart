@@ -27,6 +27,10 @@ class _PatientRepository implements PatientRepository {
   @override
   Stream<Patient?> watchPatientByAuthUser(String authUserId) =>
       Stream.value(patient);
+
+  @override
+  Stream<List<Patient>> watchPatientsByOwner(String ownerUserId) =>
+      Stream.value([patient]);
 }
 
 class _HealthRecordRepository implements HealthRecordRepository {
