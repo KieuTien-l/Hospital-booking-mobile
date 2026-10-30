@@ -15,6 +15,7 @@ class HealthRecordModel extends HealthRecord {
     super.appointmentId,
     super.examinationId,
     super.prescription,
+    super.medicines,
     super.attachments,
     super.recordType,
     super.documentCategory,
@@ -74,6 +75,7 @@ class HealthRecordModel extends HealthRecord {
       appointmentId: readOptionalString(data['appointmentId']),
       examinationId: readOptionalString(data['examinationId']),
       prescription: _prescriptionText(data),
+      medicines: _readMedicines(data['medicines']),
       recordType: HealthRecordType.outpatient,
       documentCategory: HealthRecordDocumentCategory.prescription,
       createdAt: readDateTime(data['createdAt']),
@@ -86,6 +88,28 @@ class HealthRecordModel extends HealthRecord {
     return value
         .map(readOptionalString)
         .whereType<String>()
+        .toList(growable: false);
+  }
+
+  static List<HealthRecordMedicine> _readMedicines(Object? value) {
+    if (value is! Iterable) return const [];
+    return value
+        .whereType<Map>()
+        .map((item) {
+          String text(String key) => readOptionalString(item[key]) ?? '';
+          final name = text('name');
+          if (name.isEmpty) return null;
+          return HealthRecordMedicine(
+            name: name,
+            strength: text('strength'),
+            quantity: text('quantity'),
+            dose: text('dose'),
+            frequency: text('frequency'),
+            duration: text('duration'),
+            instructions: text('instructions'),
+          );
+        })
+        .whereType<HealthRecordMedicine>()
         .toList(growable: false);
   }
 

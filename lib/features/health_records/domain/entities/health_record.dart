@@ -10,6 +10,26 @@ abstract final class HealthRecordDocumentCategory {
   static const certificate = 'CERTIFICATE';
 }
 
+class HealthRecordMedicine {
+  const HealthRecordMedicine({
+    required this.name,
+    this.strength = '',
+    this.quantity = '',
+    this.dose = '',
+    this.frequency = '',
+    this.duration = '',
+    this.instructions = '',
+  });
+
+  final String name;
+  final String strength;
+  final String quantity;
+  final String dose;
+  final String frequency;
+  final String duration;
+  final String instructions;
+}
+
 class HealthRecord {
   const HealthRecord({
     required this.id,
@@ -22,6 +42,7 @@ class HealthRecord {
     this.appointmentId,
     this.examinationId,
     this.prescription,
+    this.medicines = const [],
     this.attachments = const [],
     this.recordType = HealthRecordType.outpatient,
     this.documentCategory,
@@ -39,6 +60,7 @@ class HealthRecord {
   final String? appointmentId;
   final String? examinationId;
   final String? prescription;
+  final List<HealthRecordMedicine> medicines;
   final List<String> attachments;
   final String recordType;
   final String? documentCategory;

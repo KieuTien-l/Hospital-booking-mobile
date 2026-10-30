@@ -495,10 +495,9 @@ class _HealthRecordCard extends StatelessWidget {
           maxWidth: MediaQuery.sizeOf(context).width,
         ),
         builder: (context) {
-          final medicines = record.prescription!
-              .split(RegExp(r'\n\s*\n'))
-              .where((medicine) => medicine.trim().isNotEmpty)
-              .toList(growable: false);
+          final medicines = record.medicines.isNotEmpty
+              ? record.medicines
+              : _legacyMedicines(record.prescription!);
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
@@ -534,11 +533,15 @@ class _HealthRecordCard extends StatelessWidget {
                     const SizedBox(height: 16),
                     _detailLabel('Danh sách thuốc (${medicines.length})'),
                     const SizedBox(height: 8),
-                    for (var index = 0; index < medicines.length; index++) ...[
-                      _medicineDetailCard(index, medicines[index]),
-                      if (index < medicines.length - 1)
-                        const SizedBox(height: 10),
-                    ],
+                    const Text(
+                      'Vuốt ngang để xem đầy đủ các cột.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _medicineTable(medicines),
                     if (record.notes?.trim().isNotEmpty ?? false) ...[
                       const SizedBox(height: 16),
                       _detailLabel('Ghi chú'),
@@ -562,48 +565,93 @@ class _HealthRecordCard extends StatelessWidget {
     ),
   );
 
-  Widget _medicineDetailCard(int index, String medicine) {
-    final lines = medicine
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
+  List<HealthRecordMedicine> _legacyMedicines(String prescription) {
+    return prescription
+        .split(RegExp(r'\n\s*\n'))
+        .map((block) {
+          final lines = block
+              .split('\n')
+              .map((line) => line.trim())
+              .where((line) => line.isNotEmpty)
+              .toList(growable: false);
+          if (lines.isEmpty) return null;
+          String value(String label) {
+            final line = lines.cast<String?>().firstWhere(
+              (line) => line?.toLowerCase().startsWith(label) ?? false,
+              orElse: () => null,
+            );
+            return line == null ? '' : line.substring(label.length).trim();
+          }
+
+          final nameAndStrength = RegExp(r'^(.+?)\s*\(([^)]+)\)$')
+              .firstMatch(lines.first);
+          return HealthRecordMedicine(
+            name: nameAndStrength?.group(1)?.trim() ?? lines.first,
+            strength: value('hàm lượng:'),
+            quantity: value('số lượng:').replaceFirst(RegExp(r'^sl:\s*'), ''),
+            dose: value('liều mỗi lần:').replaceFirst(RegExp(r'^liều:\s*'), ''),
+            frequency: value('tần suất:'),
+            duration: value('thời gian dùng:'),
+            instructions: value('lưu ý:'),
+          );
+        })
+        .whereType<HealthRecordMedicine>()
         .toList(growable: false);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primarySoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Thuốc ${index + 1}',
-            style: const TextStyle(
-              color: AppColors.textOnPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            lines.isEmpty ? 'Chưa có tên thuốc' : lines.first,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          for (final line in lines.skip(1))
-            Padding(
-              padding: const EdgeInsets.only(top: 3),
-              child: Text(
-                line,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-            ),
-        ],
-      ),
-    );
   }
+
+  Widget _medicineTable(List<HealthRecordMedicine> medicines) => Card(
+    margin: EdgeInsets.zero,
+    color: AppColors.background,
+    clipBehavior: Clip.antiAlias,
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.all(4),
+      child: DataTable(
+        headingRowColor: WidgetStatePropertyAll(AppColors.primarySoft),
+        headingTextStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+        dataTextStyle: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 13,
+        ),
+        columnSpacing: 18,
+        horizontalMargin: 12,
+        columns: const [
+          DataColumn(label: Text('Tên thuốc')),
+          DataColumn(label: Text('Hàm lượng')),
+          DataColumn(label: Text('Số lượng')),
+          DataColumn(label: Text('Liều/lần')),
+          DataColumn(label: Text('Lần/ngày')),
+          DataColumn(label: Text('Số ngày')),
+          DataColumn(label: Text('Lưu ý')),
+        ],
+        rows: medicines
+            .map(
+              (medicine) => DataRow(
+                cells: [
+                  _medicineCell(medicine.name),
+                  _medicineCell(medicine.strength),
+                  _medicineCell(medicine.quantity),
+                  _medicineCell(medicine.dose),
+                  _medicineCell(medicine.frequency),
+                  _medicineCell(medicine.duration),
+                  _medicineCell(medicine.instructions),
+                ],
+              ),
+            )
+            .toList(growable: false),
+      ),
+    ),
+  );
+
+  DataCell _medicineCell(String value) => DataCell(
+    ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 150),
+      child: Text(value.isEmpty ? '—' : value),
+    ),
+  );
 }
 
 class _HealthRecordTab {
