@@ -392,72 +392,218 @@ class _HealthRecordCard extends StatelessWidget {
   final HealthRecord record;
 
   @override
-  Widget build(BuildContext context) => Card(
-    margin: EdgeInsets.zero,
-    elevation: 0,
-    color: AppColors.surface,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
+  Widget build(BuildContext context) {
+    final hasPrescription = record.prescription?.trim().isNotEmpty ?? false;
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: hasPrescription ? () => _showPrescription(context) : null,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      DateFormat('dd/MM/yyyy HH:mm').format(record.recordDate),
+                      style: const TextStyle(
+                        color: AppColors.textOnPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.favorite, color: AppColors.error, size: 18),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Chẩn đoán: ${record.diagnosis}',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (hasPrescription) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Đơn thuốc',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textOnPrimary,
+                    ),
+                  ],
+                ),
+                Text(
+                  record.prescription!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Chạm để xem đơn thuốc chi tiết',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textOnPrimary,
+                  ),
+                ),
+              ],
+              if (record.notes?.trim().isNotEmpty ?? false) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Ghi chú: ${record.notes}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showPrescription(BuildContext context) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        constraints: BoxConstraints(
+          minWidth: MediaQuery.sizeOf(context).width,
+          maxWidth: MediaQuery.sizeOf(context).width,
+        ),
+        builder: (context) {
+          final medicines = record.prescription!
+              .split(RegExp(r'\n\s*\n'))
+              .where((medicine) => medicine.trim().isNotEmpty)
+              .toList(growable: false);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.medication_outlined),
+                        SizedBox(width: 10),
+                        Text(
+                          'Đơn thuốc',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      DateFormat('dd/MM/yyyy HH:mm').format(record.recordDate),
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 16),
+                    _detailLabel('Chẩn đoán'),
+                    const SizedBox(height: 4),
+                    Text(
+                      record.diagnosis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 16),
+                    _detailLabel('Danh sách thuốc (${medicines.length})'),
+                    const SizedBox(height: 8),
+                    for (var index = 0; index < medicines.length; index++) ...[
+                      _medicineDetailCard(index, medicines[index]),
+                      if (index < medicines.length - 1)
+                        const SizedBox(height: 10),
+                    ],
+                    if (record.notes?.trim().isNotEmpty ?? false) ...[
+                      const SizedBox(height: 16),
+                      _detailLabel('Ghi chú'),
+                      const SizedBox(height: 4),
+                      Text(record.notes!),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+
+  Widget _detailLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      color: AppColors.textSecondary,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+    ),
+  );
+
+  Widget _medicineDetailCard(int index, String medicine) {
+    final lines = medicine
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList(growable: false);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primarySoft),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  DateFormat('dd/MM/yyyy HH:mm').format(record.recordDate),
-                  style: const TextStyle(
-                    color: AppColors.textOnPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Icon(Icons.favorite, color: AppColors.error, size: 18),
-            ],
-          ),
-          const SizedBox(height: 10),
           Text(
-            'Chẩn đoán: ${record.diagnosis}',
+            'Thuốc ${index + 1}',
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: AppColors.textOnPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          if (record.prescription?.trim().isNotEmpty ?? false) ...[
-            const SizedBox(height: 6),
-            const Text(
-              'Đơn thuốc',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+          const SizedBox(height: 4),
+          Text(
+            lines.isEmpty ? 'Chưa có tên thuốc' : lines.first,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          for (final line in lines.skip(1))
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                line,
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              record.prescription!,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-          if (record.notes?.trim().isNotEmpty ?? false) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Ghi chú: ${record.notes}',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _HealthRecordTab {

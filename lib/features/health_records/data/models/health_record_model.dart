@@ -98,16 +98,15 @@ class HealthRecordModel extends HealthRecord {
             String text(String key) => readOptionalString(item[key]) ?? '';
             final name = text('name');
             if (name.isEmpty) return '';
-            final strength = text('strength');
-            final details = [
-              if (text('quantity').isNotEmpty) 'SL: ${text('quantity')}',
-              if (text('dose').isNotEmpty) 'Liều: ${text('dose')}',
-              if (text('frequency').isNotEmpty) text('frequency'),
-              if (text('duration').isNotEmpty) text('duration'),
-            ];
             return [
-              '$name${strength.isEmpty ? '' : ' ($strength)'}',
-              if (details.isNotEmpty) details.join(' • '),
+              name,
+              if (text('strength').isNotEmpty) 'Hàm lượng: ${text('strength')}',
+              if (text('quantity').isNotEmpty) 'Số lượng: ${text('quantity')}',
+              if (text('dose').isNotEmpty) 'Liều mỗi lần: ${text('dose')}',
+              if (text('frequency').isNotEmpty)
+                'Tần suất: ${text('frequency')}',
+              if (text('duration').isNotEmpty)
+                'Thời gian dùng: ${text('duration')}',
               if (text('instructions').isNotEmpty)
                 'Lưu ý: ${text('instructions')}',
             ].join('\n');
@@ -120,15 +119,20 @@ class HealthRecordModel extends HealthRecord {
     if (instructions == null || instructions.isEmpty) return instructions;
     final parts = instructions.split(RegExp(r'\s+—\s+'));
     if (parts.length < 2) return instructions;
+    final hasQuantity = parts.length >= 6;
     final details = <String>[
       if (parts.length > 1) 'Hàm lượng: ${parts[1]}',
-      if (parts.length > 2) parts[2],
-      if (parts.length > 3) 'Liều: ${parts[3]}',
-      if (parts.length > 4) parts[4],
-      if (parts.length > 5) parts[5],
-      if (parts.length > 6) 'Lưu ý: ${parts.skip(6).join(' — ')}',
+      if (hasQuantity) 'Số lượng: ${parts[2]}',
+      if (parts.length > (hasQuantity ? 3 : 2))
+        'Liều mỗi lần: ${parts[hasQuantity ? 3 : 2]}',
+      if (parts.length > (hasQuantity ? 4 : 3))
+        'Tần suất: ${parts[hasQuantity ? 4 : 3]}',
+      if (parts.length > (hasQuantity ? 5 : 4))
+        'Thời gian dùng: ${parts[hasQuantity ? 5 : 4]}',
+      if (parts.length > (hasQuantity ? 6 : 5))
+        'Lưu ý: ${parts.skip(hasQuantity ? 6 : 5).join(' — ')}',
     ];
-    return '${parts.first}\n${details.join(' • ')}';
+    return '${parts.first}\n${details.join('\n')}';
   }
 
   static String _recordType(String? value) {
