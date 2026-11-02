@@ -328,6 +328,54 @@ class _DoctorClinicalWritePageState extends State<DoctorClinicalWritePage> {
     }
   }
 
+  Future<void> _deleteClinicalOrder(DoctorClinicalOrderSummary order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa chỉ định CLS?'),
+        content: Text(
+          'Chỉ định “${order.testName}” sẽ bị xóa. Thao tác này chỉ áp dụng khi chưa có kết quả CLS.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final repository = context.read<DoctorWorkspaceRepository>();
+    final userId = context.read<AuthController>().currentUser?.id ?? '';
+    setState(() => _saving = true);
+    try {
+      await repository.deleteClinicalOrder(
+        userId: userId,
+        orderId: order.id,
+        requestId: _requestId(),
+      );
+      await _loadExisting();
+      if (!mounted) return;
+      setState(() => _message = 'Đã xóa chỉ định CLS.');
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _message = error is DoctorWorkspaceAccessException
+              ? error.message
+              : 'Không thể xóa chỉ định CLS. Vui lòng thử lại.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _pickClinicalOrder() async {
     final selected = await showModalBottomSheet<({String name, String type})>(
       context: context,
@@ -936,6 +984,15 @@ class _DoctorClinicalWritePageState extends State<DoctorClinicalWritePage> {
                   leading: const Icon(Icons.science_outlined),
                   title: Text(order.testName),
                   subtitle: Text('${order.resultType} • ${order.status}'),
+                  trailing: order.status == 'PENDING'
+                      ? IconButton(
+                          tooltip: 'Xóa chỉ định',
+                          onPressed: _saving
+                              ? null
+                              : () => _deleteClinicalOrder(order),
+                          icon: const Icon(Icons.delete_outline),
+                        )
+                      : null,
                 ),
             ],
           ),

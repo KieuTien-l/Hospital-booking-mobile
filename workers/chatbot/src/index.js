@@ -9,27 +9,22 @@ const minRequestIntervalMs = 2000;
 const firebaseJwksUrl = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 const outOfScopeReply = 'Mình chỉ hỗ trợ sử dụng HealWay, đặt lịch khám và thông tin sức khỏe phổ thông. Bạn có thể hỏi về chuyên khoa, lịch hẹn hoặc triệu chứng cần đi khám.';
 const emergencyReply = 'Các dấu hiệu bạn mô tả có thể cần được đánh giá khẩn cấp. Hãy gọi dịch vụ cấp cứu địa phương hoặc đến cơ sở y tế gần nhất ngay. Trợ lý không thể xử lý cấp cứu từ xa.';
-const medicineOrDiagnosisReply = 'Mình không thể chẩn đoán bệnh, kê đơn hoặc hướng dẫn liều dùng thuốc. Bạn nên trao đổi với bác sĩ hoặc dược sĩ để được tư vấn phù hợp và an toàn.';
 const sensitiveInfoReply = 'Để bảo vệ quyền riêng tư, bạn không nên gửi mật khẩu, mã OTP/xác thực, số thẻ hoặc bệnh án chi tiết trong chat. HealWay không cần các thông tin này để hỗ trợ bạn.';
 
 const clearlyOutOfScopePatterns = [
   /\b(code|lap trinh|programming|flutter|javascript|python|java|html|css|sql|debug|git|firebase|ung dung web)\b/,
   /\b(gia vang|chung khoan|co phieu|bitcoin|crypto|dau tu|ty gia|tai chinh|bao hiem dau tu)\b/,
-  /\b(bong da|world cup|the thao|ca si|dien vien|phim|giai tri|ke chuyen cuoi|truyen cuoi|am nhac|bai hat|ca khuc|bai (gi|j))\b/,
-  /\b(chinh tri|bau cu|tong thong|quoc hoi|tin tuc|thoi tiet)\b/,
+  /\b(bong da|world cup|the thao|ca si|dien vien|phim|giai tri|ke chuyen cuoi|truyen cuoi|cau chuyen|am nhac|bai hat|ca khuc|bai (gi|j))\b/,
+  /\b(chinh tri|bau cu|tong thong|quoc hoi|tin tuc|thoi tiet|thu do|quoc gia)\b/,
   /\b(giai bai|bai tap|toan hoc|nau an|cong thuc mon|du lich)\b/,
 ];
 
-const emergencyPatterns = /\b(dau nguc|dau that nguc|tuc nguc|kho tho|ngat|bat tinh|khong tinh|yeu liet dot ngot|liet mat|noi kho|chay mau nhieu|tu sat|tu lam hai|minh muon chet)\b/;
-const medicineOrDiagnosisPatterns = /\b(chan doan|doan benh|bi benh gi|mac benh gi|ke don|ke thuoc|lieu (dung|thuoc)|bao nhieu vien|uong .* (vien|lan)|dung thuoc gi|tu dieu tri)\b/;
+const emergencyPatterns = /\b(kho tho|ngat|bat tinh|khong tinh|yeu liet dot ngot|liet mat|noi kho|chay mau nhieu|tu sat|tu lam hai|minh muon chet)\b/;
+const chestPainAlarmPatterns = [
+  /\b(dau nguc|dau that nguc|tuc nguc)\b.*\b(du doi|tang dan|kho tho|ngat|choang|toat mo hoi|lan ra tay|lan ra ham)\b/,
+  /\b(du doi|tang dan|kho tho|ngat|choang|toat mo hoi|lan ra tay|lan ra ham)\b.*\b(dau nguc|dau that nguc|tuc nguc)\b/,
+];
 const sensitiveInfoPatterns = /\b(mat khau|password|ma otp|otp|ma xac thuc|so the|the ngan hang|cvv|benh an|ho so benh an)\b/;
-// Default-deny scope gate: a question must clearly concern either HealWay or
-// general health before it can be sent to the model. This intentionally keeps
-// unrelated topics out even when a keyword list does not recognize them.
-const healthOrHealwayPatterns = /\b(healway|dat lich|lich hen|doi lich|huy lich|lich su kham|thong bao|ho so (benh nhan|suc khoe)|benh vien|phong kham|co so y te|bac si|chuyen khoa|kham (benh|tong quat)?|chuan bi.*kham|truoc khi.*kham|giay to.*kham|suc khoe|benh|trieu chung|chan thuong|dau|sot|ho|kho tho|chong mat|buon non|non mua|non oi|oi mua|tieu chay|tao bon|di ung|phat ban|ngat|chay mau|thuoc|tiem (chung|ngua)?|vac xin|dinh duong|an uong|van dong|the duc|giac ngu|ngu|stress|tam ly|tinh than|thai|mang thai|kinh nguyet|tre em|em be|so sinh|nguoi gia|health|hospital|doctor|appointment|symptom|fever|cough|medicine|vaccine|nutrition|sleep)\b/;
-const healthFollowUpPatterns = /\b(co nguy hiem khong|nen lam gi|lam sao|co can di kham khong|khi nao can di kham|co sao khong)\b/;
-const bookingGuidePatterns = /\b(huong dan.*(dat lich|dat kham)|cach.*(dat lich|dat kham)|(dat lich|dat kham).*(the nao|lam sao))\b/;
-const beforeVisitPatterns = /\b(chuan bi.*(di )?kham|truoc khi.*(di )?kham|giay to.*(di )?kham)\b/;
 
 const localLimits = new Map();
 let signingKeyCache = { expiresAt: 0, values: [] };
@@ -42,7 +37,7 @@ const instructions = `Bạn là Trợ lý HealWay bằng tiếng Việt. Chỉ h
 
 Với câu hỏi về một cơ sở, bác sĩ, giá, lịch trống, lịch hẹn hoặc kết quả cụ thể, chỉ xác nhận khi dữ liệu đó xuất hiện rõ trong ngữ cảnh được cung cấp. Nếu không có, nói rằng HealWay chưa cung cấp dữ liệu đó trong cuộc trò chuyện và hướng dẫn người dùng kiểm tra trong ứng dụng; không suy đoán hay tự tạo tên, lịch hoặc số liệu.
 
-Ngoài phạm vi trên (lập trình, tài chính, chính trị, giải trí, thể thao, bài tập, tin tức hoặc chủ đề khác), hoặc khi không chắc câu hỏi có liên quan đến y tế/HealWay, chỉ trả lời đúng câu này: "Mình chỉ hỗ trợ sử dụng HealWay, đặt lịch khám và thông tin sức khỏe phổ thông. Bạn có thể hỏi về chuyên khoa, lịch hẹn hoặc triệu chứng cần đi khám."
+Hãy hiểu câu hỏi theo ngôn ngữ tự nhiên và ngữ cảnh hội thoại; đừng chỉ dựa vào vài câu hỏi mẫu. Với câu hỏi ngoài phạm vi (lập trình, tài chính, chính trị, giải trí, thể thao, bài tập, tin tức hoặc chủ đề khác), hãy từ chối lịch sự và mời người dùng hỏi về HealWay hoặc sức khỏe. Không lặp lại một câu trả lời mẫu nếu người dùng đặt câu hỏi khác nhau.
 
 Không chẩn đoán hoặc khẳng định người dùng mắc bệnh; không kê đơn, chỉ liều thuốc, hay hướng dẫn tự điều trị. Với yêu cầu như vậy, khuyên người dùng trao đổi với bác sĩ hoặc dược sĩ. Nếu có dấu hiệu khẩn cấp như đau ngực dữ dội, khó thở, ngất, yếu liệt đột ngột, chảy máu nhiều hoặc ý nghĩ tự làm hại bản thân, khuyên liên hệ dịch vụ cấp cứu địa phương hoặc đến cơ sở y tế gần nhất ngay.
 
@@ -69,10 +64,6 @@ export default {
         }
         return json({ reply: protectedReply }, 200, headers);
       }
-      // Common HealWay guidance must remain available even if the AI service
-      // is temporarily restrictive or changes its interpretation of scope.
-      const guidedReply = guidanceReplyFor(input.message);
-      if (guidedReply) return json({ reply: guidedReply }, 200, headers);
       const reply = await askOpenAi(input.history, env.OPENAI_API_KEY);
       return json({ reply }, 200, headers);
     } catch (error) {
@@ -203,36 +194,12 @@ async function validatedInput(request) {
 
 export function safetyReplyFor(message, history = []) {
   const normalized = normalizeForSafetyCheck(message);
-  if (emergencyPatterns.test(normalized)) return emergencyReply;
+  if (emergencyPatterns.test(normalized) || chestPainAlarmPatterns.some((pattern) => pattern.test(normalized))) return emergencyReply;
   if (sensitiveInfoPatterns.test(normalized)) return sensitiveInfoReply;
   if (clearlyOutOfScopePatterns.some((pattern) => pattern.test(normalized))) {
     return outOfScopeReply;
   }
-  if (medicineOrDiagnosisPatterns.test(normalized)) return medicineOrDiagnosisReply;
-  if (!healthOrHealwayPatterns.test(normalized) && !isHealthFollowUp(normalized, history)) {
-    return outOfScopeReply;
-  }
   return null;
-}
-
-export function guidanceReplyFor(message) {
-  const normalized = normalizeForSafetyCheck(message);
-  if (bookingGuidePatterns.test(normalized)) {
-    return 'Bạn có thể đặt khám theo các bước: chọn Đặt khám → chọn hồ sơ bệnh nhân → chọn chuyên khoa và bác sĩ → chọn ngày, khung giờ còn trống → kiểm tra thông tin và thanh toán. Sau khi thanh toán thành công, lịch hẹn sẽ xuất hiện trong Lịch sử đặt khám.';
-  }
-  if (beforeVisitPatterns.test(normalized)) {
-    return 'Trước khi đi khám, bạn nên mang CCCD hoặc giấy tờ tùy thân, thẻ BHYT (nếu có), giấy chuyển tuyến/giấy hẹn (nếu có), kết quả xét nghiệm hoặc đơn thuốc cũ. Hãy đến sớm khoảng 15–30 phút và chuẩn bị thông tin về triệu chứng, thuốc đang dùng để trao đổi với bác sĩ.';
-  }
-  return null;
-}
-
-function isHealthFollowUp(message, history) {
-  if (!healthFollowUpPatterns.test(message) || !Array.isArray(history)) return false;
-  return history.some((item) =>
-    item?.role === 'user' &&
-    typeof item.text === 'string' &&
-    healthOrHealwayPatterns.test(normalizeForSafetyCheck(item.text)),
-  );
 }
 
 function normalizeForSafetyCheck(message) {

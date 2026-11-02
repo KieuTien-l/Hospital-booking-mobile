@@ -58,16 +58,16 @@ after(() => {
   globalThis.fetch = originalFetch;
 });
 
-test('accepts a valid chatbot request and returns the response contract', async () => {
+test('uses AI for a natural HealWay question and returns the response contract', async () => {
   const response = await worker.fetch(await chatRequest({
     uid: 'contract-user-success',
     message: 'Hướng dẫn tôi đặt lịch khám',
   }), env());
 
   assert.equal(response.status, 200);
-  assert.match((await response.json()).reply, /chọn Đặt khám/i);
+  assert.match((await response.json()).reply, /Đặt khám/i);
   const openAiCall = calls.find((call) => call.address === 'https://api.openai.com/v1/responses');
-  assert.equal(openAiCall, undefined);
+  assert.notEqual(openAiCall, undefined);
 });
 
 test('returns a safe local reply for out-of-scope requests without calling AI', async () => {

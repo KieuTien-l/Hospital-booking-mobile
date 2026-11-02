@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { guidanceReplyFor, safetyReplyFor } from '../src/index.js';
+import { safetyReplyFor } from '../src/index.js';
 
 test('declines requests outside HealWay and general health', () => {
   assert.match(safetyReplyFor('Viết code Flutter đăng nhập Firebase'), /chỉ hỗ trợ sử dụng HealWay/i);
@@ -18,9 +18,14 @@ test('routes urgent symptoms to emergency care', () => {
   assert.match(safetyReplyFor('Người nhà bị ngất và không tỉnh'), /cấp cứu/i);
 });
 
-test('does not provide diagnoses, medication dosing, or collect secrets', () => {
-  assert.match(safetyReplyFor('Tôi uống kháng sinh bao nhiêu viên?'), /không thể chẩn đoán bệnh, kê đơn hoặc hướng dẫn liều dùng thuốc/i);
-  assert.match(safetyReplyFor('Bạn chẩn đoán tôi bị bệnh gì đi'), /không thể chẩn đoán bệnh, kê đơn hoặc hướng dẫn liều dùng thuốc/i);
+test('allows non-emergency health questions to reach the AI', () => {
+  assert.equal(safetyReplyFor('Tôi bị đau ngực thì nên khám chuyên khoa nào?'), null);
+  assert.equal(safetyReplyFor('Tôi uống kháng sinh bao nhiêu viên?'), null);
+  assert.equal(safetyReplyFor('Bạn chẩn đoán tôi bị bệnh gì đi'), null);
+  assert.equal(safetyReplyFor('Tôi thấy người rất mệt, nên làm sao?'), null);
+});
+
+test('blocks secret input before it reaches the AI', () => {
   assert.match(safetyReplyFor('Tôi gửi mã OTP cho bạn nhé'), /không nên gửi mật khẩu, mã OTP/i);
 });
 
@@ -39,18 +44,7 @@ test('allows ordinary health and HealWay questions to be answered by the assista
   );
 });
 
-test('provides dependable guidance for booking and preparing for a visit', () => {
-  assert.match(
-    guidanceReplyFor('Tôi muốn được hướng dẫn đặt khám.'),
-    /chọn Đặt khám/i,
-  );
-  assert.match(
-    guidanceReplyFor('Tôi cần chuẩn bị những gì trước khi đi khám?'),
-    /CCCD/i,
-  );
-});
-
-test('allows a narrowly defined health follow-up when its user context is medical', () => {
+test('allows natural follow-up and health questions without keyword gating', () => {
   assert.equal(
     safetyReplyFor('Có nguy hiểm không?', [
       { role: 'user', text: 'Tôi bị tiêu chảy hai ngày.' },
@@ -58,11 +52,5 @@ test('allows a narrowly defined health follow-up when its user context is medica
       { role: 'user', text: 'Có nguy hiểm không?' },
     ]),
     null,
-  );
-  assert.match(
-    safetyReplyFor('Thủ đô của Pháp là gì?', [
-      { role: 'user', text: 'Tôi bị tiêu chảy hai ngày.' },
-    ]),
-    /chỉ hỗ trợ sử dụng HealWay/i,
   );
 });

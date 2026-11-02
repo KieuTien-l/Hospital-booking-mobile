@@ -655,6 +655,15 @@ async function doctorWorkspaceRequest(request, url, uid, firestore) {
   if (url.pathname === '/doctor/clinical-orders' && request.method === 'GET') {
     return clinicalOrdersForAppointment(url, uid, firestore);
   }
+  const clinicalOrderDeletion = url.pathname.match(/^\/doctor\/clinical-orders\/([^/]+)$/);
+  if (clinicalOrderDeletion && request.method === 'DELETE') {
+    return deleteClinicalOrder(
+      request,
+      uid,
+      firestore,
+      requiredId(decodeURIComponent(clinicalOrderDeletion[1]), 'Mã chỉ định CLS'),
+    );
+  }
   if (url.pathname === '/doctor/test-results' && request.method === 'POST') {
     return saveClinicalRecord(request, uid, firestore, 'result');
   }
@@ -1144,6 +1153,33 @@ async function clinicalOrdersForAppointment(url, uid, firestore) {
     await doctorAppointment(tx, doctor.id, appointmentId, { allowCompleted: true });
     const rows = await tx.query('CHI_DINH_CLS', [{ field: 'doctorId', op: 'EQUAL', value: doctor.id }], 301);
     return { orders: rows.filter((row) => row.data.appointmentId === appointmentId).map((row) => ({ id: row.id, testName: textOrEmpty(row.data.testName), resultType: textOrEmpty(row.data.resultType) || 'Xét nghiệm', status: textOrEmpty(row.data.status) || 'PENDING', notes: textOrEmpty(row.data.notes) })) };
+  });
+}
+
+async function deleteClinicalOrder(request, uid, firestore, orderId) {
+  const requestId = requiredId(request.headers.get('Idempotency-Key'), 'Mã chống trùng');
+  return firestore.runTransaction(async (tx) => {
+    const doctor = await activeDoctor(tx, uid);
+    const order = await tx.get(`CHI_DINH_CLS/${orderId}`);
+    if (!order || order.data.doctorId !== doctor.id) {
+      throw new HttpError(404, 'Không tìm thấy chỉ định CLS của bác sĩ.');
+    }
+    if (order.data.status !== 'PENDING') {
+      throw new HttpError(409, 'Chỉ có thể xóa chỉ định khi chưa có kết quả CLS.');
+    }
+    await doctorAppointment(tx, doctor.id, order.data.appointmentId, { allowCompleted: true });
+    const receiptPath = `DOCTOR_COMMAND_RECEIPTS/${doctor.id}_delete_order_${requestId}`;
+    const previous = await tx.get(receiptPath);
+    if (previous) return previous.data.result;
+    tx.delete(`CHI_DINH_CLS/${orderId}`);
+    const result = { id: orderId, appointmentId: order.data.appointmentId, message: 'Đã xóa chỉ định CLS.' };
+    tx.create(receiptPath, { fingerprint: `delete:${orderId}`, result, createdAt: serverTimestamp() });
+    tx.create(`NHAT_KY_Y_TE/${doctor.id}_delete_order_${requestId}`, {
+      actorId: uid, doctorId: doctor.id, action: 'delete_clinical_order', collection: 'CHI_DINH_CLS',
+      targetId: orderId, appointmentId: order.data.appointmentId, patientId: order.data.patientId,
+      createdAt: serverTimestamp(),
+    });
+    return result;
   });
 }
 
@@ -2644,7 +2680,7 @@ function base64UrlBytes(value) { return btoa(String.fromCharCode(...value)).repl
 function base64UrlToBytes(value) { const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '='); return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)); }
 function pemBytes(value) { return base64UrlToBytes(value.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, '').replace(/\+/g, '-').replace(/\//g, '_')); }
 function corsHeaders(request, env) {
-  const headers = new Headers({ 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key', 'Content-Type': 'application/json; charset=UTF-8', Vary: 'Origin' });
+  const headers = new Headers({ 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key', 'Content-Type': 'application/json; charset=UTF-8', Vary: 'Origin' });
   const origin = request.headers.get('Origin');
   const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean);
   if (origin && allowed.includes(origin)) headers.set('Access-Control-Allow-Origin', origin);

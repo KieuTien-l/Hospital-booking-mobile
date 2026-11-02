@@ -274,7 +274,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Hỗ trợ sử dụng HealWay, đặt lịch khám\nvà thông tin sức khỏe phổ thông.',
+          'Bạn có thể hỏi tự nhiên về HealWay, đặt khám\nvà các vấn đề sức khỏe phổ thông.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, height: 1.7, color: _muted),
         ),
@@ -456,7 +456,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ),
         const SizedBox(height: 9),
         const Text(
-          'Chỉ hỗ trợ HealWay và sức khỏe phổ thông. Không chẩn đoán, kê đơn hoặc xử lý cấp cứu.',
+          'Trợ lý AI hỗ trợ thông tin tham khảo, không thay thế bác sĩ hoặc cấp cứu.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 10, height: 1.5, color: _muted),
         ),

@@ -73,6 +73,16 @@ abstract interface class DoctorWorkspaceRepository {
     required String userId,
     required String appointmentId,
   });
+
+  /// Deletes an erroneous, still-pending clinical-service order.
+  /// Orders with a recorded result must stay linked to that result.
+  Future<void> deleteClinicalOrder({
+    required String userId,
+    required String orderId,
+    required String requestId,
+  }) => Future.error(
+    const DoctorWorkspaceAccessException('Chưa hỗ trợ xóa chỉ định CLS.'),
+  );
   Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
     required String userId,
     required String appointmentId,

@@ -89,6 +89,13 @@ class UnconfiguredDoctorWorkspaceRepository
   }) async => _unavailable();
 
   @override
+  Future<void> deleteClinicalOrder({
+    required String userId,
+    required String orderId,
+    required String requestId,
+  }) async => _unavailable();
+
+  @override
   Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
     required String userId,
     required String appointmentId,

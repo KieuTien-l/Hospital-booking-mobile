@@ -43,6 +43,7 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     String path, {
     Map<String, dynamic>? body,
     String? requestId,
+    String? method,
   }) async {
     final base = Uri.tryParse(baseUrl);
     if (base == null ||
@@ -66,11 +67,19 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
       'Content-Type': 'application/json',
       'Idempotency-Key': ?requestId,
     };
-    final response =
-        await (body == null
-                ? _client.get(uri, headers: headers)
-                : _client.post(uri, headers: headers, body: jsonEncode(body)))
-            .timeout(const Duration(seconds: 20));
+    // Preserve the repository's original convention: payloads are POST
+    // requests. DELETE is supplied explicitly by the order-removal action.
+    final requestMethod = method ?? (body == null ? 'GET' : 'POST');
+    final response = await switch (requestMethod) {
+      'GET' => _client.get(uri, headers: headers),
+      'POST' => _client.post(uri, headers: headers, body: jsonEncode(body)),
+      'DELETE' => _client.delete(uri, headers: headers),
+      _ => throw ArgumentError.value(
+        requestMethod,
+        'method',
+        'HTTP method is not supported',
+      ),
+    }.timeout(const Duration(seconds: 20));
     Map<String, dynamic>? decoded;
     try {
       final value = jsonDecode(utf8.decode(response.bodyBytes));
@@ -393,6 +402,20 @@ class HttpDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
             ),
           )
           .toList(growable: false);
+
+  @override
+  Future<void> deleteClinicalOrder({
+    required String userId,
+    required String orderId,
+    required String requestId,
+  }) async {
+    await _request(
+      userId,
+      'doctor/clinical-orders/${Uri.encodeComponent(orderId)}',
+      requestId: requestId,
+      method: 'DELETE',
+    );
+  }
 
   @override
   Future<DoctorClinicalSaveResult> saveTestResult({

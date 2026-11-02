@@ -96,6 +96,12 @@ class DemoDoctorWorkspaceRepository implements DoctorWorkspaceRepository {
     required String appointmentId,
   }) async => const [];
   @override
+  Future<void> deleteClinicalOrder({
+    required String userId,
+    required String orderId,
+    required String requestId,
+  }) => Future.error(StateError('Chế độ mẫu không xóa chỉ định CLS.'));
+  @override
   Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
     required String userId,
     required String appointmentId,

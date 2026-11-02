@@ -187,6 +187,13 @@ class TestWorkspaceRepository implements DoctorWorkspaceRepository {
   }) async => const [];
 
   @override
+  Future<void> deleteClinicalOrder({
+    required String userId,
+    required String orderId,
+    required String requestId,
+  }) async {}
+
+  @override
   Future<List<DoctorHealthRecordSummary>> loadHealthRecords({
     required String userId,
     required String appointmentId,
